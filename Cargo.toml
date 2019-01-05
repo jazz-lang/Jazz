@@ -1,0 +1,8 @@
+[package]
+name = "jazz"
+version = "0.1.0"
+authors = ["playXE <adel.prokurov@protonmail.com>"]
+edition = "2018"
+
+[dependencies]
+plex = "0.2.3"
