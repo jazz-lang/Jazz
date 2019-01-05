@@ -1,0 +1,9 @@
+[package]
+name = "jazz-ir"
+version = "0.1.0"
+authors = ["aprokurov"]
+edition = "2018"
+
+[dependencies]
+jazz-jit = {git = "https://github.com/jazz-lang/jazz-jit"}
+capstone = "0.5.0"
