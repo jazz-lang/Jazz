@@ -542,7 +542,7 @@ fn keywords_in_map() -> HashMap<&'static str, TokenKind> {
     keywords.insert("self", TokenKind::This);
     keywords.insert("Self", TokenKind::CapitalThis);
     keywords.insert("super", TokenKind::Super);
-    keywords.insert("fun", TokenKind::Fun);
+    keywords.insert("func", TokenKind::Fun);
     keywords.insert("let", TokenKind::Let);
     keywords.insert("var", TokenKind::Var);
     keywords.insert("while", TokenKind::While);
@@ -578,7 +578,7 @@ fn keywords_in_map() -> HashMap<&'static str, TokenKind> {
     keywords.insert("as", TokenKind::As);
     keywords.insert("internal", TokenKind::Internal);
     keywords.insert("init", TokenKind::Init);
-    keywords.insert("pub", TokenKind::Pub);
+    keywords.insert("public", TokenKind::Pub);
     keywords.insert("static", TokenKind::Static);
     keywords.insert("spawn", TokenKind::Spawn);
     keywords.insert("const", TokenKind::Const);
