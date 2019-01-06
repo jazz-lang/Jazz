@@ -1,9 +1,7 @@
 use crate::ir::{Function,Fixup};
-use crate::ty::*;
 use crate::*;
 use std::collections::HashMap;
 use jazz_jit::get_executable_memory;
-use std::ptr;
 use std::mem;
 
 
@@ -45,9 +43,10 @@ impl Module {
             let fct: &Function = func;
             for fixup in fct.fixups.iter() {
                 let fixup: &Fixup = fixup;
+                let name = fct.name.clone();
 
-                let (data,_) = self.get_finalized_data(&fixup.global_name);
-                let (curr,_) = self.get_finalized_data(&fct.name);
+                let (data,_) = self.get_finalized_data(&fixup.global_name.clone());
+                let (curr,_) = self.get_finalized_data(&name);
                 
                 unsafe {
                     let offset = data.offset(0);
@@ -68,7 +67,7 @@ impl Module {
     }
 }
 
-pub trait Backend {
+pub trait Backend<'a> {
     type FinalizedData;
     type FinalizedFunction;
     type CompiledFunction;
@@ -83,16 +82,16 @@ pub trait Backend {
     fn define_data(&mut self,_name: String,_data: Vec<u8>) {}
 
     /// Returns the finalized function from backend
-    fn get_finalized_function(&mut self,f: &Self::CompiledFunction) -> Self::FinalizedFunction {unimplemented!()}
+    fn get_finalized_function(&mut self,_f: Self::CompiledFunction) -> Self::FinalizedFunction {unimplemented!()}
     /// Returns the finalized data from backend
-    fn get_finalized_data(&mut self,f: &Self::CompiledData) -> Self::FinalizedData {unimplemented!()}
+    fn get_finalized_data(&mut self,_f: Self::CompiledData) -> Self::FinalizedData {unimplemented!()}
     fn finish(&mut self) {unimplemented!()}
 }
 
-impl Backend for Module {
+impl<'a> Backend<'a> for Module {
     type FinalizedData = (*const u8,usize);
-    type CompiledFunction = String;
-    type CompiledData = String;
+    type CompiledFunction = &'a str;
+    type CompiledData = &'a str;
     type FinalizedFunction = *const u8;
 
     fn declare_function(&mut self,name: String, linkage: Linkage) {
@@ -104,7 +103,7 @@ impl Backend for Module {
         // do nothing
     }
 
-    fn get_finalized_data(&mut self,f: &Self::CompiledData) -> (*const u8,usize) {
+    fn get_finalized_data(&mut self,f: Self::CompiledData) -> (*const u8,usize) {
         let data = self.data.get(f).expect("Data not found");
 
         if data.is_sized {
@@ -114,7 +113,7 @@ impl Backend for Module {
         }
     }
 
-    fn get_finalized_function(&mut self,f: &Self::CompiledFunction) -> *const u8 {
+    fn get_finalized_function(&mut self,f: Self::CompiledFunction) -> *const u8 {
         let data: &DataContext = self.data.get(f).expect("Data not found");
         if data.kind != DataKind::Function {
             panic!("Data is not a function");
@@ -125,17 +124,33 @@ impl Backend for Module {
     fn finish(&mut self) {
         for (name,func) in self.uncompiled_functions.iter_mut() {
             let func: &mut Function = func;
-            match func.linkage {
+            match &func.linkage {
                 Linkage::Local => (),
                 Linkage::Extern(ptr) => {
                     let data = DataContext {
-                        data: ptr,
+                        data: *ptr,
                         size: 0,
                         is_sized: false,
                         kind: DataKind::Function,
                     };
                     self.data.insert(name.to_owned(),data);
                     continue;
+                }
+                Linkage::Dylib(libname) => {
+                    use crate::dylib as lib;
+                    
+                    unsafe {
+                        let lib = lib::Library::new(libname).expect("Failed to open library");
+                        let func: lib::Symbol<unsafe extern fn()> = lib.get(func.name.as_bytes()).expect("function not found");
+                        let data = DataContext {
+                            data: func.into_raw().get_ptr(),
+                            size: 0,
+                            is_sized: false,
+                            kind: DataKind::Function,
+                        };
+                        self.data.insert(name.to_owned(),data);
+                        continue;
+                    }
                 }
             }
 

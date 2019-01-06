@@ -7,3 +7,8 @@ edition = "2018"
 [dependencies]
 jazz-jit = {git = "https://github.com/jazz-lang/jazz-jit"}
 capstone = "0.5.0"
+winapi = "0.3.6"
+libc = "0.2"
+
+[build-dependencies]
+cc = "1"

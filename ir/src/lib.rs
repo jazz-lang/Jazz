@@ -1,9 +1,11 @@
+#[warn(rust_2018_idioms)]
+
 use jazz_jit::constants_x64::*;
 
 pub mod ir;
 pub mod ty;
 pub mod module;
-
+pub mod dylib;
 pub type Imm    = i64;
 pub type Ieee32 = u32;
 pub type Ieee64 = u64;
@@ -12,6 +14,7 @@ pub type Bool   = i8;
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub enum Linkage {
     Extern(*const u8),
+    Dylib(&'static str),
     Local,
 }
 
