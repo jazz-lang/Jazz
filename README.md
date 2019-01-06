@@ -1,10 +1,11 @@
 # Jazz
 
-Jazz - simple programming language
+Jazz - statically typed programming language
 
 # Goals
 
 - JIT and AOT compilation
+- Optional GC and automatic memory managment 
 - Simple and clear syntax
 - Bootsraping compiler
 
