@@ -1,10 +1,11 @@
 # Jazz
 
-Jazz - simple programming language
+Jazz - statically typed programming language
 
 # Goals
 
 - JIT and AOT compilation
+- Optional GC and automatic memory managment 
 - Simple and clear syntax
 - Bootsraping compiler
 
@@ -42,4 +43,11 @@ class PointClass {
      }
 }
 
+```
+```swift
+func main(): int {
+    var ptr: int* = malloc(4);
+    var integer: int = danger_cast<int>(ptr);
+    
+}
 ```
