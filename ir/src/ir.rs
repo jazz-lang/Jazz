@@ -2,6 +2,15 @@ use crate::ty::Type;
 use crate::*;
 use jazz_jit::MachineMode;
 
+#[cfg(target_family="windows")]
+const GPR_ARGS: [Register;4] = [RCX,RDX,R8,R9];
+#[cfg(target_family="windows")]
+const FPU_ARGS: [Register;4] = [XMM0,XMM1,XMM2,XMM3];
+#[cfg(target_family="unix")]
+const GPR_ARGS: [Register;6] = [RDI,RSI,RDX,RCX,R8,R9];
+#[cfg(target_family="unix")]
+const FPU_ARGS: [XMMRegister;7] = [XMM0,XMM1,XMM3,XMM4,XMM5,XMM6,XMM7];
+
 #[derive(Clone,Debug,PartialEq,Eq,PartialOrd,Ord,Hash,Copy)]
 pub enum Store {
     Gpr(Register),
@@ -84,10 +93,7 @@ use jazz_jit::utils::align;
 use std::collections::HashSet;
 use crate::Linkage;
 
-#[derive(Clone,Debug)]
-pub struct Module {
 
-}
 use std::collections::HashMap;
 
 #[derive(Clone,Debug)]
@@ -96,19 +102,20 @@ pub struct Function {
     asm: Assembler,
     vstore: HashMap<Value,Store>,
     used: HashSet<Store>,
-    variables: HashSet<Value>,
+    variables: HashMap<u32,i32>,
+    vars_ty: HashMap<u32,Type>,
     pub linkage: Linkage,
     pub ret_ty: Type,
     pub args: Vec<Type>,
     value_typs: HashMap<Value,Type>,
-    pub fixups: Vec<CallFixup>,  
+    pub fixups: Vec<Fixup>,  
     align: i32,  
     vidx: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq)]
-pub struct CallFixup {
-    pub name: String,
+pub struct Fixup {
+    pub global_name: String,
     pub pos: usize,
 }
 
@@ -131,7 +138,8 @@ impl Function {
             asm: asm,
             fixups: Vec::new(),
             align: 0,
-            variables: HashSet::new(),
+            vars_ty: HashMap::new(),
+            variables: HashMap::new(),
             vidx: 0,
         }
     }
@@ -141,6 +149,72 @@ impl Function {
         let offset = align(self.align + size as i32, size as i32);
         self.align = offset;
         offset
+    }
+
+    pub fn declare_var(&mut self,v_id /* variable id */: u32,vtype: Type /* variable type */) -> u32 {
+        let offset = -self.allocate_in_stack(vtype);
+
+        self.variables.insert(v_id,offset);
+        self.vars_ty.insert(v_id,vtype);
+        v_id
+    }
+    /// Initialize variable
+    /// 
+    /// type of value and variable must be same
+    pub fn def_var(&mut self,v_id: u32,v: Value) {
+        let v_typ: Type = self.vars_ty.get(&v_id).unwrap().clone();
+        let value_typ: Type = self.value_typs.get(&v).unwrap().clone();
+        assert_eq!(v_typ,value_typ, "Expected `{:?}`,found {:?}",v_typ,value_typ);
+        let value: Store = self.vstore.get(&v).unwrap().clone();
+        let var_off = self.variables.get(&v_id).expect("Variable doesn't exists").clone();
+        if value.is_reg() {
+           self.asm.store_mem(value_typ.to_machine(),Mem::Local(var_off),Reg::Gpr(value.reg()));
+        } else if value.is_freg() {
+            self.asm.store_mem(value_typ.to_machine(),Mem::Local(var_off),Reg::Float(value.freg()));
+        } else {
+            if value_typ.is_float() {
+                self.asm.load_mem(value_typ.to_machine(),Reg::Float(XMM0),Mem::Local(value.offset()));
+                self.asm.store_mem(value_typ.to_machine(),Mem::Local(var_off),Reg::Float(XMM0));
+            } else {
+                self.asm.load_mem(value_typ.to_machine(),Reg::Gpr(RAX),Mem::Local(value.offset()));
+                self.asm.store_mem(value_typ.to_machine(),Mem::Local(var_off),Reg::Gpr(RAX));
+            }
+        }
+        self.free(v);
+    }
+
+    pub fn use_var(&mut self,v_id: u32) -> Value {
+        let value = self.vidx;
+        self.vidx += 1;
+        let variable_ty: Type = self.vars_ty.get(&v_id).expect("Variable not defined").clone();
+        let variable_off = self.variables.get(&v_id).unwrap().clone();
+
+        let place = self.first_available_place(variable_ty, false);
+        self.value_typs.insert(value, variable_ty);
+        self.vstore.insert(value,place);
+        if variable_ty.is_float() {
+            self.asm.load_mem(variable_ty.to_machine(),Reg::Float(XMM0),Mem::Local(variable_off));
+            if place.is_freg() {
+                if variable_ty.x64() > 0 {
+                    movsd(&mut self.asm, place.freg(), XMM0);
+                } else {
+                    movss(&mut self.asm,place.freg(),  XMM0);
+                }
+            } else {
+                self.asm.store_mem(variable_ty.to_machine(),Mem::Local(place.offset()),Reg::Float(XMM0));
+            }
+        } else {
+            self.asm.load_mem(variable_ty.to_machine(),Reg::Gpr(RAX),Mem::Local(variable_off));
+            if place.is_reg() {
+                emit_mov_reg_reg(&mut self.asm, variable_ty.x64(), RAX, place.reg());
+            } else {
+                self.asm.store_mem(variable_ty.to_machine(),Mem::Local(place.offset()),Reg::Gpr(RAX));
+            }
+        }
+
+
+        value
+        
     }
 
     /// Get first available register or place in stack
@@ -222,6 +296,10 @@ impl Function {
         &self.asm
     }
 
+    pub fn asm_mut<'r>(&'r mut self) -> &'r mut Assembler {
+        &mut self.asm
+    }
+
     pub fn is_used_gpr(&self,gpr: Register) -> bool {
         self.used.contains(&Store::Gpr(gpr))
     }
@@ -230,6 +308,7 @@ impl Function {
         self.used.contains(&Store::Fpu(f))
     }
     
+
     fn bin_int(&mut self,x: Value,y: Value,f: &Fn(&mut Assembler,MachineMode,Register,Register,Register)) -> Value {
         let value = self.vidx;
         self.vidx += 1;
@@ -299,66 +378,6 @@ impl Function {
     /// Integer addition
     pub fn iadd(&mut self,x: Value,y: Value) -> Value 
     {
-        /*let value = self.vidx;
-        self.vidx += 1;
-        let x_place = self.vstore.get(&x).unwrap().clone();
-        let y_place = self.vstore.get(&y).unwrap().clone();
-        let x_ty = self.value_typs.get(&x).unwrap().clone();
-        let x_is_reg = x_place.is_reg();
-        let y_is_reg = y_place.is_reg();
-        self.free(x);
-        self.free(y);
-        let new_place = self.first_available_place(x_ty, false);
-        self.vstore.insert(value,new_place);
-        self.value_typs.insert(value,x_ty);
-        if x_is_reg && y_is_reg {
-            if new_place.is_reg() {
-                self.asm.int_add(x_ty.to_machine(),new_place.reg(),x_place.reg(),y_place.reg());
-            } else {
-                if self.is_used_gpr(R11) {
-                    emit_pushq_reg(&mut self.asm, R11);
-                }
-
-                self.asm.int_add(x_ty.to_machine(),R11,x_place.reg(),y_place.reg());
-                self.asm.store_mem(x_ty.to_machine(),Mem::Local(new_place.offset()),Reg::Gpr(R11));
-                if self.is_used_gpr(R11) {
-                    emit_popq_reg(&mut self.asm,R11);
-                }
-            }
-        } else {
-            if self.is_used_gpr(R11) {
-                emit_pushq_reg(&mut self.asm, R11);
-            }
-            if self.is_used_gpr(R10) && !x_is_reg {
-                emit_pushq_reg(&mut self.asm, R10);
-            }
-            if x_is_reg {
-                self.asm.load_mem(x_ty.to_machine(),Reg::Gpr(R11),Mem::Local(y_place.offset()));
-                self.asm.int_add(x_ty.to_machine(),R11,x_place.reg(),R11);
-                if new_place.is_reg() {
-                    emit_mov_reg_reg(&mut self.asm, x_ty.x64(), R11, new_place.reg());
-                } else {
-                    self.asm.store_mem(x_ty.to_machine(),Mem::Local(new_place.offset()),Reg::Gpr(R11));
-                }
-            } else {
-                self.asm.load_mem(x_ty.to_machine(),Reg::Gpr(R10),Mem::Local(y_place.offset()));
-                self.asm.load_mem(x_ty.to_machine(),Reg::Gpr(R11),Mem::Local(y_place.offset()));
-                self.asm.int_add(x_ty.to_machine(),R11,R10,R11);
-                if new_place.is_reg() {
-                    emit_mov_reg_reg(&mut self.asm, x_ty.x64(), R11, new_place.reg());
-                } else {
-                    self.asm.store_mem(x_ty.to_machine(),Mem::Local(new_place.offset()),Reg::Gpr(R11));
-                }
-            }
-            if self.is_used_gpr(R10) && !x_is_reg {
-                emit_popq_reg(&mut self.asm,R10);
-            }
-            if self.is_used_gpr(R11) {
-                emit_popq_reg(&mut self.asm,R11);
-            }   
-        }
-        value*/
-
         self.bin_int(x, y, &Assembler::int_add)
     }
     /// Integer multiplication
@@ -374,6 +393,135 @@ impl Function {
         self.bin_int(x, y,&Assembler::int_div)
     }
 
+    pub fn call_indirect(&mut self,f: &str,args: &[Value],ret: Type) -> Value {
+        let value = self.vidx;
+        self.vidx += 1;
+
+
+        let mut fpc = 0;
+        let mut pc = 0;
+        let mut used_params = vec![];
+        /*for reg in CALEE_PUSH.iter() {
+            emit_pushq_reg(&mut self.asm, *reg);
+        }*/
+
+
+        for (idx,value) in args.iter().enumerate() {
+            let vtype: Type = self.value_typs.get(value).unwrap().clone();
+
+            if !vtype.is_float() && pc < GPR_ARGS.len() {
+                self.load_value(*value, Store::Gpr(GPR_ARGS[pc]));
+
+                if pc != GPR_ARGS.len() {
+                    pc += 1;
+                }
+                used_params.push(idx);
+                self.free(*value);
+                continue;
+            } else {
+                self.load_value(*value, Store::Fpu(FPU_ARGS[fpc]));
+                if fpc != FPU_ARGS.len() {
+                    fpc += 1;
+                }
+                used_params.push(idx);
+                self.free(*value);
+                continue;
+            }
+            
+        }
+
+        let mut _size = 0i32;
+        for (idx,value) in args.iter().enumerate() {
+            if used_params.contains(&idx) {
+                continue;
+            } 
+
+            let value_typ: Type = self.value_typs.get(value).unwrap().clone();
+            _size += value_typ.to_machine().size() as i32;
+            if !value_typ.is_float() {
+                self.load_value(*value, Store::Gpr(R11));
+                self.asm.store_mem(value_typ.to_machine(),Mem::Local(_size),Reg::Gpr(R11));
+            } else {
+                self.load_value(*value, Store::Fpu(XMM8));
+                self.asm.store_mem(value_typ.to_machine(),Mem::Local(_size),Reg::Float(XMM8));
+            }
+
+            self.free(*value);
+        }
+
+        self.asm.load_int_const(MachineMode::Ptr,RAX,0);
+        self.fixups.push(Fixup {
+            global_name: f.to_string(),
+            pos: self.asm.pos() - 8,
+        });
+
+        emit_callq_reg(&mut self.asm, RAX);
+
+        /*for reg in CALEE_PUSH.iter().rev() {
+            emit_popq_reg(&mut self.asm, *reg);
+        }*/
+
+        self.value_typs.insert(value,ret);
+
+        let place = self.first_available_place(ret,false);
+        self.vstore.insert(value,place);
+        if ret.is_float() {
+            self.store_value(Store::Fpu(XMM0), place, ret);
+        }  else {
+            self.store_value(Store::Gpr(RAX),place, ret);
+        }
+       
+
+        value
+    }
+
+
+    fn store_value(&mut self,from: Store,to: Store,ty: Type) {
+        match from {
+            Store::Gpr(reg) => {
+                if to.is_reg() {
+                    emit_mov_reg_reg(&mut self.asm, ty.x64(), reg, to.reg());
+                } else if to.is_freg() {
+                    self.asm.store_mem(ty.to_machine(),Mem::Local(to.offset()),Reg::Gpr(reg));
+                } else {
+                    self.asm.store_mem(ty.to_machine(),Mem::Local(to.offset()),Reg::Gpr(reg));
+                }
+            }
+
+            Store::Stack(off) => {
+                if to.is_reg() {
+                    self.asm.load_mem(ty.to_machine(),Reg::Gpr(RDI),Mem::Local(off));
+                    emit_mov_reg_reg(&mut self.asm,ty.x64(), RDI, to.reg());
+                } else if to.is_freg() {
+                    self.asm.load_mem(ty.to_machine(),Reg::Float(XMM8),Mem::Local(off));
+                   if ty.x64() == 1 {
+                       movsd(&mut self.asm,to.freg(),XMM8);
+                   } else {
+                       movss(&mut self.asm,to.freg(),XMM8);
+                   }
+                } else {
+                    if !ty.is_float() {
+                        self.asm.load_mem(ty.to_machine(),Reg::Gpr(RDI),Mem::Local(off));
+                        self.asm.store_mem(ty.to_machine(),Mem::Local(to.offset()),Reg::Gpr(RDI));
+                    } else {
+                        self.asm.load_mem(ty.to_machine(),Reg::Float(XMM8),Mem::Local(off));
+                        self.asm.store_mem(ty.to_machine(),Mem::Local(to.offset()),Reg::Float(XMM8));
+                    }
+                }
+            }
+            Store::Fpu(freg) => {
+                if to.is_freg() {
+                    if ty.x64() == 1 {
+                        movsd(&mut self.asm,to.freg(),freg);
+                    } else {
+                        movss(&mut self.asm,to.freg(),freg);
+                    }
+                } else {
+                    self.asm.store_mem(ty.to_machine(),Mem::Local(to.offset()),Reg::Float(freg));
+                }
+            }
+        }
+    }
 
     fn load_value(&mut self,x: Value,to: Store) {
         let x_place = self.vstore.get(&x).unwrap().clone();

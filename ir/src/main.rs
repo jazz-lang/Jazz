@@ -1,36 +1,31 @@
 extern crate jazz_ir;
 
 use jazz_ir::*;
-use self::ir::*;
 use self::ty::*;
-use capstone::prelude::*;
+use self::module::*;
+
+extern "C" {
+    fn puts();
+}
 
 fn main() {
-    let mut func = Function::new("main".into(), Linkage::Local);
+    
+    let mut module = Module::new();
+    module.declare_function("main".into(), Linkage::Local);
+    module.declare_function("puts".into(), Linkage::Extern(puts as *const u8));
+    
+    let func = module.get_function(&"main".to_string());
 
+    let string = func.iconst(Int(64),b"Hello,world!".as_ptr() as i64);
+    let v1 = func.call_indirect("puts",&[string], Int(32));
+    func.ret(v1);
 
-    let v1 = func.iconst(Int(32), 4);
-    let v2 = func.iconst(Int(32), 2);
-    let v3 = func.imul(v1,v2);
-    func.ret(v3);
-    let mut cs = Capstone::new()
-        .x86()
-        .mode(arch::x86::ArchMode::Mode64)
-        .syntax(arch::x86::ArchSyntax::Att)
-        .detail(true)
-        .build().unwrap();
+    module.finish();
 
-    let ins = cs.disasm_all(&func.asm().data(),0).unwrap();
+    let fdata = module.get_finalized_function(&"main".to_string());
 
-    for i in ins.iter() {
-        println!("{}",i);
-    }
+    let func: fn() -> i32 = unsafe {::std::mem::transmute(fdata)};
 
-    use jazz_jit::get_executable_memory;
-    let mem = get_executable_memory(&func.asm());
-
-    let f: fn() -> i32 = unsafe {::std::mem::transmute(mem.ptr())};
-
-    println!("{}",f());
+    println!("{}",func());
 
 }
