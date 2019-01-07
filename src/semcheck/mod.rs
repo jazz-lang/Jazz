@@ -136,6 +136,14 @@ impl<'a> FctDefCheck<'a> {
             }
             StmtKind::Return(e) => if e.is_some() {
                 self.visit_expr(e.unwrap())?;
+                let ty = self.pop();
+                if !compare_typs(ty.clone(), self.fct.return_ty.clone()) {
+                    return Err(
+                        MsgWithPos::new(
+                            stmt.pos,Msg::Custom(format!("`{}` returns `{}` type but found `{}`",self.fct.name,self.fct.return_ty,ty))
+                        )
+                    );
+                }
                 return Ok(());
             } else {
                 return Ok(());
@@ -231,12 +239,15 @@ impl<'a> FctDefCheck<'a> {
                 let (rhs,lhs) = (self.pop(),self.pop());
 
                 if compare_typs(lhs.clone(), rhs.clone()) {
+                    self.stack.push(rhs.clone());
                     return Ok(());
                 } else {
                     return Err(MsgWithPos::new(
                         expr.pos, Msg::Custom(format!("Cannot perform binary operation on diferent types: `{}` and `{}`",lhs,rhs))
                     ))
                 }
+                
+
             }
             ExprKind::IntLiteral(_,_,suffix) => {
                 match suffix {
@@ -306,6 +317,10 @@ impl<'a> FctDefCheck<'a> {
                         )
                     );
                 }
+                Ok(())
+            }
+            ExprKind::Conv(to,_) => {
+                self.stack.push(*to);
                 Ok(())
             }
             _ => Ok(()) // raise error unimplemented?

@@ -636,7 +636,7 @@ impl<'a> Parser<'a> {
                 let name = self.expect_identifier()?;
                 Ok(Type::Basic(name))
             }
-            TokenKind::BitAnd => {
+            TokenKind::BitAnd | TokenKind::Ref => {
                 self.advance_token()?;
                 let ty = self.parse_type()?;
                 Ok(Type::Ref(Box::new(ty)))

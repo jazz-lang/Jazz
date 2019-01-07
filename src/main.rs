@@ -8,14 +8,14 @@ use jazz::semcheck::Semchecker;
 fn main() {
     let reader = Reader::from_string(
         "
-        func main() -> int {
-            var a: int = 2;
-            var b: float = 2.5;
+        func main() {
+            var a: int = 2 * 2;
+            var b: float = 2.0 * 2.5;
             a = b;
-            return 2;
         }
     ",
     );
+
     let mut ast = vec![];
     let mut parser = Parser::new(reader, &mut ast);
     parser.parse().unwrap();
