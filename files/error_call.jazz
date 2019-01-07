@@ -1,0 +1,8 @@
+func one(a: int) -> int {
+    return a;
+}
+
+
+func main() {
+    one(1,2);
+}

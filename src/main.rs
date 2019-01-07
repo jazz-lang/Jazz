@@ -5,21 +5,30 @@ use jazz::parser::Parser;
 use jazz::semcheck::Semchecker;
 
 
-fn main() {
-    let reader = Reader::from_string(
-        "
-        func main() {
-            var a: int = 2 * 2;
-            var b: float = 2.0 * 2.5;
-            a = b;
-        }
-    ",
-    );
+extern crate structopt;
 
+
+use structopt::StructOpt;
+use std::path::PathBuf;
+#[derive(Clone,StructOpt)]
+#[structopt(name = "jazz", about = "")]
+struct Opt {
+    #[structopt(parse(from_os_str))]
+    file: PathBuf,
+}
+
+fn main() {
+    let opt: Opt = Opt::from_args();
+    let reader = Reader::from_file(opt.file.to_str().unwrap()).unwrap();
     let mut ast = vec![];
     let mut parser = Parser::new(reader, &mut ast);
     parser.parse().unwrap();
     let mut semck = Semchecker::new(&ast);
     let result = semck.check();
-    println!("{}",result.unwrap_err());
+    match result {
+        Ok(_) => {},
+        Err(e) => {
+            println!("{}",e);
+        }
+    }
 }

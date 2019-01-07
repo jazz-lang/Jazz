@@ -1,0 +1,8 @@
+func test(value: float) {
+
+}
+
+func main() {
+    var a: int = 2;
+    test(a);
+}

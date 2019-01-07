@@ -2,18 +2,14 @@ use crate::error::*;
 use crate::ast::*;
 use std::collections::HashMap;
 use crate::lexer::token::{IntSuffix,FloatSuffix};
+use crate::lexer::position::Position;
 
 #[derive(Clone,Debug)]
 pub struct Semchecker {
     pub globals: HashMap<Name,Elem>,
 }
 
-fn func_from_elem(elem: Elem) -> Function {
-    match elem {
-        Elem::Func(f) => f.clone(),
-        _ => panic!(),
-    }
-}
+
 
 fn compare_typs(lhs: Type,rhs: Type) -> bool {
     match (lhs,rhs) {
@@ -72,6 +68,7 @@ impl Semchecker {
         for (_name,elem) in self.globals.clone().iter() {
             match elem {
                 Elem::Func(func) => {
+                    let func: &Function = func;
                     let mut fck = FctDefCheck {
                         global_vars: {
                             let mut typs = HashMap::new();
@@ -88,7 +85,25 @@ impl Semchecker {
                             }
                             typs
                         },
-                        vars: HashMap::new(),
+                        used_vars: HashSet::new(),
+                        vars: {
+                            let mut temp = HashMap::new();
+                            for param in func.params.iter() {
+                                let param: &Param = param;
+
+                                temp.insert(param.name.clone(),param.typ.clone());
+
+                            }
+                            temp
+                        },
+                        var_pos: {
+                            let mut temp = HashMap::new();
+                            for param in func.params.iter() {
+                                let param: &Param = param;
+                                temp.insert(param.name.clone(),param.pos.clone());
+                            }
+                            temp
+                        },
                         fct: func.clone(),
                         stack: Vec::new(),
                         semck: self,
@@ -102,13 +117,19 @@ impl Semchecker {
     }
 }
 
+use std::collections::HashSet;
+
 pub struct FctDefCheck<'a> {
     semck: &'a Semchecker,
     vars: HashMap<String,Type>,
     global_vars: HashMap<String,Type>,
     stack: Vec<Type>,
     fct: Function,
+    used_vars: HashSet<Name>,
+    var_pos: HashMap<Name,Position>,
 }
+
+use colored::*;
 
 impl<'a> FctDefCheck<'a> {
     fn pop(&mut self) -> Type {
@@ -118,9 +139,18 @@ impl<'a> FctDefCheck<'a> {
     pub fn check(&mut self) -> Result<(),MsgWithPos> {
         if self.fct.block.is_some() {
             let block: Box<Stmt> = self.fct.clone().block.unwrap().clone();
-
+            
             self.visit_stmt(block)?;
+            for (name,_) in self.vars.iter() {
+                if self.used_vars.contains(name) {
+                    continue;
+                } else {
+                    println!("{}: unused variable `{}` (defined at {})","WARNING".purple().bold(),name,self.var_pos.get(name).unwrap());
+                }
+            }
         }
+
+        
         Ok(())
     }
 
@@ -162,6 +192,7 @@ impl<'a> FctDefCheck<'a> {
                 Ok(())
             }
             StmtKind::Var(name,ty,expr) => {
+                self.var_pos.insert(name.clone(),stmt.pos);
                 if ty.is_some() {
                     let ty2 = ty.clone();
                     self.vars.insert(name.clone(),ty2.unwrap().clone());
@@ -187,6 +218,7 @@ impl<'a> FctDefCheck<'a> {
 
             }
             StmtKind::Let(name,ty,expr) => {
+                self.var_pos.insert(name.clone(),stmt.pos);
                 if ty.is_some() {
                     let ty2 = ty.clone();
                     self.vars.insert(name.clone(),ty2.unwrap().clone());
@@ -210,7 +242,6 @@ impl<'a> FctDefCheck<'a> {
                 }
                 Ok(())     
             }
-            _ => Ok(())
         }
     }
 
@@ -218,11 +249,13 @@ impl<'a> FctDefCheck<'a> {
         let expr: Expr = *expr;
         match expr.kind {
             ExprKind::Ident(ref name) => {
+                
                 if self.global_vars.contains_key(name) {
                     let ty = self.global_vars.get(name).unwrap();
                     self.stack.push(ty.clone());
                     Ok(())
                 } else if self.vars.contains_key(name) {
+                    self.used_vars.insert(name.to_owned());
                     let ty = self.vars.get(name).unwrap();
                     self.stack.push(ty.clone());
                     Ok(())
@@ -280,11 +313,7 @@ impl<'a> FctDefCheck<'a> {
                 if path.len() > 1 {
                     unimplemented!()
                 } 
-
                 let name = path.name();
-                for arg in args.iter().rev() {
-                    self.visit_expr(arg.clone())?;
-                }
                 let fct: &Function = if let Some(Elem::Func(f)) = self.semck.globals.get(name) {
                     f
                 } else {
@@ -292,6 +321,18 @@ impl<'a> FctDefCheck<'a> {
                         expr.pos,Msg::Custom(format!("Function `{}` not defined",name))
                     ));
                 };
+                if args.len() < fct.params.len() || args.len() > fct.params.len() {
+                    return Err(MsgWithPos::new(
+                        expr.pos,Msg::Custom(format!("Expected `{}` arguments, found `{}` (function defined at {})",fct.params.len(),args.len(),fct.pos))
+                    ));
+                }
+                
+                for arg in args.iter().rev() {
+                    self.visit_expr(arg.clone())?;
+                }
+
+                
+                
                 for arg in fct.params.iter() {
                     let arg: &Param = arg;
                     let ty = self.pop();
@@ -303,12 +344,14 @@ impl<'a> FctDefCheck<'a> {
                         );
                     }
                 }
+                self.stack.push(fct.return_ty.clone());
 
                 Ok(())
             }
             ExprKind::Assign(from,to) => {
                 self.visit_expr(from)?;
                 self.visit_expr(to)?;
+                
                 let (rhs,lhs) = (self.pop(),self.pop());
                 if !compare_typs(rhs.clone(), lhs.clone()) {
                     return Err(
@@ -319,7 +362,9 @@ impl<'a> FctDefCheck<'a> {
                 }
                 Ok(())
             }
-            ExprKind::Conv(to,_) => {
+            ExprKind::Conv(to,e) => {
+                self.visit_expr(e)?;
+                self.pop();
                 self.stack.push(*to);
                 Ok(())
             }
