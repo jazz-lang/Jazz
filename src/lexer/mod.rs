@@ -6,10 +6,9 @@ use std::collections::HashMap;
 
 use self::position::Position;
 use self::reader::Reader;
-use self::token::{FloatSuffix, IntSuffix, IntBase, Token, TokenKind};
+use self::token::{FloatSuffix, IntBase, IntSuffix, Token, TokenKind};
 use crate::error::{Msg, MsgWithPos};
 use crate::unwrap_err;
-
 
 pub struct Lexer {
     reader: Reader,
@@ -48,25 +47,18 @@ impl Lexer {
 
             if is_digit(ch) {
                 return self.read_number();
-
             } else if self.is_comment_start() {
                 unwrap_err!(self.read_comment());
-
             } else if self.is_multi_comment_start() {
                 unwrap_err!(self.read_multi_comment());
-
             } else if is_identifier_start(ch) {
                 return self.read_identifier();
-
             } else if is_quote(ch) {
                 return self.read_string();
-
             } else if is_char_quote(ch) {
                 return self.read_char_literal();
-
             } else if is_operator(ch) {
                 return self.read_operator();
-
             } else {
                 let ch = ch.unwrap();
 
@@ -138,7 +130,6 @@ impl Lexer {
                     }
                 }
             }
-
         } else if value == "_" {
             ttype = TokenKind::Underscore;
         } else {
@@ -190,11 +181,9 @@ impl Lexer {
                         Err(MsgWithPos::new(pos, msg))
                     }
                 }
-
             } else {
                 Ok(ch)
             }
-
         } else {
             Err(MsgWithPos::new(pos, unclosed))
         }
@@ -216,7 +205,6 @@ impl Lexer {
 
             let ttype = TokenKind::String(value);
             Ok(Token::new(ttype, pos))
-
         } else {
             Err(MsgWithPos::new(pos, Msg::UnclosedString))
         }
@@ -298,43 +286,39 @@ impl Lexer {
                 }
             }
 
-            '<' => {
-                match nch {
-                    '=' => {
-                        self.read_char();
-                        TokenKind::Le
-                    }
-
-                    '<' => {
-                        self.read_char();
-                        TokenKind::LtLt
-                    }
-
-                    _ => TokenKind::Lt,
+            '<' => match nch {
+                '=' => {
+                    self.read_char();
+                    TokenKind::Le
                 }
-            }
 
-            '>' => {
-                match nch {
-                    '=' => {
-                        self.read_char();
-                        TokenKind::Ge
-                    }
-
-                    '>' => {
-                        self.read_char();
-
-                        if nnch == '>' {
-                            self.read_char();
-                            TokenKind::GtGtGt
-                        } else {
-                            TokenKind::GtGt
-                        }
-                    }
-
-                    _ => TokenKind::Gt,
+                '<' => {
+                    self.read_char();
+                    TokenKind::LtLt
                 }
-            }
+
+                _ => TokenKind::Lt,
+            },
+
+            '>' => match nch {
+                '=' => {
+                    self.read_char();
+                    TokenKind::Ge
+                }
+
+                '>' => {
+                    self.read_char();
+
+                    if nnch == '>' {
+                        self.read_char();
+                        TokenKind::GtGtGt
+                    } else {
+                        TokenKind::GtGt
+                    }
+                }
+
+                _ => TokenKind::Gt,
+            },
 
             '!' => {
                 if nch == '=' {

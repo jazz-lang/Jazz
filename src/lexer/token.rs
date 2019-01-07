@@ -2,7 +2,6 @@ use super::position::Position;
 use std::fmt;
 use std::result::Result;
 
-
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum TokenKind {
     String(String),
@@ -16,6 +15,7 @@ pub enum TokenKind {
     RQuote,
 
     // Keywords
+    Cast,
     Ref,
     Class,
     This,
@@ -114,22 +114,18 @@ impl TokenKind {
     pub fn name(&self) -> &str {
         match *self {
             TokenKind::String(_) => "string",
-            TokenKind::LitInt(_, _, suffix) => {
-                match suffix {
-                    IntSuffix::Byte => "byte number",
-                    IntSuffix::Int => "int number",
-                    IntSuffix::Long => "long number",
-                }
-            }
+            TokenKind::LitInt(_, _, suffix) => match suffix {
+                IntSuffix::Byte => "byte number",
+                IntSuffix::Int => "int number",
+                IntSuffix::Long => "long number",
+            },
 
             TokenKind::LitChar(_) => "char",
 
-            TokenKind::LitFloat(_, suffix) => {
-                match suffix {
-                    FloatSuffix::Float => "float number",
-                    FloatSuffix::Double => "double number",
-                }
-            }
+            TokenKind::LitFloat(_, suffix) => match suffix {
+                FloatSuffix::Float => "float number",
+                FloatSuffix::Double => "double number",
+            },
 
             TokenKind::Identifier(_) => "identifier",
             TokenKind::End => "<<EOF>>",
@@ -142,7 +138,8 @@ impl TokenKind {
             TokenKind::This => "self",
             TokenKind::CapitalThis => "Self",
             TokenKind::Super => "super",
-            TokenKind::Fun => "fun",
+            TokenKind::Fun => "func",
+            TokenKind::Cast => "cast",
             TokenKind::Let => "let",
             TokenKind::Var => "var",
             TokenKind::While => "while",
@@ -248,7 +245,7 @@ pub enum FloatSuffix {
     Double,
 }
 
-#[derive(PartialEq,Eq,Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct Token {
     pub kind: TokenKind,
     pub position: Position,

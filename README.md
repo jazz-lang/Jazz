@@ -47,7 +47,6 @@ class PointClass {
 ```swift
 func main(): int {
     var ptr: int* = malloc(4);
-    var integer: int = danger_cast<int>(ptr);
-    
+    var integer: int = ptr as int;
 }
 ```

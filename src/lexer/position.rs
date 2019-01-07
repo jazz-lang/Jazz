@@ -1,7 +1,7 @@
-use std::fmt::{Formatter, Display, Error};
+use std::fmt::{Display, Error, Formatter};
 use std::result::Result;
 
-#[derive(PartialEq,Eq,Debug,Copy,Clone)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone)]
 pub struct Position {
     pub line: u32,
     pub column: u32,

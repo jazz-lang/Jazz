@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{self, Read, Error};
+use std::io::{self, Error, Read};
 
 use super::position::Position;
 
@@ -70,7 +70,6 @@ impl Reader {
             self.next_pos += ch.len_utf8();
 
             Some(ch)
-
         } else {
             None
         };
@@ -93,7 +92,6 @@ impl Reader {
         if self.next_pos < self.src.len() {
             let ch = self.src[self.next_pos..].chars().next().unwrap();
             Some(ch)
-
         } else {
             None
         }

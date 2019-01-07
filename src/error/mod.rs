@@ -1,8 +1,8 @@
 use crate::lexer::position::Position;
 
-#[derive(Clone,Debug,PartialEq,Eq,)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Msg {
-Unimplemented,
+    Unimplemented,
     UnknownClass(String),
     UnknownType(String),
     UnknownIdentifier(String),
@@ -112,25 +112,22 @@ Unimplemented,
     StructFieldNotInitialized(String, String),
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct MsgWithPos {
     pub msg: Msg,
     pub pos: Position,
 }
 
 impl MsgWithPos {
-    pub fn new(pos: Position,msg: Msg) -> MsgWithPos {
-        MsgWithPos {
-            msg,
-            pos,
-        }
+    pub fn new(pos: Position, msg: Msg) -> MsgWithPos {
+        MsgWithPos { msg, pos }
     }
 }
 
 use std::fmt;
 
 impl fmt::Display for MsgWithPos {
-    fn fmt(&self,f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f,"error at {}: {:?}",self.pos,self.msg)
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "error at {}: {:?}", self.pos, self.msg)
     }
 }
