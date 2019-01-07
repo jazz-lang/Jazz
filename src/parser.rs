@@ -278,7 +278,7 @@ impl<'a> Parser<'a> {
     fn parse_expression_statement(&mut self) -> StmtResult {
         let pos = self.token.position;
         let expr = self.parse_expression()?;
-
+        self.expect_semicolon()?;
         Ok(Box::new(Stmt::new(StmtKind::Expr(expr), pos)))
     }
 
@@ -304,7 +304,7 @@ impl<'a> Parser<'a> {
                 TokenKind::LtLt | TokenKind::GtGt | TokenKind::GtGtGt => 7,
                 TokenKind::Add | TokenKind::Sub => 8,
                 TokenKind::Mul | TokenKind::Div | TokenKind::Mod => 9,
-                TokenKind::Is | TokenKind::As | TokenKind::Cast => 10,
+                TokenKind::Is | TokenKind::As => 10,
                 _ => {
                     return Ok(left);
                 }
@@ -337,6 +337,7 @@ impl<'a> Parser<'a> {
     pub fn create_binary(&mut self, tok: Token, left: Box<Expr>, right: Box<Expr>) -> ExprResult {
         use self::TokenKind::*;
         let op = match tok.kind {
+            Eq => return Ok(Box::new(Expr::new(ExprKind::Assign(left,right), tok.position))),
             Or => BinaryOp::Or,
             BitOr => BinaryOp::BitOr,
             And => BinaryOp::And,
@@ -509,10 +510,10 @@ impl<'a> Parser<'a> {
             TokenKind::True => self.parse_bool_literal(),
             TokenKind::False => self.parse_bool_literal(),
             TokenKind::Nil => self.parse_nil(),
-            _ => Err(MsgWithPos::new(
+            _ => {Err(MsgWithPos::new(
                 self.token.position,
                 Msg::ExpectedFactor(self.token.name().clone()),
-            )),
+            ))},
         }
     }
 

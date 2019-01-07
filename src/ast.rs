@@ -124,6 +124,19 @@ pub enum Type {
     Complex(Box<Type>),
 }
 
+use std::fmt;
+
+impl fmt::Display for Type {
+    fn fmt(&self,f:  &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Type::Basic(n) => write!(f,"{}",n),
+            Type::Ptr(n) => write!(f,"*{}",n),
+            Type::Ref(n) => write!(f,"&{}",n),
+            _ => unimplemented!(),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum ExprKind {
     Binary(Box<Expr>, BinaryOp, Box<Expr>),

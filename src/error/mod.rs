@@ -3,6 +3,7 @@ use crate::lexer::position::Position;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Msg {
     Unimplemented,
+    VarNotDefined(String),
     UnknownClass(String),
     UnknownType(String),
     UnknownIdentifier(String),
@@ -59,6 +60,7 @@ pub enum Msg {
     UnresolvedInternal,
     UnclosedComment,
     UnknownChar(char),
+    Custom(String),
     UnclosedChar,
     UnclosedString,
     NumberOverflow(String),
@@ -124,10 +126,21 @@ impl MsgWithPos {
     }
 }
 
+impl fmt::Display for Msg {
+    fn fmt(&self,f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Msg::Custom(s) => write!(f,"{}",s),
+            _ => write!(f,"{:?}",self),
+        }
+    }
+}
+
 use std::fmt;
+
+use colored::*;
 
 impl fmt::Display for MsgWithPos {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "error at {}: {:?}", self.pos, self.msg)
+        write!(f, "{}",format!("{} at {}: {}", "error".red().bold(),self.pos, self.msg))
     }
 }

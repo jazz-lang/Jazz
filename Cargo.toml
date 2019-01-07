@@ -5,3 +5,4 @@ authors = ["playXE <adel.prokurov@protonmail.com>"]
 edition = "2018"
 
 [dependencies]
+colored = "1.7.0"
