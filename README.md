@@ -7,7 +7,7 @@ Jazz - statically typed programming language
 - JIT and AOT compilation
 - Optional GC and automatic memory managment 
 - Simple and clear syntax
-- Bootsraping compiler
+- Bootstrapping compiler
 
 # Syntax
 
