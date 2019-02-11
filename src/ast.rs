@@ -1,6 +1,6 @@
 use crate::token::Position;
 
-#[derive(Clone,Debug,PartialEq)]
+#[derive(Clone,PartialEq)]
 pub struct Expr {
     pub pos: Position,
     pub expr: ExprKind,
@@ -34,4 +34,12 @@ pub enum ExprKind {
     ConstBool(bool),
     Array(Vec<Box<Expr>>),
     ArrayIndex(Box<Expr>,Box<Expr>),
+}
+
+use std::fmt;
+
+impl fmt::Debug for Expr {
+    fn fmt(&self,f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,"{:#?}",self.expr)
+    }
 }
