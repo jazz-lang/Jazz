@@ -1,0 +1,8 @@
+[package]
+name = "jazz"
+version = "0.1.0"
+authors = ["playx"]
+edition = "2018"
+
+[dependencies]
+hmap = "0.1.0"
