@@ -1,0 +1,12 @@
+let point_proto = new(nil)
+point_proto.x = 0
+point_proto.y = 0
+
+
+
+let new_point = |x,y| {
+    var obj = new(point_proto)
+    obj.x = x
+    obj.y = y
+    obj
+}

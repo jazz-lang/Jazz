@@ -6,7 +6,8 @@ use jazz::msg::MsgWithPos;
 fn main() -> Result<(),MsgWithPos>
 {
     let reader = Reader::from_string("
-    let add = |x,y| x + y * 2
+    if 1 < 2 2 * 2 else 2 * 3
+
     "
     );
     let mut ast = vec![];

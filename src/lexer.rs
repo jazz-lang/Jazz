@@ -32,6 +32,7 @@ impl Lexer
             "in" => TokenKind::In,
             "loop" => TokenKind::Loop,
             "break" => TokenKind::Break,
+            "match" => TokenKind::Match,
             "continue" => TokenKind::Continue,
             "const" => TokenKind::Const,
             "return" => TokenKind::Return,

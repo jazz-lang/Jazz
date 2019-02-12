@@ -105,6 +105,7 @@ impl<'a> Parser<'a> {
 
     fn parse_expression(&mut self) -> EResult {
         match self.token.kind {
+            TokenKind::Match => self.parse_match(),
             TokenKind::Let | TokenKind::Var => self.parse_let(),
             TokenKind::LBrace => self.parse_block(),
             TokenKind::If => self.parse_if(),
@@ -119,6 +120,8 @@ impl<'a> Parser<'a> {
             ,
         }
     }
+
+
 
     fn parse_break(&mut self) -> EResult {
         let pos = self.expect_token(TokenKind::Break)?.position;
@@ -144,6 +147,33 @@ impl<'a> Parser<'a> {
         let cond = self.parse_expression()?;
         let block = self.parse_block()?;
         Ok(expr!(ExprKind::While(cond,block),pos))   
+    }
+
+    fn parse_match(&mut self) -> EResult {
+        let pos = self.expect_token(TokenKind::Match)?.position;
+        let value = self.parse_expression()?;
+        self.expect_token(TokenKind::LBrace)?;
+        let mut data = vec![];
+        let mut or = None;
+        while !self.token.is(TokenKind::RBrace) && !self.token.is_eof() {
+            if self.token.is(TokenKind::Underscore) {
+                self.expect_token(TokenKind::Underscore)?;
+                self.expect_token(TokenKind::Arrow)?;
+                let expr = self.parse_expression()?;
+                or = Some(expr);
+                continue;
+            }
+            let cond = self.parse_expression()?;
+            self.expect_token(TokenKind::Arrow)?;
+            let expr = self.parse_expression()?;
+            data.push((cond,expr));
+        }
+
+        self.expect_token(TokenKind::RBrace)?;
+
+        Ok(expr!(ExprKind::Match(value,data,or),pos))
+    
+
     }
 
     fn parse_if(&mut self) -> EResult {
@@ -263,14 +293,14 @@ impl<'a> Parser<'a> {
         self.parse_binary(0)
     }*/
 
-    fn parse_call(&mut self,obj: Option<Box<Expr>>) -> EResult {
+    fn parse_call(&mut self) -> EResult {
         let expr = self.parse_expression()?;
         
         self.expect_token(TokenKind::LParen)?;
         
         let args = self.parse_comma_list(TokenKind::RParen, |p| p.parse_expression())?;
         
-        Ok(expr!(ExprKind::Call(expr,obj,args),expr.pos))
+        Ok(expr!(ExprKind::Call(expr,args),expr.pos))
     }
 
 
@@ -282,18 +312,27 @@ impl<'a> Parser<'a> {
                 TokenKind::Dot => {
                     let tok = self.advance_token()?;
                     let ident = self.expect_identifier()?;
-                    if self.token.is(TokenKind::LParen) {
-                        self.parse_call(Some(left))?
-                    } else {
-                        expr!(ExprKind::Access(left,ident),tok.position)
-                    }
-                    
+                    expr!(ExprKind::Access(left,ident),tok.position)
                 }
                 TokenKind::LBracket => {
                     let tok = self.advance_token()?;
                     unimplemented!()
                 }
-                _ => return Ok(left)
+                _ => {
+                    if self.token.is(TokenKind::LParen) {
+                        
+                        let expr = left;
+
+        
+                        self.expect_token(TokenKind::LParen)?;
+                        
+                        let args = self.parse_comma_list(TokenKind::RParen, |p| p.parse_expression())?;
+                        
+                        expr!(ExprKind::Call(expr,args),expr.pos)
+                    } else {
+                        return Ok(left)
+                    }
+                }
             }
         }
     }
@@ -385,7 +424,6 @@ impl<'a> Parser<'a> {
             }
 
             TokenKind::BitOr | TokenKind::Or => self.parse_lambda(),
-            
             TokenKind::True => self.parse_bool_literal(),
             TokenKind::False => self.parse_bool_literal(),
             TokenKind::Nil => self.parse_nil(),
@@ -477,10 +515,7 @@ impl<'a> Parser<'a> {
         let pos = self.token.position;
         let ident = self.expect_identifier()?;
         
-        if self.token.is(TokenKind::LParen) {
-            self.parse_call(None)
-        } else {
-            Ok(expr!(ExprKind::Ident(ident),pos))
-        }
+        Ok(expr!(ExprKind::Ident(ident),pos))
+        
     }
 }
