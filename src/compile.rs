@@ -2,18 +2,22 @@ use fxhash::FxHashMap;
 
 use waffle::builtins::init_builtins;
 use waffle::opcodes::Opcode;
+use waffle::value::{FuncKind, Function};
 use waffle::VirtualMachine;
 
 #[derive(Clone, Debug)]
-pub enum UOP {
+pub enum UOP
+{
     Op(Opcode),
     Goto(String),
 }
 
+use crate::ast::*;
 
-pub struct Compiler<'a> {
+pub struct Compiler<'a>
+{
     /// This field is required for `break` in `while` (Check `check_labels` documentation)
-    /// 
+    ///
     end_labels: Vec<String>,
     /// This field is required for `continue` in `while`
     /// # Example
@@ -30,19 +34,309 @@ pub struct Compiler<'a> {
 
     pub ins: Vec<UOP>,
     pub vm: &'a mut VirtualMachine,
-    pub labels: FxHashMap<String,Option<usize>>,
-    pub fdefs: FxHashMap<&'static str,usize>,
+    pub locals: FxHashMap<String, usize>,
+    pub labels: FxHashMap<String, Option<usize>>,
+    pub fdefs: FxHashMap<&'static str, usize>,
 }
 
-impl<'a> Compiler<'a> {
-    pub fn new(vm: &'a mut VirtualMachine) -> Compiler<'a> {
-        Self {
-            end_labels: vec![],
-            check_labels: vec![],
-            fdefs: init_builtins(vm),
-            ins: vec![],
-            vm,
-            labels: FxHashMap::default(),
+impl<'a> Compiler<'a>
+{
+    pub fn new(vm: &'a mut VirtualMachine, builtins: FxHashMap<&'static str, usize>)
+               -> Compiler<'a>
+    {
+        Self { end_labels: vec![],
+               check_labels: vec![],
+               locals: FxHashMap::default(),
+               fdefs: builtins,
+               ins: vec![],
+               vm,
+               labels: FxHashMap::default() }
+    }
+
+    pub fn compile(&mut self, exprs: Vec<Box<Expr>>, args: Vec<String>)
+    {
+        for (id, arg) in args.iter().enumerate()
+        {
+            self.locals.insert(arg.clone(), id);
+        }
+
+        for expr in exprs.iter()
+        {
+            self.expr(expr, false);
+        }
+    }
+
+    fn new_empty_label(&mut self) -> String
+    {
+        let lab_name = self.labels.len().to_string();
+        self.labels.insert(lab_name.clone(), None);
+        lab_name
+    }
+
+    pub fn label_here(&mut self, label: &str)
+    {
+        *self.labels.get_mut(label).unwrap() = Some(self.ins.len());
+    }
+    pub fn emit(&mut self, op: Opcode)
+    {
+        self.ins.push(UOP::Op(op));
+    }
+    pub fn emit_goto(&mut self, lbl: &str)
+    {
+        self.ins.push(UOP::Goto(lbl.to_owned()));
+    }
+
+    pub fn finish(&mut self) -> Vec<Opcode>
+    {
+        let opcodes =
+            self.ins
+                .iter()
+                .map(|e| match e
+                {
+                    &UOP::Goto(ref lbl) => Opcode::Jump(self.labels.get(lbl).unwrap().unwrap()),
+                    &UOP::Op(ref op) => op.clone(),
+                })
+                .collect::<Vec<Opcode>>();
+
+        opcodes
+    }
+
+    fn expr(&mut self, e: &Box<Expr>, is_fcall: bool)
+    {
+        match &e.expr
+        {
+            ExprKind::ConstInt(i) => self.emit(Opcode::ConstInt(*i)),
+            ExprKind::ConstFloat(f) => self.emit(Opcode::ConstFloat(*f)),
+            ExprKind::ConstChar(c) => self.emit(Opcode::ConstStr(c.to_string())),
+            ExprKind::ConstStr(s) => self.emit(Opcode::ConstStr(s.to_owned())),
+            ExprKind::ConstBool(b) =>
+            {
+                if *b
+                {
+                    self.emit(Opcode::ConstTrue)
+                }
+                else
+                {
+                    self.emit(Opcode::ConstFalse)
+                }
+            }
+            ExprKind::Ident(name) =>
+            {
+                let name: &str = name;
+                if self.fdefs.contains_key(name)
+                {
+                    let idx = self.fdefs.get(name).unwrap();
+                    self.emit(Opcode::ConstFuncRef(*idx));
+                    return;
+                }
+                let vidx = *self.locals
+                                .get(name)
+                                .expect(&format!("Variable {} not defined", name));
+                self.emit(Opcode::PushLocal(vidx));
+            }
+            ExprKind::Var(_, name, init) =>
+            {
+                let vidx = self.locals.len();
+                if init.is_some()
+                {
+                    
+                    let init = init.clone().unwrap();
+                    if let ExprKind::Lambda(args, expr) = init.expr
+                    {
+                        
+                        let mut func = Function { nargs: args.len() as i32,
+                                                  is_native: false,
+                                                  addr: FuncKind::Interpret(vec![]) };
+                        let id = self.vm.pool.add_func(func);
+                        let s: &str = &name.clone();
+                        self.fdefs.insert(unsafe {std::mem::transmute(s)}, id);
+                        let locals = self.locals.clone();
+                        let builtins = self.fdefs.clone();
+                        let mut cmpl = Compiler::new(self.vm, builtins);
+                        cmpl.locals = locals;
+                        cmpl.compile(vec![expr.clone()], args.clone());
+                        let ins = cmpl.finish();
+                        if cfg!(debug_assertions)
+                        {
+                            println!("Lambda code with arguments {:?}", args);
+                            for (id,op) in ins.iter().enumerate()
+                            {
+                                println!("{}: {:?}",id, op);
+                            }
+                            println!("end");
+                        }
+                        let func = self.vm.pool.get_func_mut(id);
+                        func.addr = FuncKind::Interpret(ins);
+                        
+
+                        self.emit(Opcode::ConstFuncRef(id));
+                        
+                        
+                    }
+                    else
+                    {
+                        self.expr(&init, false);
+                    }
+                }
+                else
+                {
+                    self.emit(Opcode::ConstNull);
+                }
+                self.emit(Opcode::StoreLocal(vidx));
+                self.locals.insert(name.to_owned(), vidx);
+            }
+            ExprKind::Return(e) => {
+                if e.is_some() {
+                    self.expr(&e.clone().unwrap(),false);
+                    
+                }
+                self.emit(Opcode::Ret);
+            }
+            ExprKind::If(cond, then, else_do) =>
+            {
+                self.expr(&cond, false);
+
+                let if_true = self.new_empty_label();
+                let if_false = self.new_empty_label();
+                let check = self.new_empty_label();
+                let end = self.new_empty_label();
+                self.emit_goto(&check);
+                self.label_here(&if_true);
+                self.expr(&then, false);
+                self.emit_goto(&end);
+                self.label_here(&if_false);
+                if else_do.is_some()
+                {
+                    self.expr(&else_do.clone().unwrap(), false);
+                }
+                else
+                {
+                    self.emit(Opcode::ConstNull);
+                }
+                self.emit_goto(&end);
+
+                let l = self.labels.clone();
+                self.label_here(&check);
+                self.emit(Opcode::JumpNz(l.get(&if_true).unwrap().unwrap()));
+                self.emit(Opcode::Jump(l.get(&if_false).unwrap().unwrap()));
+                self.label_here(&end);
+            }
+
+            ExprKind::While(cond, then) =>
+            {
+                let while_block = self.new_empty_label();
+                let while_end = self.new_empty_label();
+                let while_start = self.new_empty_label();
+
+                self.end_labels.push(while_end.clone());
+                self.check_labels.push(while_start.clone());
+                self.emit_goto(&while_start);
+                self.label_here(&while_block);
+                self.expr(&then.clone(), false);
+                self.label_here(&while_start);
+                self.expr(&cond.clone(), false);
+                let l = self.labels.clone();
+                self.emit(Opcode::JumpNz(l.get(&while_block).unwrap().unwrap()));
+                self.label_here(&while_end);
+            }
+            ExprKind::BinOp(lhs, op, rhs) =>
+            {
+                self.expr(rhs, false);
+                self.expr(lhs, false);
+                let s: &str = op;
+                match s
+                {
+                    "+" => self.emit(Opcode::Add),
+                    "-" => self.emit(Opcode::Sub),
+                    "*" => self.emit(Opcode::Mul),
+                    "/" => self.emit(Opcode::Div),
+                    ">>" => self.emit(Opcode::Shr),
+                    "<<" => self.emit(Opcode::Shl),
+                    "|" | "||" => self.emit(Opcode::Or),
+                    "&" | "&&" => self.emit(Opcode::And),
+                    ">" => self.emit(Opcode::Gt),
+                    ">=" => self.emit(Opcode::Gte),
+                    "<" => self.emit(Opcode::Lt),
+                    "<=" => self.emit(Opcode::Lte),
+                    "==" => self.emit(Opcode::Eq),
+                    "!=" => self.emit(Opcode::Neq),
+                    _ =>
+                    {
+                        /// TODO: Try to call function with name of operation
+                        unimplemented!()
+                    }
+                }
+            }
+            ExprKind::Unop(op, value) =>
+            {
+                self.expr(value, false);
+                let s: &str = op;
+                match s
+                {
+                    "-" => self.emit(Opcode::Neg),
+                    "!" => self.emit(Opcode::Not),
+                    _ => unimplemented!(),
+                }
+            }
+            ExprKind::Nil => self.emit(Opcode::ConstNull),
+            ExprKind::Call(func, args) =>
+            {
+                if let ExprKind::Ident(ref s) = func.expr
+                {
+                    let s: &str = s;
+                    if s == "new"
+                    {
+                        self.emit(Opcode::New);
+                        return;
+                    }
+                }
+                for arg in args.iter().rev()
+                {
+                    self.expr(arg, false);
+                }
+                if !func.is_access()
+                {
+                    self.emit(Opcode::ConstNull);
+                }
+
+                self.expr(func, func.is_access());
+                self.emit(Opcode::Call(args.len()));
+                return;
+            }
+            ExprKind::Lambda(args, expr) =>
+            {
+                let mut func = Function { nargs: args.len() as i32,
+                                          is_native: false,
+                                          addr: FuncKind::Interpret(vec![]) };
+                let locals = self.locals.clone();
+                let builtins = self.fdefs.clone();
+                let mut cmpl = Compiler::new(self.vm, builtins);
+                cmpl.locals = locals;
+                cmpl.compile(vec![expr.clone()], args.clone());
+                let ins = cmpl.finish();
+                if cfg!(debug_assertions)
+                {
+                    println!("Lambda code with arguments {:?}", args);
+                    for op in &ins
+                    {
+                        println!("{:?}", op);
+                    }
+                    println!("end");
+                }
+
+                func.addr = FuncKind::Interpret(ins);
+                let id = self.vm.pool.add_func(func);
+
+                self.emit(Opcode::ConstFuncRef(id));
+            }
+            ExprKind::Block(e) =>
+            {
+                for expr in e.iter()
+                {
+                    self.expr(expr, false);
+                }
+            }
+            v => panic!("{:?}", v),
         }
     }
 }

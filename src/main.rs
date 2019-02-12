@@ -1,23 +1,35 @@
 extern crate jazz;
 
-use jazz::reader::Reader;
-use jazz::parser::Parser;
+use jazz::compile::Compiler;
 use jazz::msg::MsgWithPos;
-fn main() -> Result<(),MsgWithPos>
+use jazz::parser::Parser;
+use jazz::reader::Reader;
+use waffle::builtins::init_builtins;
+use waffle::value::{FuncKind, Function};
+use waffle::VirtualMachine;
+fn main() -> Result<(), MsgWithPos>
 {
-    let reader = Reader::from_string("
-    if 1 < 2 2 * 2 else 2 * 3
+    use std::env::args;
+    let fname = args().nth(1).expect("You must specify file name!");
 
-    "
-    );
+    let reader = Reader::from_file(&fname).unwrap();
     let mut ast = vec![];
-    let mut parser = Parser::new(reader,&mut ast);
+    let mut parser = Parser::new(reader, &mut ast);
 
     parser.parse()?;
+    let mut vm = VirtualMachine::new();
+    let builtins = init_builtins(&mut vm);
+    let mut cmpl = Compiler::new(&mut vm, builtins);
+    cmpl.compile(ast, vec![]);
+    let opcodes = cmpl.finish();
+    let fun = Function { nargs: 0,
+                         is_native: false,
+                         addr: FuncKind::Interpret(opcodes) };
 
-    for elem in ast.iter() {
-        println!("{:#?}",elem.expr);
-    }
+    let id = vm.pool.add_func(fun);
+
+    let ret = vm.run_func(id);
+    println!("{:?}", ret);
 
     Ok(())
 }

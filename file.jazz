@@ -1,0 +1,9 @@
+let fac = |x| {
+    if x < 2 {
+        1
+    } else {
+        fac(x - 1) * x
+    }
+}
+
+fac(5)

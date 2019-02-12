@@ -55,17 +55,20 @@ impl Lexer
         self.reader.filename()
     }
 
-    fn read_multi_comment(&mut self) -> Result<(), MsgWithPos> {
+    fn read_multi_comment(&mut self) -> Result<(), MsgWithPos>
+    {
         let pos = self.reader.pos();
 
         self.read_char();
         self.read_char();
 
-        while !self.cur().is_none() && !self.is_multi_comment_end() {
+        while !self.cur().is_none() && !self.is_multi_comment_end()
+        {
             self.read_char();
         }
 
-        if self.cur().is_none() {
+        if self.cur().is_none()
+        {
             return Err(MsgWithPos::new(pos, Msg::UnclosedComment));
         }
 
@@ -74,7 +77,6 @@ impl Lexer
 
         Ok(())
     }
-
 
     pub fn read_token(&mut self) -> Result<Token, MsgWithPos>
     {
@@ -153,8 +155,6 @@ impl Lexer
         if let Some(tok_type) = lookup
         {
             ttype = tok_type;
-
-
         }
         else if value == "_"
         {

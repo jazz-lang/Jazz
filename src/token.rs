@@ -7,9 +7,11 @@ pub struct Position
     pub line: u32,
     pub column: u32,
 }
-impl Position {
-    pub fn new(x: u32,y: u32) -> Self {
-        Self {line: x,column: y}
+impl Position
+{
+    pub fn new(x: u32, y: u32) -> Self
+    {
+        Self { line: x, column: y }
     }
 }
 
@@ -199,7 +201,7 @@ pub enum IntSuffix
     Byte,
 }
 
-#[derive(PartialEq, Eq, Debug,Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Token
 {
     pub kind: TokenKind,
