@@ -67,7 +67,7 @@ let value = (|x,y| x + y)(2,3) (* calls new function and return 2 + 3 *)
 ### If
 ```ocaml
 var i = 2 * 2
-if i != 4 println("i != 4") else {println!("i == 4")}
+if i != 4 println("i != 4") else {println("i == 4")}
 ```
 ### While
 ```ocaml
