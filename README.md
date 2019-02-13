@@ -68,7 +68,7 @@ let value = (|x,y| x + y)(2,3) (* calls new function and return 2 + 3 *)
 Objects are a hashtable that looks like this: `Table<Value(Key),Value>`. To create object you can use builtin `new` function which initializes new object
 ```ocaml
 var my_obj = new(nil) (* new empty object *)
-var my_obj = new(my_proto) (*new object from prot *) 
+var my_obj = new(my_proto) (*new object from prototype *) 
 ```
 
 
@@ -86,3 +86,11 @@ var my_obj = new(my_proto) (*new object from prot *)
 - `alen(array) -> int`: Return array length
 - `objset(object,any,any)`: TODO
 - `objget(object,any) -> any`: TODO
+
+
+
+# Virtual Machine
+Jazz uses Waffle VM. Waffle is a dynamically typed stack-based VM that includes simple mark-and-sweep garbage collector.
+
+## Opcodes
+TODO
