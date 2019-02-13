@@ -4,7 +4,7 @@ use jazz::compile::Compiler;
 use jazz::msg::MsgWithPos;
 use jazz::parser::Parser;
 use jazz::reader::Reader;
-use waffle::builtins::init_builtins;
+use jazz::runtime::init;
 use waffle::value::{FuncKind, Function};
 use waffle::VirtualMachine;
 fn main() -> Result<(), MsgWithPos>
@@ -18,7 +18,7 @@ fn main() -> Result<(), MsgWithPos>
 
     parser.parse()?;
     let mut vm = VirtualMachine::new();
-    let builtins = init_builtins(&mut vm);
+    let builtins = init(&mut vm);
     let mut cmpl = Compiler::new(&mut vm, builtins);
     cmpl.compile(ast, vec![]);
     let opcodes = cmpl.finish();

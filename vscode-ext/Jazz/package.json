@@ -1,0 +1,25 @@
+{
+    "name": "Jazz",
+    "displayName": "Jazz",
+    "description": "Support for Jazz in VSCode",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.31.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "jazz",
+            "aliases": ["Jazz", "jazz"],
+            "extensions": [".jazz",".jz",".jml"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "jazz",
+            "scopeName": "",
+            "path": "./syntaxes/jazz.tmLanguage.json"
+        }]
+    }
+}
