@@ -1,6 +1,3 @@
-
-
-
 let apply = |f,v| f(v)
 let array_map = |f,array| {
     var result = anew()
@@ -31,3 +28,32 @@ let ord = |x,y| {
     }
 }
 
+let min = |l,r| if l <= r l else r
+
+let max = |l,r| if r >= l r else l
+
+let qsort = |array| {
+    var less = anew()
+    var equal = anew()
+    var greater = anew()
+
+    if alen(array) > 1 {
+        var pivot = array[1]
+        iter(|x| {
+            match ord(x,pivot) {
+                "Less" -> {
+                    apush(less,x)
+                }
+                "Greater" -> {
+                    apush(greater,x)
+                }
+                "Equal" -> {
+                    apush(equal,x)
+                }
+            }
+        },array)
+        qsort(less) + equal + qsort(greater)
+    } else {
+        array
+    }
+}

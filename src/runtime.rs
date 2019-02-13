@@ -26,6 +26,7 @@ pub fn string_trim(_: &mut VirtualMachine,args: Vec<Value>) -> Value {
     Value::Str(args[0].as_str().trim().to_owned())
 }
 
+
 use fxhash::FxHashMap;
 
 pub fn init(vm: &mut VirtualMachine) -> FxHashMap<&'static str, usize> {

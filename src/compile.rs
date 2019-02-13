@@ -334,8 +334,11 @@ impl<'a> Compiler<'a>
                     "!=" => self.emit(Opcode::Neq),
                     _ =>
                     {
-                        /// TODO: Try to call function with name of operation
-                        unimplemented!()
+                        if self.fdefs.contains_key(s) {
+                            
+                        } else {
+                            panic!("Unknwown binary operation");
+                        }
                     }
                 }
             }
