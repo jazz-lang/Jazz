@@ -96,9 +96,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "waffle"
 version = "0.1.0"
-source = "git+https://github.com/jazz-lang/waffle#32907feb0b2ed636f922f88d26f696f783881b10"
+source = "git+https://github.com/jazz-lang/waffle#6b84fa098d91d2f6ef2a28559b8d53af9b755ac2"
 dependencies = [
  "fxhash 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hmap 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.48 (registry+https://github.com/rust-lang/crates.io-index)",
  "paste 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
