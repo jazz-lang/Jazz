@@ -52,7 +52,6 @@ But you can still use `return` keyword if you want:
 ```ocaml
 let mul = |x,y| return x * y
 ```
-
 ## Function
 
 You can define new function is very easy, you cana assign this function to a new variable:
@@ -63,6 +62,35 @@ Or you can do this:
 ```ocaml
 let value = (|x,y| x + y)(2,3) (* calls new function and return 2 + 3 *)
 ```
+
+## Control flow
+### If
+```ocaml
+var i = 2 * 2
+if i != 4 println("i != 4") else {println!("i == 4")}
+```
+### While
+```ocaml
+var i = 0
+while i != 100 
+{
+        i = i + 1
+}
+(* shorten *)
+var i = 0
+while i != 100 i = i + 1
+```
+### Match
+```ocaml
+var n = rand_int()
+match n {
+    1 -> println("one")
+    2 -> println("two")
+    3 -> println("three")
+    _ -> println(n)
+}
+```
+
 
 ## Objects
 Objects are a hashtable that looks like this: `Table<Value(Key),Value>`. To create object you can use builtin `new` function which initializes new object
