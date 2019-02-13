@@ -3,10 +3,14 @@ point_proto.x = 0
 point_proto.y = 0
 
 
-
 let new_point = |x,y| {
     var obj = new(point_proto)
     obj.x = x
     obj.y = y
+    obj.display = || {println("(",self.x,";",self.y,")")}
     obj
 }
+
+
+var point = new_point(2,2)
+point.display()

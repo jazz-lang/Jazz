@@ -97,7 +97,13 @@ impl<'a> Compiler<'a>
                     &UOP::Op(ref op) => op.clone(),
                 })
                 .collect::<Vec<Opcode>>();
-
+        if cfg!(debug_assertions) {
+            println!("begin");
+            for (idx,op) in opcodes.iter().enumerate() {
+                println!("{:04} {:?}",idx,op);
+            }
+            println!("end");
+        }
         opcodes
     }
 
@@ -105,6 +111,25 @@ impl<'a> Compiler<'a>
     {
         match &e.expr
         {
+            ExprKind::Assign(to,val) => {
+                self.expr(val,false);
+                if let ExprKind::Ident(ref name) = to.clone().expr {
+                    let id = self.locals.get(name).expect("variable not defined");
+                    self.emit(Opcode::StoreLocal(*id));
+                }
+                if let ExprKind::Access(obj,field) = to.clone().expr {
+                    self.expr(val,false);
+                    self.emit(Opcode::ConstStr(field.to_owned()));
+                    self.expr(&obj,false);
+                    self.emit(Opcode::StoreField);
+                }
+                if let ExprKind::ArrayIndex(arr,idx) = &to.expr {
+                    self.expr(val,false);
+                    self.expr(idx,false);
+                    self.expr(arr,false);
+                    self.emit(Opcode::StoreField);
+                }
+            }
             ExprKind::ConstInt(i) => self.emit(Opcode::ConstInt(*i)),
             ExprKind::ConstFloat(f) => self.emit(Opcode::ConstFloat(*f)),
             ExprKind::ConstChar(c) => self.emit(Opcode::ConstStr(c.to_string())),
@@ -144,7 +169,7 @@ impl<'a> Compiler<'a>
                     if let ExprKind::Lambda(args, expr) = init.expr
                     {
                         
-                        let mut func = Function { nargs: args.len() as i32,
+                        let func = Function { nargs: args.len() as i32,
                                                   is_native: false,
                                                   addr: FuncKind::Interpret(vec![]) };
                         let id = self.vm.pool.add_func(func);
@@ -191,6 +216,15 @@ impl<'a> Compiler<'a>
                     
                 }
                 self.emit(Opcode::Ret);
+            }
+            ExprKind::Access(base,field) => {
+                if is_fcall {
+                    self.expr(base,false);
+                }
+                self.emit(Opcode::ConstStr(field.to_owned()));
+                self.expr(base,false);
+                
+                self.emit(Opcode::PushField);
             }
             ExprKind::If(cond, then, else_do) =>
             {
@@ -239,6 +273,7 @@ impl<'a> Compiler<'a>
                 self.emit(Opcode::JumpNz(l.get(&while_block).unwrap().unwrap()));
                 self.label_here(&while_end);
             }
+            ExprKind::This => self.emit(Opcode::PushThis),
             ExprKind::BinOp(lhs, op, rhs) =>
             {
                 self.expr(rhs, false);
@@ -286,6 +321,9 @@ impl<'a> Compiler<'a>
                     let s: &str = s;
                     if s == "new"
                     {
+                        if args.len() != 0 {
+                            self.expr(&args[0],false);
+                        }
                         self.emit(Opcode::New);
                         return;
                     }
@@ -335,6 +373,11 @@ impl<'a> Compiler<'a>
                 {
                     self.expr(expr, false);
                 }
+            }
+            ExprKind::ArrayIndex(arr,idx) => {
+                self.expr(idx,false);
+                self.expr(arr,false);
+                self.emit(Opcode::PushField);
             }
             v => panic!("{:?}", v),
         }

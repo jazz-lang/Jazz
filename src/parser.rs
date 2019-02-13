@@ -129,8 +129,14 @@ impl<'a> Parser<'a>
             TokenKind::Continue => self.parse_continue(),
             TokenKind::Return => self.parse_return(),
             TokenKind::Throw => self.parse_throw(),
+            
             _ => self.parse_binary(0),
         }
+    }
+
+    fn parse_self(&mut self) -> EResult {
+        let pos = self.expect_token(TokenKind::This)?.position;
+        Ok(expr!(ExprKind::This,pos))
     }
 
     fn parse_break(&mut self) -> EResult
@@ -353,7 +359,9 @@ impl<'a> Parser<'a>
                 TokenKind::LBracket =>
                 {
                     let tok = self.advance_token()?;
-                    unimplemented!()
+                    let index = self.parse_expression()?;
+                    self.expect_token(TokenKind::RBracket)?;
+                    expr!(ExprKind::ArrayIndex(left,index),tok.position)
                 }
                 _ =>
                 {
@@ -458,7 +466,7 @@ impl<'a> Parser<'a>
             TokenKind::LitFloat(_) => self.lit_float(),
             TokenKind::String(_) => self.lit_str(),
             TokenKind::Identifier(_) => self.ident(),
-
+            TokenKind::This => self.parse_self(),
             TokenKind::BitOr | TokenKind::Or => self.parse_lambda(),
             TokenKind::True => self.parse_bool_literal(),
             TokenKind::False => self.parse_bool_literal(),

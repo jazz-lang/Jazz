@@ -36,6 +36,7 @@ pub enum ExprKind
     ConstBool(bool),
     Array(Vec<Box<Expr>>),
     ArrayIndex(Box<Expr>, Box<Expr>),
+    This,
 }
 
 use std::fmt;

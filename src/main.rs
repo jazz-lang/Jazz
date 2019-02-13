@@ -28,8 +28,7 @@ fn main() -> Result<(), MsgWithPos>
 
     let id = vm.pool.add_func(fun);
 
-    let ret = vm.run_func(id);
-    println!("{:?}", ret);
+    println!("{:?}",vm.run_func(id));
 
     Ok(())
 }
