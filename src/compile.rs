@@ -156,12 +156,12 @@ impl<'a> Compiler<'a>
                 }
                 let vidx = *self.locals
                                 .get(name)
-                                .expect(&format!("Variable {} not defined", name));
+                                .expect(&format!("Variable {} not defined (pos: {})", name,e.pos));
                 self.emit(Opcode::PushLocal(vidx));
             }
             ExprKind::Var(_, name, init) =>
             {
-                let vidx = self.locals.len();
+                let vidx = self.locals.len() + 1;
                 if init.is_some()
                 {
                     

@@ -1,7 +1,0 @@
-var i = 0
-var num = int(args()[2])
-
-while i < num {
-    i = i + 1
-}
-i
