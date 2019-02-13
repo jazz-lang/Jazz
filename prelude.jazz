@@ -1,0 +1,33 @@
+
+
+
+let apply = |f,v| f(v)
+let array_map = |f,array| {
+    var result = anew()
+    var pc = 0
+    while pc < alen(array) {
+        var value = f(array[pc])
+        apush(result,value)
+        pc = pc + 1
+    }
+    result
+}
+
+let iter = |f,array| {
+    var pc = 0
+    while pc < alen(array) {
+        f(array[pc])
+        pc = pc + 1
+    } 
+}
+
+let ord = |x,y| {
+    if x < y {
+        "Less"
+    } else if x == y {
+        "Equal"
+    } else {
+        "Greater"
+    }
+}
+

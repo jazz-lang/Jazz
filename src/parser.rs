@@ -68,6 +68,15 @@ impl<'a> Parser<'a>
         Ok(name)
     }
 
+    fn parse_open(&mut self) -> EResult {
+        let pos = self.expect_token(TokenKind::Open)?.position;
+        if let ExprKind::ConstStr(s) = self.lit_str()?.expr {
+            return Ok(expr!(ExprKind::Open(s.clone()),pos));
+        } else {
+            unreachable!()
+        }
+    }
+
     fn parse_function(&mut self) -> EResult
     {
         let pos = self.expect_token(TokenKind::Fun)?.position;
@@ -129,7 +138,7 @@ impl<'a> Parser<'a>
             TokenKind::Continue => self.parse_continue(),
             TokenKind::Return => self.parse_return(),
             TokenKind::Throw => self.parse_throw(),
-            
+            TokenKind::Open => self.parse_open(),
             _ => self.parse_binary(0),
         }
     }

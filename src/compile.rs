@@ -60,8 +60,11 @@ impl<'a> Compiler<'a>
             self.locals.insert(arg.clone(), id);
         }
 
+        
+
         for expr in exprs.iter()
         {
+            
             self.expr(expr, false);
         }
     }

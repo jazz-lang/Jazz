@@ -37,6 +37,7 @@ pub enum ExprKind
     Array(Vec<Box<Expr>>),
     ArrayIndex(Box<Expr>, Box<Expr>),
     This,
+    Open(String),
 }
 
 use std::fmt;
