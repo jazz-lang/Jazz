@@ -26,6 +26,20 @@ pub fn string_trim(_: &mut VirtualMachine,args: Vec<Value>) -> Value {
     Value::Str(args[0].as_str().trim().to_owned())
 }
 
+pub fn len(vm: &mut VirtualMachine,args: Vec<Value>) -> Value {
+    match &args[0] {
+        Value::Str(s) => Value::Int(s.len() as i64),
+        Value::ArrayRef(arr) => {
+            let arr = vm.pool.get_array(*arr);
+            Value::Int(arr.elements.len() as i64)
+        }
+        Value::ObjectRef(obj) => {
+            let obj = vm.pool.get_object(*obj);
+            Value::Int(obj.table.len() as i64)
+        }
+        _ => panic!("Can't get len on {:?}",args[0])
+    }
+}
 
 use fxhash::FxHashMap;
 
@@ -60,6 +74,7 @@ pub fn init(vm: &mut VirtualMachine) -> FxHashMap<&'static str, usize> {
     let mut map = init_builtins(vm);
 
     register!(map => (
+            len 1,
             rand_range 2,
             rand_int 0,
             rand_float 0,
@@ -75,6 +90,7 @@ pub fn init(vm: &mut VirtualMachine) -> FxHashMap<&'static str, usize> {
     simply_register!(map => error);
     simply_register!(map => read_line);
     simply_register!(map => string_trim);
+    simply_register!(map => len);
 
 
     map
