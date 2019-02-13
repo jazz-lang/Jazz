@@ -51,6 +51,24 @@ impl Expr
         };
         false
     }
+
+    pub fn is_binop(&self) -> bool {
+        if let ExprKind::BinOp(_,_,_) = self.expr {
+            return true;
+        };
+        false
+    }
+
+    pub fn is_binop_cmp(&self) -> bool {
+        if let ExprKind::BinOp(_,ref op,_) = self.expr {
+            let op: &str = op;
+            match op {
+                ">" | "<" | ">=" | "<=" | "==" | "!=" => return true,
+                _ => return false,
+            }
+        }
+        return false;
+    }
 }
 
 impl fmt::Debug for Expr

@@ -226,6 +226,40 @@ impl<'a> Compiler<'a>
                 
                 self.emit(Opcode::PushField);
             }
+            ExprKind::Match(value,with,or) => {
+                let orl = self.new_empty_label();
+                let end = self.new_empty_label();
+                let check = self.new_empty_label();
+                let mut tbl = FxHashMap::default();
+                self.emit_goto(&check);
+                for (id,(_,then)) in with.iter().enumerate() {
+                    let label = self.new_empty_label();
+                    self.label_here(&label);
+                    tbl.insert(id, label);
+                    self.expr(then,false);
+                    self.emit_goto(&end);
+                }
+                
+                self.label_here(&orl);
+                if or.is_some() {
+                    self.expr(&or.clone().unwrap(),false);
+                    self.emit_goto(&end);
+                }
+                self.label_here(&check);
+                for (id,(cond,_)) in with.iter().enumerate() {
+                    self.expr(value,false);
+                    self.expr(cond,false);
+                    self.emit(Opcode::Eq);
+                    let label = tbl.get(&id).unwrap();
+                    let lbl = self.labels.get(label).unwrap();
+                    self.emit(Opcode::JumpNz(lbl.unwrap()));
+                }
+                if or.is_some() {
+                    self.emit_goto(&orl);
+                }
+
+                self.label_here(&end);
+            }
             ExprKind::If(cond, then, else_do) =>
             {
                 self.expr(&cond, false);

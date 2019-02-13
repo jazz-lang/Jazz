@@ -1,9 +1,7 @@
-let fac = |x| {
-    if x < 2 {
-        1
-    } else {
-        fac(x - 1) * x
-    }
-}
+var i = 0
+var num = int(args()[2])
 
-fac(5)
+while i < num {
+    i = i + 1
+}
+i
