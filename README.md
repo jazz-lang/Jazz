@@ -54,7 +54,7 @@ let mul = |x,y| return x * y
 ```
 ## Function
 
-You can define new function is very easy, you cana assign this function to a new variable:
+You can define new function is very easy, you can assign this function to a new variable:
 ```ocaml
 let add = |x,y| x + y
 ```
