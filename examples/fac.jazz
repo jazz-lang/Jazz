@@ -1,3 +1,5 @@
+open "prelude.jazz"
+
 let fac = |x| if x < 2 x else fac(x - 1) * x
 
 fac(5)

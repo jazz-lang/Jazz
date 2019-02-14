@@ -78,6 +78,13 @@ pub fn len(vm: &mut VirtualMachine, args: Vec<Value>) -> Value
     }
 }
 
+pub fn char_from_int(_: &mut VirtualMachine,args: Vec<Value>) -> Value {
+    match &args[0] {
+        Value::Int(i) => Value::Str(std::char::from_u32(*i as u32).unwrap().to_string()),
+        _ => unimplemented!()
+    }
+}
+
 pub fn char_to_int(_: &mut VirtualMachine, args: Vec<Value>) -> Value
 {
     match &args[0]
@@ -128,7 +135,8 @@ pub fn init(vm: &mut VirtualMachine) -> FxHashMap<&'static str, usize>
             read_line 0,
             string_trim 1,
             typename 1,
-            char_to_int 1
+            char_to_int 1,
+            char_from_int 1
         )
     );
 
@@ -141,6 +149,7 @@ pub fn init(vm: &mut VirtualMachine) -> FxHashMap<&'static str, usize>
     simply_register!(map => len);
     simply_register!(map => typename);
     simply_register!(map => char_to_int);
+    simply_register!(map => char_from_int);
 
     map
 }
