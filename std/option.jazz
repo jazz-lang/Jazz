@@ -1,0 +1,24 @@
+let __option_proto__ = new(nil)
+__option_proto__.is_some = false
+__option_proto__.value = nil
+__option_proto__.__typename__ = "option"
+
+__option_proto__.unwrap = || {
+    if self.is_some {
+        self.value
+    } else {
+        error("Called option.unwrap on a `none` value")
+    }
+}
+
+let none = || {
+    var obj = new(__option_proto__)
+    obj
+}
+
+let some = |x| {
+    var obj = new(__option_proto__)
+    obj.is_some = true
+    obj.value = x
+    obj
+}

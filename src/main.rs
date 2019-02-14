@@ -1,30 +1,39 @@
 extern crate jazz;
 
+use jazz::ast::*;
 use jazz::compile::Compiler;
 use jazz::msg::MsgWithPos;
 use jazz::parser::Parser;
 use jazz::reader::Reader;
 use jazz::runtime::init;
-use jazz::ast::*;
 use waffle::value::{FuncKind, Function};
 use waffle::VirtualMachine;
 
 use walkdir::WalkDir;
 
-fn proceed_opens(ast: &mut Vec<Box<Expr>>) {
-    for (id,expr) in ast.clone().iter().enumerate() {
-        if let ExprKind::Open(file) = &expr.expr {
-            let file = WalkDir::new(file).into_iter().nth(0).expect("File not found");
+fn proceed_opens(ast: &mut Vec<Box<Expr>>)
+{
+    for (id, expr) in ast.clone().iter().enumerate()
+    {
+        if let ExprKind::Open(file) = &expr.expr
+        {
+            let file = WalkDir::new(file).into_iter()
+                                         .nth(0)
+                                         .expect("File not found");
             let file = file.unwrap();
             let file: &std::path::Path = file.path();
             let reader = Reader::from_file(file.to_str().unwrap()).unwrap();
             let mut ast1 = vec![];
-            let mut parser = Parser::new(reader,&mut ast1);
+
+            let mut parser = Parser::new(reader, &mut ast1);
             parser.parse().unwrap();
+
             ast.remove(id);
             ast1.append(ast);
+
             *ast = ast1;
-        }   
+            proceed_opens(ast);
+        }
     }
 }
 
@@ -45,12 +54,13 @@ fn main() -> Result<(), MsgWithPos>
     cmpl.compile(ast, vec![]);
     let opcodes = cmpl.finish();
     let fun = Function { nargs: 0,
+                         args: vec![],
                          is_native: false,
                          addr: FuncKind::Interpret(opcodes) };
 
     let id = vm.pool.add_func(fun);
 
-    println!("{:?}",vm.run_func(id));
+    println!("{:?}", vm.run_func(id));
 
     Ok(())
 }

@@ -1,0 +1,17 @@
+let string_hash = |str| {
+    
+    var hash = 0
+    var i = 0
+    var chars = string_to_array(str)
+    while i < len(str) {
+        hash = hash + char_to_int(chars[i])
+        hash = hash + (hash << 10)
+        hash = hash ^ (hash >> 6)
+        i = i + 1
+    }
+    hash = hash + (hash << 3)
+    hash = hash ^ (hash >> 11)
+    hash = hash + (hash << 15)
+    hash
+}   
+

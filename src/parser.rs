@@ -68,11 +68,15 @@ impl<'a> Parser<'a>
         Ok(name)
     }
 
-    fn parse_open(&mut self) -> EResult {
+    fn parse_open(&mut self) -> EResult
+    {
         let pos = self.expect_token(TokenKind::Open)?.position;
-        if let ExprKind::ConstStr(s) = self.lit_str()?.expr {
-            return Ok(expr!(ExprKind::Open(s.clone()),pos));
-        } else {
+        if let ExprKind::ConstStr(s) = self.lit_str()?.expr
+        {
+            return Ok(expr!(ExprKind::Open(s.clone()), pos));
+        }
+        else
+        {
             unreachable!()
         }
     }
@@ -143,9 +147,10 @@ impl<'a> Parser<'a>
         }
     }
 
-    fn parse_self(&mut self) -> EResult {
+    fn parse_self(&mut self) -> EResult
+    {
         let pos = self.expect_token(TokenKind::This)?.position;
-        Ok(expr!(ExprKind::This,pos))
+        Ok(expr!(ExprKind::This, pos))
     }
 
     fn parse_break(&mut self) -> EResult
@@ -370,7 +375,7 @@ impl<'a> Parser<'a>
                     let tok = self.advance_token()?;
                     let index = self.parse_expression()?;
                     self.expect_token(TokenKind::RBracket)?;
-                    expr!(ExprKind::ArrayIndex(left,index),tok.position)
+                    expr!(ExprKind::ArrayIndex(left, index), tok.position)
                 }
                 _ =>
                 {
