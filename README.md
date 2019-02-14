@@ -4,6 +4,8 @@ Jazz is a dynamically typed programming language inspired by Lua, Neko and Rust
 
 # Learning
 
+Book on gitbook: [link](https://jazz-lang.gitbook.io/jazz/)
+
 ## Values
 - Nil: the special value nil is used for uninitialized variables
 - Integer: integer can be represented in decimal form,or hexadecimal
