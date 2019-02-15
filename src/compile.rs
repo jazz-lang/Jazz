@@ -137,6 +137,19 @@ impl<'a> Compiler<'a>
             ExprKind::ConstInt(i) => self.emit(Opcode::ConstInt(*i)),
             ExprKind::ConstFloat(f) => self.emit(Opcode::ConstFloat(*f)),
             ExprKind::ConstChar(c) => self.emit(Opcode::ConstStr(c.to_string())),
+            /*ExprKind::ConstStr(s) => {
+                let string: &str = s;
+                let chars = string.chars();
+                for ch in chars {
+                    self.emit(Opcode::ConstInt(ch as u32 as i64));
+                }
+                self.emit(Opcode::MakeArray(string.len()));
+
+                let id = self.fdefs.get("new_string").expect("Include string.jazz from std");
+                self.emit(Opcode::ConstFuncRef(*id));
+                self.emit(Opcode::ConstNull);
+                self.emit(Opcode::Call(string.len()));
+            },*/
             ExprKind::ConstStr(s) => self.emit(Opcode::ConstStr(s.to_owned())),
             ExprKind::ConstBool(b) =>
             {
@@ -335,6 +348,7 @@ impl<'a> Compiler<'a>
                     "==" => self.emit(Opcode::Eq),
                     "!=" => self.emit(Opcode::Neq),
                     "^" => self.emit(Opcode::Xor),
+                    "%" => self.emit(Opcode::Rem),
                     _ =>
                     {
                         if self.fdefs.contains_key(s)
@@ -427,6 +441,11 @@ impl<'a> Compiler<'a>
                 self.expr(idx, false);
                 self.expr(arr, false);
                 self.emit(Opcode::PushField);
+            }
+            ExprKind::Break =>
+            {
+                let l = self.end_labels.last().clone().unwrap().clone();
+                self.emit_goto(&l);
             }
             v => panic!("{:?}", v),
         }

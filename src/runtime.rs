@@ -78,10 +78,26 @@ pub fn len(vm: &mut VirtualMachine, args: Vec<Value>) -> Value
     }
 }
 
-pub fn char_from_int(_: &mut VirtualMachine,args: Vec<Value>) -> Value {
-    match &args[0] {
+pub fn clrscr(_: &mut VirtualMachine, _: Vec<Value>) -> Value
+{
+    let term = crossterm_terminal::terminal();
+    term.clear(crossterm_terminal::ClearType::All).unwrap();
+    Value::Null
+}
+
+pub fn sleep(_: &mut VirtualMachine, args: Vec<Value>) -> Value
+{
+    let time = args[0].as_int();
+    std::thread::sleep(std::time::Duration::from_millis(time as u64));
+    Value::Null
+}
+
+pub fn char_from_int(_: &mut VirtualMachine, args: Vec<Value>) -> Value
+{
+    match &args[0]
+    {
         Value::Int(i) => Value::Str(std::char::from_u32(*i as u32).unwrap().to_string()),
-        _ => unimplemented!()
+        _ => unimplemented!(),
     }
 }
 
@@ -90,6 +106,29 @@ pub fn char_to_int(_: &mut VirtualMachine, args: Vec<Value>) -> Value
     match &args[0]
     {
         Value::Str(s) => Value::Int(s.chars().nth(0).unwrap() as u32 as i64),
+        _ => unimplemented!(),
+    }
+}
+
+pub fn clone(vm: &mut VirtualMachine, args: Vec<Value>) -> Value
+{
+    match &args[0]
+    {
+        Value::Int(i) => Value::Int(*i),
+        Value::Float(f) => Value::Float(*f),
+        Value::Str(s) => Value::Str(s.clone()),
+        Value::ArrayRef(id) =>
+        {
+            let arr = vm.pool.get_array(*id).clone();
+            Value::ArrayRef(vm.pool.add_array(arr, false))
+        }
+        Value::ObjectRef(id) =>
+        {
+            let obj = vm.pool.get_object(*id).clone();
+            Value::ObjectRef(vm.pool.add_object(obj, false))
+        }
+        Value::Null => Value::Null,
+        Value::Bool(b) => Value::Bool(*b),
         _ => unimplemented!(),
     }
 }
@@ -136,7 +175,10 @@ pub fn init(vm: &mut VirtualMachine) -> FxHashMap<&'static str, usize>
             string_trim 1,
             typename 1,
             char_to_int 1,
-            char_from_int 1
+            char_from_int 1,
+            clrscr 0,
+            sleep 1,
+            clone 1
         )
     );
 
@@ -149,7 +191,10 @@ pub fn init(vm: &mut VirtualMachine) -> FxHashMap<&'static str, usize>
     simply_register!(map => len);
     simply_register!(map => typename);
     simply_register!(map => char_to_int);
+    simply_register!(map => clrscr);
+    simply_register!(map => sleep);
     simply_register!(map => char_from_int);
+    simply_register!(map => clone);
 
     map
 }

@@ -278,6 +278,7 @@ impl<'a> Parser<'a>
             TokenKind::Div => "/",
             TokenKind::LtLt => "<<",
             TokenKind::GtGt => ">>",
+            TokenKind::Mod => "%",
             _ => unimplemented!(),
         };
 
