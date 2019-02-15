@@ -19,7 +19,7 @@
         "grammars": [{
             "language": "jazz",
             "scopeName": "",
-            "path": "./syntaxes/jazz.tmLanguage.json"
+            "path": "./syntaxes/jazz.tmLanguage"
         }]
     }
 }
