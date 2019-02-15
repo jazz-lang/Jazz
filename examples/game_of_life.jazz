@@ -2,8 +2,8 @@ open "std/prelude.jazz"
 
 var board = anew(40)
 
-var HEIGHT = 40
-var WIDTH = 40
+var HEIGHT = 60
+var WIDTH = 30
 
 let randc = || {
     let r = rand_range(0,2)
@@ -21,7 +21,7 @@ let init = || {
         var y = 0
         while y < HEIGHT {
 
-            if rand_range(0,20) == 9 {
+            if rand_range(0,20) == 1 {
                 board[x][y] = "@"
             } else {
                 board[x][y] = " "
@@ -33,7 +33,7 @@ let init = || {
 
 }
 let checkInBound = |x,y| {
-    if ((x > -1) && (x < 40) && (y > -1) && (y < 40)) {
+    if ((x > -1) && (x < 60) && (y > -1) && (y < 32)) {
         true
     } else {
         false
@@ -75,10 +75,10 @@ let countNeighbors = |row,col| {
 let drawBoard = || {
     clrscr()
     var row = 2
-    while row <= 41 {
+    while row <= 61 {
         var col = 1 
-        while col <= 42 {
-            if ((col==1)||(col==42)) {
+        while col <= 32 {
+            if ((col==1)||(col==32)) {
             } else {
                 print(board[row-2][col-2])
             }
@@ -93,9 +93,9 @@ let iterateBoard = || {
     var numNeighbors = 0
 
     var row = 0
-    while row < 40 {
+    while row < 60 {
         var col = 0
-        while col < 40 {
+        while col < 32 {
             numNeighbors = countNeighbors(row,col)
             if board[row][col] == "@" {
                 if (numNeighbors < 2) || (numNeighbors > 3) {
@@ -115,6 +115,7 @@ let iterateBoard = || {
 
 init()
 while true {
+    drawBoard()
     iterateBoard()
     drawBoard()
 }
