@@ -74,3 +74,42 @@ let string_countOccurrences = |str,ch| {
     }
     counter
 }
+
+let print_characters = |str| {
+    var chars = string_to_array(str)
+    var i = 0
+    while i < len(chars) {
+        putchar(chars[i])
+        i = i + 1
+    }
+}
+// By default `print` and `println` is a builtin functions but when you include this file these functions replaced by this two
+let print = || {
+    var i = 0
+    var buff = anew()
+    while i < alen(_args) {
+        apush(buff,string(_args[i]))
+        if i != alen(_args) - 1 {
+            apush(buff,",")
+        }
+        i = i + 1
+    }
+    var s = string_from_array(buff)
+    print_characters(s)
+    
+}
+
+let println = || {
+    var i = 0
+    var buff = anew()
+    while i < alen(_args) {
+        apush(buff,string(_args[i]))
+        if i != alen(_args) - 1 {
+            apush(buff,",")
+        }
+        i = i + 1
+    }
+    var s = string_from_array(buff)
+    print_characters(s)
+    putchar("\n")
+}

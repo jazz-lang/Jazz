@@ -85,6 +85,16 @@ pub fn clrscr(_: &mut VirtualMachine, _: Vec<Value>) -> Value
     Value::Null
 }
 
+pub fn putchar(_: &mut VirtualMachine,args: Vec<Value>) -> Value {
+    let arg = &args[0];
+    match arg {
+        Value::Str(s) => print!("{}",s.chars().nth(0).unwrap()),
+        Value::Int(i) => print!("{}",std::char::from_u32(*i as u32).unwrap()),
+        _ => unimplemented!(),
+    }
+    Value::Null
+}
+
 pub fn sleep(_: &mut VirtualMachine, args: Vec<Value>) -> Value
 {
     let time = args[0].as_int();
@@ -178,7 +188,8 @@ pub fn init(vm: &mut VirtualMachine) -> FxHashMap<&'static str, usize>
             char_from_int 1,
             clrscr 0,
             sleep 1,
-            clone 1
+            clone 1,
+            putchar 1
         )
     );
 
@@ -195,6 +206,7 @@ pub fn init(vm: &mut VirtualMachine) -> FxHashMap<&'static str, usize>
     simply_register!(map => sleep);
     simply_register!(map => char_from_int);
     simply_register!(map => clone);
+    simply_register!(map => putchar);
 
     map
 }
