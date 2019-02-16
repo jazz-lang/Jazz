@@ -2,7 +2,8 @@
     "name": "Jazz",
     "displayName": "Jazz",
     "description": "Support for Jazz in VSCode",
-    "version": "0.0.1",
+    "version": "0.1.0",
+    "publisher": "playXE",
     "engines": {
         "vscode": "^1.31.0"
     },
@@ -10,16 +11,27 @@
         "Programming Languages"
     ],
     "contributes": {
-        "languages": [{
-            "id": "jazz",
-            "aliases": ["Jazz", "jazz"],
-            "extensions": [".jazz",".jz",".jml"],
-            "configuration": "./language-configuration.json"
-        }],
-        "grammars": [{
-            "language": "jazz",
-            "scopeName": "",
-            "path": "./syntaxes/jazz.tmLanguage"
-        }]
+        "languages": [
+            {
+                "id": "jazz",
+                "aliases": [
+                    "Jazz",
+                    "jazz"
+                ],
+                "extensions": [
+                    ".jazz",
+                    ".jz",
+                    ".jml"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "jazz",
+                "scopeName": "",
+                "path": "./syntaxes/jazz.tmLanguage"
+            }
+        ]
     }
 }
