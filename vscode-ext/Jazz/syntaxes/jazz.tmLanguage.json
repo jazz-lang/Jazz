@@ -1,0 +1,79 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "Wu",
+	"patterns": [
+		{ "include": "#oneliner comments" },
+		{ "include": "#keywords" },
+		{ "include": "#types" },
+		{ "include": "#strings" },
+		{ "include": "#raw strings" },
+		{ "include": "#integers" },
+		{ "include": "#floats" },
+		{ "include": "#bools" },
+		{ "include": "#operators" },
+		{ "include": "#cusswords" },
+		{ "include": "#calls" }
+	],
+	"repository": {
+		"keywords": {
+			"patterns": [{
+				"name": "keyword.control.wu",
+				"match": "\\b(->|return|if|else|match|while|break|new|open|let|var|apush|apop|alen|)\\b"
+			}]
+		},
+		"strings": {
+			"name": "string.quoted.double.jazz",
+			"begin": "\"",
+			"end": "\"",
+			"patterns": [
+				{
+					"name": "constant.character.escape.jazz",
+					"match": "\\\\."
+				}
+			]
+		},
+		"raw strings": {
+			"name": "string.quoted.other.jazz",
+			"begin": "r\"",
+			"end": "\"",
+			"patterns": [ ]
+		},
+		"integers": {
+			"name": "constant.number.integer.jazz",
+			"match": "[0-9]+",
+			"patterns": [ ]
+		},
+		"floats": {
+			"name": "constant.number.float.jazz",
+			"match": "[0-9]+.[0-9]*",
+			"patterns": [ ]
+		},
+		"bools": {
+			"name": "constant.language.jazz",
+			"match": "\\b(true|false|nil|self)\\b",
+			"patterns": [ ]
+		},
+		"oneliner comments": {
+			"name": "comment.line.double-dash.jazz",
+			"begin": "//",
+			"end": "\n",
+			"patterns": []
+		},
+		"types": {
+			"name": "storage.type.jazz",
+			"match": "((\\.\\.\\.)?\\b(int|float|bool|string|nil|[A-Z]\\w+)\\b|\\.\\.\\.)\\??",
+			"patterns": [ ]
+		},
+		"operators": {
+			"name": "keyword.operator.jazz",
+			"match": "(\\:=|\\=|\\?|!|\\^|\\+\\+|\\+|\\-|\\*|\\/|%|==|!=|<=|>=|<|>|\\b(|||&&|!)\\b)",
+			"patterns": [ ]
+		},
+		"calls": {
+			"name": "entity.name.function.jazz",
+			"match": "\\b(\\w+)(?=\\s*\\()",
+			"patterns": [ ]
+		}
+	},
+	"scopeName": "source.jazz"
+}
