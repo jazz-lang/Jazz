@@ -33,9 +33,11 @@ pub struct Compiler<'a>
 
     pub ins: Vec<UOP>,
     pub vm: &'a mut VirtualMachine,
-    pub locals: FxHashSet<String>,
+    pub locals: FxHashMap<String,usize>,
     pub labels: FxHashMap<String, Option<usize>>,
     pub fdefs: FxHashMap<&'static str, usize>,
+    pub globals: FxHashMap<String,usize>,
+    pub in_global_scope: bool,
 }
 
 impl<'a> Compiler<'a>
@@ -45,10 +47,12 @@ impl<'a> Compiler<'a>
     {
         Self { end_labels: vec![],
                check_labels: vec![],
-               locals: FxHashSet::default(),
+               locals: FxHashMap::default(),
+               globals: FxHashMap::default(),
                fdefs: builtins,
                ins: vec![],
                vm,
+               in_global_scope: false,
                labels: FxHashMap::default() }
     }
 
@@ -56,7 +60,7 @@ impl<'a> Compiler<'a>
     {
         for (id, arg) in args.iter().enumerate()
         {
-            self.locals.insert(arg.clone());
+            self.locals.insert(arg.to_owned(),id);
         }
 
         for expr in exprs.iter()
@@ -114,14 +118,23 @@ impl<'a> Compiler<'a>
         {
             ExprKind::Assign(to, val) =>
             {
-                self.expr(val, false);
                 if let ExprKind::Ident(ref name) = to.clone().expr
                 {
-                    self.emit(Opcode::StoreLocal(name.to_owned()));
+                    if name == "_args" {
+                        self.emit(Opcode::PushVaArgs);
+                        return;
+                    }
+                    
+                    if self.globals.contains_key(name) {
+                        self.emit(Opcode::StoreGlobal(*self.globals.get(name).unwrap()));
+                    } else {
+                        self.emit(Opcode::StoreLocal(*self.locals.get(name).expect(&format!("Local `{}` not found",name))));
+                    }
                 }
                 if let ExprKind::Access(obj, field) = to.clone().expr
                 {
                     self.expr(val, false);
+                    
                     self.emit(Opcode::ConstStr(field.to_owned()));
                     self.expr(&obj, false);
                     self.emit(Opcode::StoreField);
@@ -171,8 +184,17 @@ impl<'a> Compiler<'a>
                     self.emit(Opcode::ConstFuncRef(*idx));
                     return;
                 }
-
-                self.emit(Opcode::PushLocal(name.to_owned()));
+                if name == "_args" {
+                    self.emit(Opcode::PushVaArgs);
+                    return;
+                }
+                if self.locals.contains_key(name) {
+                    let id = self.locals.get(name).unwrap();
+                    self.emit(Opcode::PushLocal(*id))
+                } else {
+                    let id = self.globals.get(name).expect(&format!("Global `{}` not found",name));
+                    self.emit(Opcode::PushGlobal(*id));
+                }
             }
             ExprKind::Var(_, name, init) =>
             {
@@ -182,17 +204,22 @@ impl<'a> Compiler<'a>
                     if let ExprKind::Lambda(args, expr) = init.expr
                     {
                         let func = Function { nargs: args.len() as i32,
-                                              args: args.clone(),
                                               is_native: false,
-                                              addr: FuncKind::Interpret(vec![]) };
+                                              addr: FuncKind::Interpret(vec![]),
+                                              nlocals: 0, };
                         let id = self.vm.pool.add_func(func);
                         let s: &str = &name.clone();
                         self.fdefs.insert(unsafe { std::mem::transmute(s) }, id);
                         let locals = self.locals.clone();
                         let builtins = self.fdefs.clone();
+                        let globals = self.globals.clone();
+                        
                         let mut cmpl = Compiler::new(self.vm, builtins);
+                        cmpl.in_global_scope = false;
                         cmpl.locals = locals;
+                        cmpl.globals = globals;
                         cmpl.compile(vec![expr.clone()], args.clone());
+                        let nlocals = cmpl.locals.len();
                         let ins = cmpl.finish();
                         if cfg!(debug_assertions)
                         {
@@ -205,7 +232,7 @@ impl<'a> Compiler<'a>
                         }
                         let func = self.vm.pool.get_func_mut(id);
                         func.addr = FuncKind::Interpret(ins);
-
+                        func.nlocals = nlocals;
                         self.emit(Opcode::ConstFuncRef(id));
                     }
                     else
@@ -217,8 +244,17 @@ impl<'a> Compiler<'a>
                 {
                     self.emit(Opcode::ConstNull);
                 }
-                self.emit(Opcode::StoreLocal(name.to_owned()));
-                self.locals.insert(name.to_owned());
+                if self.in_global_scope {
+                    let gidx = self.globals.len();
+                    self.emit(Opcode::StoreGlobal(gidx));
+                    
+                    self.globals.insert(name.clone(),gidx);
+                } else {
+                    let idx = self.locals.len();
+                    self.emit(Opcode::StoreLocal(idx));
+                    self.locals.insert(name.clone(),idx);
+                }
+                
             }
             ExprKind::Return(e) =>
             {
@@ -406,12 +442,13 @@ impl<'a> Compiler<'a>
             {
                 let mut func = Function { nargs: args.len() as i32,
                                           is_native: false,
-                                          args: args.clone(),
-                                          addr: FuncKind::Interpret(vec![]) };
+                                          addr: FuncKind::Interpret(vec![]),nlocals: 0, };
                 let locals = self.locals.clone();
                 let builtins = self.fdefs.clone();
+                let globals = self.globals.clone();
                 let mut cmpl = Compiler::new(self.vm, builtins);
                 cmpl.locals = locals;
+                cmpl.globals = globals;
                 cmpl.compile(vec![expr.clone()], args.clone());
                 let ins = cmpl.finish();
                 if cfg!(debug_assertions)
@@ -425,6 +462,7 @@ impl<'a> Compiler<'a>
                 }
 
                 func.addr = FuncKind::Interpret(ins);
+                func.nlocals = cmpl.locals.len();
                 let id = self.vm.pool.add_func(func);
 
                 self.emit(Opcode::ConstFuncRef(id));

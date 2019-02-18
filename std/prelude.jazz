@@ -75,7 +75,7 @@ let string_countOccurrences = |str,ch| {
     counter
 }
 
-let print_characters = |str| {
+/*let print_characters = |str| {
     var chars = string_to_array(str)
     var i = 0
     while i < len(chars) {
@@ -110,6 +110,6 @@ let println = || {
         i = i + 1
     }
     var s = string_from_array(buff)
-    print_characters(s)
+    print(s)
     putchar("\n")
-}
+}*/

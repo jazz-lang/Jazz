@@ -147,30 +147,31 @@ use fxhash::FxHashMap;
 
 pub fn init(vm: &mut VirtualMachine) -> FxHashMap<&'static str, usize>
 {
-    macro register {
+    macro_rules! register {
         ($map:expr => $name:ident $argc:expr) => {
             let func = Function {
-                args: vec![],
                 addr: FuncKind::Native($name as *const u8),
                 is_native: true,
                 nargs: $argc,
+                nlocals: 0,
             };
 
             let id = vm.pool.add_func(func);
             let name: &str = &format!("builtin_{}",stringify!($name));
             $map.insert(unsafe {std::mem::transmute::<&str,&'static str>(name)},id);
 
-        },
+        };
         ($map:expr => ($($name:ident $argc:expr),*)) => {
             $(
                 register!($map => $name $argc);
             )*
         }
     }
-    macro simply_register($map:expr => $name:ident) {
+    macro_rules! simply_register {($map:expr => $name:ident) => {
         let name: &str = &format!("builtin_{}", stringify!($name));
         let fid = $map.get(name).unwrap();
         $map.insert(stringify!($name), *fid);
+    };
     }
 
     let mut map = init_builtins(vm);

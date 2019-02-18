@@ -51,12 +51,12 @@ fn main() -> Result<(), MsgWithPos>
     let mut vm = VirtualMachine::new();
     let builtins = init(&mut vm);
     let mut cmpl = Compiler::new(&mut vm, builtins);
+    cmpl.in_global_scope = true;
     cmpl.compile(ast, vec![]);
     let opcodes = cmpl.finish();
     let fun = Function { nargs: 0,
-                         args: vec![],
                          is_native: false,
-                         addr: FuncKind::Interpret(opcodes) };
+                         addr: FuncKind::Interpret(opcodes),nlocals: cmpl.locals.len() };
 
     let id = vm.pool.add_func(fun);
 

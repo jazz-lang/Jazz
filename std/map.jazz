@@ -1,0 +1,59 @@
+open "std/prelude.jazz"
+
+let __map_node__ = new(nil)
+__map_node__.key = nil
+__map_node__.value = nil
+
+let __map__ = new(nil)
+__map__.nodes = anew()
+
+let map_node_new = |key,val| {
+    var obj = new(__map_node__)
+    obj.key = key
+    obj.value = val
+    obj
+} 
+
+let map_new = || {
+    var map = new(__map__)
+    map
+}
+
+let map_contains = |map,key| {
+    var i = 0
+    while i < alen(map.nodes) {
+        if map.nodes[i].key == key {
+            return true
+        }
+    }
+    return false
+}
+
+let map_find = |map,key| {
+    if map_contains(map,key) {
+        var i = 0
+        while i < alen(map.nodes) {
+            if map.nodes[i].key == key {
+                return map.nodes[i].value
+            }
+            i = i + 1
+        }
+    } else {
+        none()
+    }
+}
+
+let map_insert = |map,key,val| {
+    if map_contains(map,key) {
+        var i = 0
+        while i < alen(map.nodes) {
+            if map.nodes[i].key == key {
+                return map.nodes[i].val
+            }
+            i = i + 1
+        }
+    } else {
+        var node = map_node_new(key,val)
+        apush(map.nodes,node)
+    }
+}

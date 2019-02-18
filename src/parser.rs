@@ -12,9 +12,11 @@ pub struct Parser<'a>
     ast: &'a mut Vec<Box<Expr>>,
 }
 
-macro expr($e:expr,$pos:expr) {
+macro_rules! expr {
+    ($e:expr,$pos:expr) => {
     Box::new(Expr { pos: $pos,
                     expr: $e })
+    };
 }
 
 type EResult = Result<Box<Expr>, MsgWithPos>;
