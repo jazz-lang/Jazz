@@ -42,8 +42,7 @@ impl<'a> Parser<'a>
         self.init()?;
         while !self.token.is_eof()
         {
-            let v = self.parse_expression()?;
-            self.ast.push(v);
+            self.parse_top_level()?;
         }
         Ok(())
     }
@@ -62,6 +61,18 @@ impl<'a> Parser<'a>
                                 Msg::ExpectedToken(kind.name().into(),
                                                    self.token.name())))
         }
+    }
+
+    fn parse_top_level(&mut self) -> Result<(),MsgWithPos> {
+        let expr = match &self.token.kind {
+            TokenKind::Fun => self.parse_function()?,
+            TokenKind::Let | TokenKind::Var => self.parse_let()?,
+            TokenKind::Class => self.parse_class()?,
+            v => panic!("{:?} {}",v,self.token.position)
+        };
+
+        self.ast.push(expr);
+        Ok(())
     }
 
     fn parse_function_param(&mut self) -> Result<String, MsgWithPos>
@@ -83,26 +94,48 @@ impl<'a> Parser<'a>
         }
     }
 
+    fn parse_class(&mut self) -> EResult {
+        let pos1 = self.expect_token(TokenKind::Class)?.position;
+        let name = self.expect_identifier()?;
+        let impls = if self.token.is(TokenKind::Colon) || self.token.is(TokenKind::Implements) {
+            self.advance_token()?;
+            let impls = self.parse_expression()?;
+            Some(impls)
+        } else {
+            None
+        };
+        
+        let block = self.parse_block()?;
+
+
+        Ok(expr!(ExprKind::Class(name,block,impls),pos1))
+        
+
+    }
+
     fn parse_function(&mut self) -> EResult
     {
         let pos = self.expect_token(TokenKind::Fun)?.position;
+        let name = self.expect_identifier()?;
         self.expect_token(TokenKind::LParen)?;
-        let mut data = vec![];
-        let mut comma = true;
-        while !self.token.is(TokenKind::RParen) || !self.token.is_eof()
+        let params = if self.token.kind == TokenKind::RParen
         {
-            let name = self.expect_identifier()?;
-            data.push(name);
-            comma = self.token.is(TokenKind::Comma);
-            if comma
-            {
-                self.advance_token()?;
-            }
+            vec![]
         }
-
+        else
+        {
+            let mut tmp = vec![];
+            while !self.token.is(TokenKind::RParen) {
+                tmp.push(self.expect_identifier()?);
+                if !self.token.is(TokenKind::RParen) {
+                    self.expect_token(TokenKind::Comma);
+                }
+            }
+            tmp
+        };
         self.expect_token(TokenKind::RParen)?;
         let block = self.parse_block()?;
-        Ok(expr!(ExprKind::Function(data, block), pos))
+        Ok(expr!(ExprKind::Function(name,params, block), pos))
     }
 
     fn parse_let(&mut self) -> EResult
@@ -135,6 +168,7 @@ impl<'a> Parser<'a>
     {
         match self.token.kind
         {
+            TokenKind::Fun => self.parse_function(),
             TokenKind::Match => self.parse_match(),
             TokenKind::Let | TokenKind::Var => self.parse_let(),
             TokenKind::LBrace => self.parse_block(),

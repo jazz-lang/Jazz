@@ -37,6 +37,8 @@ pub enum TokenKind
     RQuote,
 
     // Keywords
+    Class,
+    Implements,
     This,
     Match,
     Fun,
@@ -127,8 +129,10 @@ impl TokenKind
             TokenKind::RQuote => ">",
 
             // Keywords
+            TokenKind::Class => "class",
+            TokenKind::Implements => "implements",
             TokenKind::This => "self",
-            TokenKind::Fun => "fun",
+            TokenKind::Fun => "function",
             TokenKind::Let => "let",
             TokenKind::Var => "var",
             TokenKind::While => "while",

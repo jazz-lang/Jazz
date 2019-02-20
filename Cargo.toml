@@ -7,7 +7,6 @@ edition = "2018"
 [dependencies]
 hmap = "0.1.0"
 fxhash = "0.2.1"
-waffle = {git = "https://github.com/jazz-lang/waffle"}
 rand = "0.6.5"
 walkdir = "2.2.7"
 crossterm_terminal = "0.1.0"
