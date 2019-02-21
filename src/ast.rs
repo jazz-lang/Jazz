@@ -23,6 +23,7 @@ pub enum ExprKind
     ConstInt(i64),
     ConstChar(char),
     ConstStr(String),
+    New(Box<Expr>),
     ConstFloat(f64),
     Object(Vec<(Box<Expr>, Box<Expr>)>),
     Var(bool, String, Option<Box<Expr>>),

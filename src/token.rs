@@ -42,6 +42,7 @@ pub enum TokenKind
     This,
     Match,
     Fun,
+    New,
     Let,
     Var,
     While,
@@ -152,7 +153,7 @@ impl TokenKind
             TokenKind::Do => "do",
             TokenKind::Type => "type",
             TokenKind::Const => "const",
-
+            TokenKind::New => "new",
             TokenKind::Underscore => "_",
 
             TokenKind::Open => "open",

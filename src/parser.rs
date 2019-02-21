@@ -168,7 +168,17 @@ impl<'a> Parser<'a>
     {
         match self.token.kind
         {
+            TokenKind::New => {
+                
+                let pos = self.advance_token()?.position;
+                let calling = self.parse_expression()?;
+                Ok(expr!(
+                    ExprKind::New(calling),
+                    pos
+                ))
+            }
             TokenKind::Fun => self.parse_function(),
+            
             TokenKind::Match => self.parse_match(),
             TokenKind::Let | TokenKind::Var => self.parse_let(),
             TokenKind::LBrace => self.parse_block(),

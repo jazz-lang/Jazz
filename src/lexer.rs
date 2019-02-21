@@ -45,7 +45,8 @@ impl Lexer
             "open" => TokenKind::Open,
             "internal" => TokenKind::Internal,
             "class" => TokenKind::Class,
-            "implements" => TokenKind::Implements
+            "implements" => TokenKind::Implements,
+            "new" => TokenKind::New
         );
 
         Lexer { reader: reader,

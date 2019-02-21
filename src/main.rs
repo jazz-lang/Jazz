@@ -9,8 +9,15 @@ use time::PreciseTime;
 fn main() {
     let reader = Reader::from_string("
 
+        class Point {
+            function __init__(x,y) {
+                self.x = x
+                self.y = y
+            }
+        }
         function main() {
-            return string(25)
+            var p = new Point(2,3)
+            print(p.x) 
         }
         ");
     let mut ast = vec![];

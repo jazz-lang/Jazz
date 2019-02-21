@@ -1,8 +1,10 @@
 use hashbrown::HashMap;
 use waffle::vm::VirtualMachine;
 use waffle::instructions::Instruction;
-use waffle::value::{Function,FunctionType};
+use waffle::value::*;
 use crate::ast::*;
+
+
 
 pub struct Compiler {
     pub globals: HashMap<String,usize>,
@@ -32,6 +34,16 @@ impl Compiler {
         };
         let idx = self.vm.pool.new_func(f);
         self.globals.insert("string".into(),idx);
+        self.vm.globals.insert(idx,gc!(waffle::value::Value::Function(idx)));
+
+        let f = Function {
+            typ: FunctionType::Internal(stdlib::print),
+            name: "print".to_owned(),
+            module_name: "stdlib".to_owned(),
+            export: true,
+        };
+        let idx = self.vm.pool.new_func(f);
+        self.globals.insert("print".into(),idx);
         self.vm.globals.insert(idx,gc!(waffle::value::Value::Function(idx)));
     }
 
@@ -69,6 +81,53 @@ impl Compiler {
                     func.borrow_mut().typ = FunctionType::Native(code);
                     
                     
+                }
+
+                
+
+                ExprKind::Class(name,block,_implements) => {
+                    let object = Object::new(name,None,"unknown".into());
+                    
+                    let oidx = self.vm.pool.new_object(object);
+                    self.globals.insert(name.to_owned(),oidx);
+                    self.vm.globals.insert(oidx,gc!(Value::Object(oidx)));
+                    
+                   
+                    if let ExprKind::Block(exprs) = &block.expr {
+                        for expr in exprs.iter() {
+                            match &expr.expr {
+                                ExprKind::Function(fname,args,block) => {
+                                    let function = Function {
+                                        name: fname.to_owned(),
+                                        typ: FunctionType::Native(vec![]),
+                                        module_name: "main".to_owned(),
+                                        export: true,
+                                    };
+                                    let id = self.vm.pool.new_func(function);
+                                    let object = self.vm.pool.get_object(oidx);
+                                    ((**object).borrow_mut()).insert(Value::String(fname.to_owned()),gc!(Value::Function(id)));
+                                    let mut fbuilder = FunctionBuilder::new(self,args.len());
+                                    for param in args.iter() {
+                                        let reg = fbuilder.register_push_temp();
+                                        fbuilder.new_local(param.to_owned(), reg);
+                                    }
+                                    fbuilder.expr(block);
+
+                                    let code = fbuilder.finish();
+                                    if cfg!(debug_assertions) {
+                                        println!("Disassemble of `{}::{}` function",name,fname);
+                                        for (idx,op) in code.iter().enumerate() {
+                                            println!("{:04} {:?}",idx,op);
+                                        }
+                                    }
+                                    
+                                    let func = self.vm.pool.get_func(id);
+                                    func.borrow_mut().typ = FunctionType::Native(code);
+                                }
+                                _ => unimplemented!()
+                            }
+                        }
+                    }
                 }
                 _ => unimplemented!()
             }
@@ -238,10 +297,10 @@ impl<'a> FunctionBuilder<'a> {
             self.state[value] = false;
         }
 
-        if protect && value >= self.nlocals {
+        /*if protect && value >= self.nlocals {
             let ctx = self.context.last_mut().unwrap();
             ctx[value] = true;
-        }
+        }*/
 
         return value;
     }
@@ -281,6 +340,17 @@ impl<'a> FunctionBuilder<'a> {
                     self.emit(Instruction::LoadFalse(r0));
                 }
             }
+
+            ExprKind::Access(obj,field) => {
+                self.expr(obj);
+                let ra = self.register_pop_context_protect(true);
+                let rb = self.register_push_temp();
+                self.emit(Instruction::LoadString(rb,field.to_owned()));
+                let temp = self.register_push_temp();
+                self.emit(Instruction::LoadAt(ra,rb,temp));
+                self.register_clear(ra);
+            }
+
 
             ExprKind::Return(expr) => {
                 if expr.is_some() {
@@ -364,15 +434,36 @@ impl<'a> FunctionBuilder<'a> {
                     self.new_local(name.to_owned(), r0);
                 }
             }
+            ExprKind::This => {
+                let r = self.register_push_temp();
+                self.emit(Instruction::LoadThis(r));
+            }
             ExprKind::Assign(var,to) => {
                 match &var.expr {
                     ExprKind::Ident(name) => {
-                        let r0 = self.get_local(name);
-                        self.expr(to);
-                        let r1 = self.register_pop();
-                        if r0 != r1 {
-                            self.emit(Instruction::Move(r1,r0));
+                        if self.locals.contains_key(name) {
+                            let r0 = self.get_local(name);
+                            self.expr(to);
+                            let r1 = self.register_pop();
+                            if r0 != r1 {
+                                self.emit(Instruction::Move(r1,r0));
+                            }
+                        } else {
+                            self.expr(to);
+                            let r = self.register_pop();
+                            let gidx = self.compiler.globals.get(name).unwrap();
+                            self.emit(Instruction::SetGlobal(r,*gidx));
                         }
+                    }
+                    ExprKind::Access(obj,field) => {
+                        self.expr(obj);
+                        let r = self.register_pop_context_protect(true);
+                        let r1 = self.register_push_temp();
+                        self.emit(Instruction::LoadString(r1,field.to_owned()));
+                        self.expr(to);
+                        let r2 = self.register_pop();
+                        self.emit(Instruction::StoreAt(r,r1,r2));
+                        self.register_clear(r);
                     }
                     _ => unimplemented!()
                 }
@@ -395,7 +486,24 @@ impl<'a> FunctionBuilder<'a> {
                 let dest = self.register_push_temp();
                 self.emit(Instruction::Call(dest,r,args.len()));
             }
-            _ => unimplemented!()
+            ExprKind::New(init_class) => {
+                if let ExprKind::Call(to_call,args) = &init_class.expr {
+                    for arg in args.iter() {
+                        self.expr(arg);
+                        let r = self.register_pop();
+                        self.register_clear(r);
+                        self.emit(Instruction::Push(r));
+                    }
+                    self.expr(to_call);
+                    let r = self.register_pop();
+                    let dest = self.register_push_temp();
+                    self.emit(Instruction::New(dest,r,args.len()));
+                } else {
+                    panic!("Call expected");
+                }
+            }
+
+            v => panic!("{:?}",v)
         }
     }
 }
