@@ -105,7 +105,7 @@ impl<'a> Parser<'a>
             None
         };
         
-        let block = self.parse_block()?;
+        let block = self.parse_class_block()?;
 
 
         Ok(expr!(ExprKind::Class(name,block,impls),pos1))
@@ -128,7 +128,7 @@ impl<'a> Parser<'a>
             while !self.token.is(TokenKind::RParen) {
                 tmp.push(self.expect_identifier()?);
                 if !self.token.is(TokenKind::RParen) {
-                    self.expect_token(TokenKind::Comma);
+                    self.expect_token(TokenKind::Comma)?;
                 }
             }
             tmp
@@ -277,6 +277,21 @@ impl<'a> Parser<'a>
         };
 
         Ok(expr!(ExprKind::If(cond, then_block, else_block), pos))
+    }
+
+    fn parse_class_block(&mut self) -> EResult {
+        let pos = self.expect_token(TokenKind::LBrace)?.position;
+        let mut exprs = vec![];
+        while !self.token.is(TokenKind::RBrace) && !self.token.is_eof() {
+            let expr = match self.token.kind {
+                TokenKind::Fun => self.parse_function()?,
+                TokenKind::Let | TokenKind::Var => self.parse_let()?,
+                _ => return Err(MsgWithPos::new(pos,Msg::ExpectedClassElement("".to_owned()))),
+            };
+            exprs.push(expr);
+        }
+        self.expect_token(TokenKind::RBrace)?;
+        Ok(expr!(ExprKind::Block(exprs),pos))
     }
 
     fn parse_block(&mut self) -> EResult
