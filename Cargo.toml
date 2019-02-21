@@ -13,3 +13,4 @@ crossterm_terminal = "0.1.0"
 waffle = {git = "https://github.com/jazz-lang/waffle"}
 hashbrown = "0.1.8"
 gc = "0.3.2"
+time = "0.1.42"

@@ -4,21 +4,17 @@ use jazz::reader::Reader;
 use jazz::parser::Parser;
 use waffle::vm::VirtualMachine;
 use jazz::codegen::Compiler;
-use gc::{Gc,GcCell};
-use waffle::value::Value;
+use time::PreciseTime;
 
 fn main() {
     let reader = Reader::from_string("
-        function factorial(x) {
-            if x < 2 {
-                return 1
-            } else {
-                return factorial(x - 1) * x
-            }
-        }
 
         function main() {
-            return factorial(5)
+            var i = 0
+            while i < 12000000 {
+                i = i + 1
+            }
+            return i
         }
         ");
     let mut ast = vec![];
@@ -30,6 +26,9 @@ fn main() {
     compiler.compile_ast(ast);
 
     let f = compiler.globals.get("main").unwrap();
+    let start = PreciseTime::now();
     let result = compiler.vm.run_function(*f,vec![]);
-    println!("{:?}",result);
+    let end = PreciseTime::now();
+    
+    println!("RESULT: {:?} in {} ms",result,start.to(end).num_milliseconds());
 }

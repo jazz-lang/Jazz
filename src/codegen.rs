@@ -233,7 +233,7 @@ impl<'a> FunctionBuilder<'a> {
                 .iter()
                 .map(|i| match i {
                     &UOP::Op(ref op) => op.clone(),
-                    &UOP::Goto(ref lbl) => Instruction::Jump(self.labels.get(lbl).unwrap().unwrap()),
+                    &UOP::Goto(ref lbl) => Instruction::Jump(self.labels.get(lbl).unwrap().unwrap() - 1),
                     &UOP::GotoF(ref reg,ref lbl) => Instruction::JumpF(*reg,self.labels.get(lbl).unwrap().unwrap() - 1),
                     &UOP::GotoT(ref reg,ref lbl) => Instruction::JumpT(*reg,self.labels.get(lbl).unwrap().unwrap() - 1),
                 }
@@ -271,6 +271,17 @@ impl<'a> FunctionBuilder<'a> {
                 } else {
                     self.emit(Instruction::Ret0);
                 }
+            }
+            ExprKind::While(cond,expr_do) => {
+                let compare = self.new_empty_label();
+                let end = self.new_empty_label();
+                self.label_here(&compare);
+                self.expr(cond);
+                let r = self.register_pop();
+                self.emit_gotof(&end, r);
+                self.expr(expr_do);
+                self.emit_goto(&compare);
+                self.label_here(&end);
             }
 
             ExprKind::If(cond,then,or) => {
