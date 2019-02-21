@@ -9,15 +9,34 @@ pub struct Compiler {
     pub vm: VirtualMachine,
 }
 
+use crate::stdlib;
+use gc::{Gc,GcCell};
+
 impl Compiler {
     pub fn new(vm: VirtualMachine) -> Compiler {
+
+
         Compiler {
             globals: HashMap::new(),
             vm: vm,
         }
     }
 
+    fn register_stdlib(&mut self) {
+        use std::mem;
+        let f = Function {
+            typ: FunctionType::Internal(stdlib::string),
+            name: "string".to_owned(),
+            module_name: "stdlib".to_owned(),
+            export: true,
+        };
+        let idx = self.vm.pool.new_func(f);
+        self.globals.insert("string".into(),idx);
+        self.vm.globals.insert(idx,gc!(waffle::value::Value::Function(idx)));
+    }
+
     pub fn compile_ast(&mut self,ast: Vec<Box<Expr>>) {
+        self.register_stdlib();
         for expr in ast.iter() {
             match &expr.expr {
                 ExprKind::Function(name,args,body) => {

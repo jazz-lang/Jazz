@@ -10,11 +10,7 @@ fn main() {
     let reader = Reader::from_string("
 
         function main() {
-            var i = 0
-            while i < 12000000 {
-                i = i + 1
-            }
-            return i
+            return string(25)
         }
         ");
     let mut ast = vec![];
