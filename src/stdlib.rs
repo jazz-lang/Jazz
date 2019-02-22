@@ -7,7 +7,7 @@ type Ret = Gc<GcCell<Value>>;
 
 
 
-pub fn string(_vm: &mut VirtualMachine,args: Args) -> Ret {
+pub fn string(vm: &mut VirtualMachine,args: Args) -> Ret {
     
     let value: &Value = &args[0].borrow();
     let value = match value {
@@ -16,22 +16,54 @@ pub fn string(_vm: &mut VirtualMachine,args: Args) -> Ret {
         Value::Bool(b) => b.to_string(),
         Value::Null => "null".to_owned(),
         Value::String(s) => s.to_owned(),
+        Value::Array(arr) => {
+            let array = vm.pool.get_array(*arr).borrow().clone();
+            let mut buff = String::new();
+            let mut i = 0;
+            buff.push('[');
+            while i < array.elements.len() {
+                let s = string(vm,vec![array.elements[i].clone()]);
+                let val: &Value = &s.borrow();
+                if let Value::String(s) = val {
+                    buff.push_str(s);    
+                }
+                if i != array.elements.len() - 1 {
+                    buff.push_str(",");
+                }
+                i += 1;
+            }
+            buff.push(']');
+            buff
+        }
         _ => unimplemented!()
     };
     
     gc!(Value::String(value))
 }
 
+pub fn anew(vm: &mut VirtualMachine,args: Args) -> Ret {
+    let mut arr = vec![];
+
+    for arg in args.iter() {
+        arr.push(arg.clone());
+    }
+
+    let array = Array {
+        elements: arr,
+    };
+
+    gc!(Value::Array(vm.pool.new_array(array)))
+}
+
 pub fn print(vm: &mut VirtualMachine,args: Args) -> Ret {
-    let mut i = 0;
-    while i < args.len() {
-        let s = string(vm,vec![args[i].clone()]);
+    
+    for val in args.iter() {
+        let s = string(vm,vec![val.clone()]);
         let value: &Value = &s.borrow();
         match value {
             Value::String(s) => print!("{}",s),
             _ => unreachable!()
         };
-        i += 1;
     }
     println!("");
     gc!(Value::Null)

@@ -1,0 +1,24 @@
+function add(x,y) 
+{
+    return x + y
+}
+
+class Point {
+    function __init__(x,y) {
+        self.x = x
+        self.y = y
+    }
+
+    function display() {
+        print("Point(",self.x,",",self.y,")")
+    }
+
+    function add(other) {
+        var result = new Point(0,0)
+        result.x = self.x + other.x
+        result.y = self.y + other.y
+
+        return result
+
+    }
+}

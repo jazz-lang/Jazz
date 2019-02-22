@@ -54,7 +54,7 @@ pub enum Msg
     UnderivableType(String),
     CycleInHierarchy,
     SuperfluousOverride(String),
-    SuperfluousOpen(String),
+    Superfluousimport(String),
     MissingOverride(String),
     ThrowsDifference(String),
     MethodNotOverridable(String),
@@ -234,9 +234,9 @@ impl Msg
                 "method `{}` uses modifier `override` without overriding a function.".into()
             }
             MissingOverride(_) => "method `{}` is missing modifier `override`.".into(),
-            SuperfluousOpen(_) =>
+            Superfluousimport(_) =>
             {
-                "method `{}` uses modifier `open` but class allows no subclasses.".into()
+                "method `{}` uses modifier `import` but class allows no subclasses.".into()
             }
             ThrowsDifference(_) =>
             {

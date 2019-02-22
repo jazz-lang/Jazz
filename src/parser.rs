@@ -68,6 +68,8 @@ impl<'a> Parser<'a>
             TokenKind::Fun => self.parse_function()?,
             TokenKind::Let | TokenKind::Var => self.parse_let()?,
             TokenKind::Class => self.parse_class()?,
+            TokenKind::Import => self.parse_import()?,
+            TokenKind::Include => self.parse_include()?,
             v => panic!("{:?} {}",v,self.token.position)
         };
 
@@ -81,12 +83,25 @@ impl<'a> Parser<'a>
         Ok(name)
     }
 
-    fn parse_open(&mut self) -> EResult
+    fn parse_import(&mut self) -> EResult
     {
-        let pos = self.expect_token(TokenKind::Open)?.position;
+        let pos = self.expect_token(TokenKind::Import)?.position;
         if let ExprKind::ConstStr(s) = self.lit_str()?.expr
         {
-            return Ok(expr!(ExprKind::Open(s.clone()), pos));
+            return Ok(expr!(ExprKind::Import(s.clone()), pos));
+        }
+        else
+        {
+            unreachable!()
+        }
+    }
+
+    fn parse_include(&mut self) -> EResult
+    {
+        let pos = self.expect_token(TokenKind::Include)?.position;
+        if let ExprKind::ConstStr(s) = self.lit_str()?.expr
+        {
+            return Ok(expr!(ExprKind::Include(s.clone()), pos));
         }
         else
         {
@@ -188,7 +203,7 @@ impl<'a> Parser<'a>
             TokenKind::Continue => self.parse_continue(),
             TokenKind::Return => self.parse_return(),
             TokenKind::Throw => self.parse_throw(),
-            TokenKind::Open => self.parse_open(),
+            TokenKind::Import => self.parse_import(),
             _ => self.parse_binary(0),
         }
     }

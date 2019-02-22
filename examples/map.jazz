@@ -1,6 +1,0 @@
-open "std/map.jazz"
-var m = map_new()
-
-map_insert(m,1,"Hello,world!")
-
-println(map_find(m,1))

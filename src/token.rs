@@ -37,6 +37,7 @@ pub enum TokenKind
     RQuote,
 
     // Keywords
+    Include,
     Class,
     Implements,
     This,
@@ -64,7 +65,7 @@ pub enum TokenKind
     Const,
 
     Underscore,
-    Open,
+    Import,
 
     // Operators
     Add,
@@ -156,7 +157,8 @@ impl TokenKind
             TokenKind::New => "new",
             TokenKind::Underscore => "_",
 
-            TokenKind::Open => "open",
+            TokenKind::Import => "import",
+            TokenKind::Include => "include",
             // Operators
             TokenKind::Add => "+",
             TokenKind::Sub => "-",

@@ -1,4 +1,5 @@
 use hashbrown::HashMap;
+use hashbrown::HashSet;
 use waffle::vm::VirtualMachine;
 use waffle::instructions::Instruction;
 use waffle::value::*;
@@ -6,26 +7,67 @@ use crate::ast::*;
 
 
 
-pub struct Compiler {
+pub struct Compiler<'a> {
     pub globals: HashMap<String,usize>,
-    pub vm: VirtualMachine,
+    pub vm: &'a mut VirtualMachine,
+    pub functions: HashSet<usize>,
+    pub module: String,
 }
 
 use crate::stdlib;
 use gc::{Gc,GcCell};
 
-impl Compiler {
-    pub fn new(vm: VirtualMachine) -> Compiler {
+impl<'a> Compiler<'a> {
+    pub fn new(vm: &'a mut VirtualMachine,module: String) -> Compiler<'a> {
 
 
         Compiler {
             globals: HashMap::new(),
             vm: vm,
+            functions: HashSet::new(),
+            module: module,
         }
     }
 
+    fn get_definitions(&mut self) -> HashMap<String,usize> {
+        self.globals.clone()
+    }
+
+    fn get_functions(&mut self) -> HashSet<usize> {
+        self.functions.clone()
+    }
+    
+    pub fn import(&mut self,fname: &str) {
+        use crate::reader::Reader;
+        use crate::parser::Parser;
+        let reader = Reader::from_file(fname).unwrap();
+        let mut ast = vec![];
+        use std::path::Path;
+        let mname = Path::new(fname).file_stem().unwrap().to_str().unwrap().to_owned();
+
+        let mut parser = Parser::new(reader,&mut ast);
+        parser.parse().unwrap();
+        let mut compiler = Compiler::new(self.vm,mname.clone());
+        compiler.compile_ast(ast);
+        let defs = compiler.get_definitions();
+        let fns = compiler.get_functions();
+        let mut object = Object::new(&mname,None,mname.clone());
+
+        for (key,value) in defs.iter() {
+            if fns.contains(value) {
+                object.insert(Value::String(key.to_owned()),gc!(Value::Function(*value)));
+            } else {
+                object.insert(Value::String(key.to_owned()),gc!(Value::Object(*value)));
+            }
+        }
+
+        let idx = self.vm.pool.new_object(object);
+        self.globals.insert(mname,idx);
+        self.vm.globals.insert(idx,gc!(Value::Object(idx)));
+    
+    }
+
     fn register_stdlib(&mut self) {
-        use std::mem;
         let f = Function {
             typ: FunctionType::Internal(stdlib::string),
             name: "string".to_owned(),
@@ -35,6 +77,17 @@ impl Compiler {
         let idx = self.vm.pool.new_func(f);
         self.globals.insert("string".into(),idx);
         self.vm.globals.insert(idx,gc!(waffle::value::Value::Function(idx)));
+
+        let f = Function {
+            typ: FunctionType::Internal(stdlib::anew),
+            name: "anew".to_owned(),
+            module_name: "stdlib".to_owned(),
+            export: true,
+        };
+        let idx = self.vm.pool.new_func(f);
+        self.globals.insert("anew".into(),idx);
+        self.vm.globals.insert(idx,gc!(waffle::value::Value::Function(idx)));
+
 
         let f = Function {
             typ: FunctionType::Internal(stdlib::print),
@@ -51,11 +104,41 @@ impl Compiler {
         self.register_stdlib();
         for expr in ast.iter() {
             match &expr.expr {
+                ExprKind::Import(fname) => self.import(fname),
+                ExprKind::Include(fname) => {
+                    use crate::reader::Reader;
+                    use crate::parser::Parser;
+                    let reader = Reader::from_file(fname).unwrap();
+                    let mut ast = vec![];
+
+                    let mut parser = Parser::new(reader,&mut ast);
+
+                    parser.parse().unwrap();
+                    use std::path::Path;
+                    let mname = Path::new(fname).file_stem().unwrap().to_str().unwrap().to_owned();
+
+                    let mut compiler = Compiler::new(self.vm,mname);
+                    compiler.compile_ast(ast);
+
+                    let defs = compiler.get_definitions();
+                    let fns = compiler.get_functions();
+                    
+                    self.globals.extend(defs);
+                    self.functions.extend(fns);
+
+                }
+                _ => (),
+            }
+        }
+        for expr in ast.iter() {
+            match &expr.expr {
+                ExprKind::Import(_fname) => (),
+                ExprKind::Include(_fname) => (),
                 ExprKind::Function(name,args,body) => {
                     let function = Function {
                         name: name.to_owned(),
                         typ: FunctionType::Native(vec![]),
-                        module_name: "main".to_owned(),
+                        module_name: self.module.clone(),
                         export: true,
                     };
                     let idx = self.vm.pool.new_func(function);
@@ -79,18 +162,26 @@ impl Compiler {
                     
                     let func = self.vm.pool.get_func(idx);
                     func.borrow_mut().typ = FunctionType::Native(code);
-                    
+                    self.functions.insert(idx);
                     
                 }
 
                 
 
                 ExprKind::Class(name,block,_implements) => {
-                    let object = Object::new(name,None,"unknown".into());
+                    let object = Object::new(name,None,self.module.clone());
+                    let oidx = if !self.globals.contains_key(name) {
+                        let oidx = self.vm.pool.new_object(object);
+                        self.globals.insert(name.to_owned(),oidx);
+                        self.vm.globals.insert(oidx,gc!(Value::Object(oidx)));
+                        oidx
+                    } else {
+                        let idx = *self.globals.get(name).unwrap();
+                        let obj = self.vm.pool.get_object(idx);
+                        *obj.borrow_mut() = object;
+                        idx
+                    };
                     
-                    let oidx = self.vm.pool.new_object(object);
-                    self.globals.insert(name.to_owned(),oidx);
-                    self.vm.globals.insert(oidx,gc!(Value::Object(oidx)));
                     
                    
                     if let ExprKind::Block(exprs) = &block.expr {
@@ -145,8 +236,8 @@ pub enum UOP {
 
 pub const MAX_REGISTERS: usize = 256;
 
-pub struct FunctionBuilder<'a> {
-    compiler: &'a mut Compiler,
+pub struct FunctionBuilder<'a,'b: 'a> {
+    compiler: &'a mut Compiler<'b>,
     locals: HashMap<String,usize>,
         /// This field is required for `break` in `while` (Check `check_labels` documentation)
     ///
@@ -174,8 +265,8 @@ pub struct FunctionBuilder<'a> {
     pub context: Vec<Vec<bool>>,
 }
 
-impl<'a> FunctionBuilder<'a> {
-    pub fn new(cmpl: &'a mut Compiler,nlocals: usize) -> Self {
+impl<'a,'b: 'a> FunctionBuilder<'a,'b> {
+    pub fn new(cmpl: &'a mut Compiler<'b>,nlocals: usize) -> Self {
         Self {
             compiler: cmpl,
             locals: HashMap::new(),
@@ -342,12 +433,14 @@ impl<'a> FunctionBuilder<'a> {
             }
 
             ExprKind::Access(obj,field) => {
+                
+                
                 self.expr(obj);
                 let ra = self.register_pop_context_protect(true);
-                let rb = self.register_push_temp();
-                self.emit(Instruction::LoadString(rb,field.to_owned()));
+                self.emit(Instruction::LoadString(255,field.to_owned()));
                 let temp = self.register_push_temp();
-                self.emit(Instruction::LoadAt(ra,rb,temp));
+                
+                self.emit(Instruction::LoadAt(ra,255,temp));
                 self.register_clear(ra);
             }
 
@@ -419,6 +512,11 @@ impl<'a> FunctionBuilder<'a> {
                     let r0 = self.register_push_temp();
                     self.emit(Instruction::LoadGlobal(r0,idx));
                 } else {
+                    if name == "_args" {
+                        let r = self.register_push_temp();
+                        self.emit(Instruction::LoadArgs(r));
+                        return;
+                    }
                     let reg = self.locals.get(name).expect(&format!("Local `{}` not found",name)).clone();
                     let r0 = self.register_push_temp();
                     self.emit(Instruction::Move(reg,r0));
@@ -439,14 +537,16 @@ impl<'a> FunctionBuilder<'a> {
                 self.emit(Instruction::LoadThis(r));
             }
             ExprKind::Assign(var,to) => {
+                self.expr(to);
+                let r2 = self.register_pop_context_protect(true);
                 match &var.expr {
                     ExprKind::Ident(name) => {
                         if self.locals.contains_key(name) {
                             let r0 = self.get_local(name);
-                            self.expr(to);
-                            let r1 = self.register_pop();
-                            if r0 != r1 {
-                                self.emit(Instruction::Move(r1,r0));
+                           // self.expr(to);
+                            //let r1 = self.register_pop();
+                            if r0 != r2 {
+                                self.emit(Instruction::Move(r2,r0));
                             }
                         } else {
                             self.expr(to);
@@ -456,14 +556,15 @@ impl<'a> FunctionBuilder<'a> {
                         }
                     }
                     ExprKind::Access(obj,field) => {
-                        self.expr(obj);
-                        let r = self.register_pop_context_protect(true);
+                        
                         let r1 = self.register_push_temp();
                         self.emit(Instruction::LoadString(r1,field.to_owned()));
-                        self.expr(to);
-                        let r2 = self.register_pop();
+                        //self.expr(to);
+                        //let r2 = self.register_pop();
+                        self.expr(obj);
+                        let r = self.register_pop();
                         self.emit(Instruction::StoreAt(r,r1,r2));
-                        self.register_clear(r);
+                        //self.register_clear(r);
                     }
                     _ => unimplemented!()
                 }
@@ -480,11 +581,28 @@ impl<'a> FunctionBuilder<'a> {
                     self.register_clear(r);
                     self.emit(Instruction::Push(r));
                 }
-                self.expr(callee);
-                let r = self.register_pop();
-                self.emit(Instruction::Push(r));
-                let dest = self.register_push_temp();
-                self.emit(Instruction::Call(dest,r,args.len()));
+                if let ExprKind::Access(obj,field) = &callee.expr {
+                    self.expr(obj);
+
+                    let ra = self.register_pop_context_protect(true);
+                    self.emit(Instruction::Push(ra));
+                    let rb = self.register_push_temp();
+                    self.emit(Instruction::LoadString(rb,field.to_owned()));
+                    let temp = self.register_push_temp();
+                    self.emit(Instruction::LoadAt(ra,rb,temp));
+                    self.register_clear(ra);
+                    let callee = self.register_pop();
+                    let dest = self.register_push_temp();
+
+                    self.emit(Instruction::Call(dest,callee,args.len()));
+                } else {
+                    self.expr(callee);
+                    let r = self.register_pop();
+                    self.emit(Instruction::Push(r));
+                    let dest = self.register_push_temp();
+                    self.emit(Instruction::Call(dest,r,args.len()));
+                }
+                
             }
             ExprKind::New(init_class) => {
                 if let ExprKind::Call(to_call,args) = &init_class.expr {
@@ -492,6 +610,7 @@ impl<'a> FunctionBuilder<'a> {
                         self.expr(arg);
                         let r = self.register_pop();
                         self.register_clear(r);
+                        self.state[r] = false;
                         self.emit(Instruction::Push(r));
                     }
                     self.expr(to_call);

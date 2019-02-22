@@ -1,0 +1,11 @@
+import "examples/math.jazz"
+
+
+
+
+function main() {
+    var p1 = new math.Point(2,2)
+    var p2 = new math.Point(6,3)
+    var p3 = p1.add(p2)
+    p3.display()
+}
