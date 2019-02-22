@@ -68,6 +68,8 @@ impl<'a> Compiler<'a> {
     }
 
     fn register_stdlib(&mut self) {
+
+
         let f = Function {
             typ: FunctionType::Internal(stdlib::string),
             name: "string".to_owned(),
