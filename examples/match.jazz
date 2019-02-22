@@ -1,7 +1,0 @@
-let fac_match = |x| match x {
-    0 -> 1
-    1 -> 1
-    _ -> fac_match(x - 1) * x
-}
-
-println("Factorial 5 = ",fac_match(5))

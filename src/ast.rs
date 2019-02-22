@@ -15,13 +15,15 @@ pub enum ExprKind
     Unop(String, Box<Expr>),
     Access(Box<Expr>, String),
     Ident(String),
-    Function(Vec<String>, Box<Expr>),
+    Function(String,Vec<String>, Box<Expr>),
+    Class(String,Box<Expr>,Option<Box<Expr>>),
     Lambda(Vec<String>, Box<Expr>),
     Match(Box<Expr>, Vec<(Box<Expr>, Box<Expr>)>, Option<Box<Expr>>),
     If(Box<Expr>, Box<Expr>, Option<Box<Expr>>),
     ConstInt(i64),
     ConstChar(char),
     ConstStr(String),
+    New(Box<Expr>),
     ConstFloat(f64),
     Object(Vec<(Box<Expr>, Box<Expr>)>),
     Var(bool, String, Option<Box<Expr>>),
@@ -37,7 +39,8 @@ pub enum ExprKind
     Array(Vec<Box<Expr>>),
     ArrayIndex(Box<Expr>, Box<Expr>),
     This,
-    Open(String),
+    Import(String),
+    Include(String),
 }
 
 use std::fmt;

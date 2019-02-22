@@ -37,9 +37,13 @@ pub enum TokenKind
     RQuote,
 
     // Keywords
+    Include,
+    Class,
+    Implements,
     This,
     Match,
     Fun,
+    New,
     Let,
     Var,
     While,
@@ -61,7 +65,7 @@ pub enum TokenKind
     Const,
 
     Underscore,
-    Open,
+    Import,
 
     // Operators
     Add,
@@ -127,8 +131,10 @@ impl TokenKind
             TokenKind::RQuote => ">",
 
             // Keywords
+            TokenKind::Class => "class",
+            TokenKind::Implements => "implements",
             TokenKind::This => "self",
-            TokenKind::Fun => "fun",
+            TokenKind::Fun => "function",
             TokenKind::Let => "let",
             TokenKind::Var => "var",
             TokenKind::While => "while",
@@ -148,10 +154,11 @@ impl TokenKind
             TokenKind::Do => "do",
             TokenKind::Type => "type",
             TokenKind::Const => "const",
-
+            TokenKind::New => "new",
             TokenKind::Underscore => "_",
 
-            TokenKind::Open => "open",
+            TokenKind::Import => "import",
+            TokenKind::Include => "include",
             // Operators
             TokenKind::Add => "+",
             TokenKind::Sub => "-",

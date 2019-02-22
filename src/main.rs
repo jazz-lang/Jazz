@@ -1,66 +1,41 @@
+extern crate structopt;
 extern crate jazz;
 
-use jazz::ast::*;
-use jazz::compile::Compiler;
-use jazz::msg::MsgWithPos;
-use jazz::parser::Parser;
 use jazz::reader::Reader;
-use jazz::runtime::init;
-use waffle::value::{FuncKind, Function};
-use waffle::VirtualMachine;
-
-use walkdir::WalkDir;
-
-fn proceed_opens(ast: &mut Vec<Box<Expr>>)
-{
-    for (id, expr) in ast.clone().iter().enumerate()
-    {
-        if let ExprKind::Open(file) = &expr.expr
-        {
-            let file = WalkDir::new(file).into_iter()
-                                         .nth(0)
-                                         .expect("File not found");
-            let file = file.unwrap();
-            let file: &std::path::Path = file.path();
-            let reader = Reader::from_file(file.to_str().unwrap()).unwrap();
-            let mut ast1 = vec![];
-
-            let mut parser = Parser::new(reader, &mut ast1);
-            parser.parse().unwrap();
-
-            ast.remove(id);
-            ast1.append(ast);
-
-            *ast = ast1;
-            proceed_opens(ast);
-        }
-    }
+use jazz::parser::Parser;
+use waffle::vm::VirtualMachine;
+use jazz::codegen::Compiler;
+use time::PreciseTime;
+use structopt::StructOpt;
+use std::path::PathBuf;
+#[derive(StructOpt,Debug)]
+pub struct Options {
+    #[structopt(name = "FILE", parse(from_os_str))]
+    file: Option<PathBuf>,
 }
 
-fn main() -> Result<(), MsgWithPos>
-{
-    use std::env::args;
-    let fname = args().nth(1).expect("You must specify file name!");
 
-    let reader = Reader::from_file(&fname).unwrap();
-    let mut ast = vec![];
-    let mut parser = Parser::new(reader, &mut ast);
+fn main() {
+    let ops = Options::from_args();
+    if let Some(path) = ops.file {
+        let path: PathBuf = path;
+        let reader = Reader::from_file(path.as_os_str().to_str().unwrap()).unwrap();
+        let mut ast = vec![];
+        let mut parser = Parser::new(reader,&mut ast);
+        parser.parse().unwrap();
+        let mut vm = VirtualMachine::new();
 
-    parser.parse()?;
-    proceed_opens(&mut ast);
-    let mut vm = VirtualMachine::new();
-    let builtins = init(&mut vm);
-    let mut cmpl = Compiler::new(&mut vm, builtins);
-    cmpl.in_global_scope = true;
-    cmpl.compile(ast, vec![]);
-    let opcodes = cmpl.finish();
-    let fun = Function { nargs: 0,
-                         is_native: false,
-                         addr: FuncKind::Interpret(opcodes),nlocals: cmpl.locals.len() };
+        let mut compiler = Compiler::new(&mut vm,"__main__".into());
+        compiler.compile_ast(ast);
 
-    let id = vm.pool.add_func(fun);
-
-    println!("{:?}", vm.run_func(id));
-
-    Ok(())
+        let f = compiler.globals.get("main").unwrap();
+        let start = PreciseTime::now();
+        let result = compiler.vm.run_function(*f,vec![]);
+        let end = PreciseTime::now();
+        
+        println!("RESULT: {:?} in {} ms",result,start.to(end).num_milliseconds());
+    } else {
+        panic!("You should enter file path");
+    }
+    
 }
