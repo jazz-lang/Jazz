@@ -1,7 +1,8 @@
 #[macro_use]
 extern crate waffle;
 
-
+#[macro_use]
+pub mod macros;
 pub mod ast;
 pub mod lexer;
 pub mod msg;
