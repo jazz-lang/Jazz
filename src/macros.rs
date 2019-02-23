@@ -26,10 +26,12 @@ macro_rules! def {
         fn $fname: ident ($($arg:ident),*) $b:block
         )*
     }) => {
-        let mut object: Object = Object::new(stringify!($name),None,stringify!($module));
+        let mut object: Object = Object::new(stringify!($name),None,stringify!($module).into());
         $(
             fn $fname(vm: &mut VirtualMachine,args: Vec<Gc<GcCell<Value>>>) -> Gc<GcCell<Value>> {
                 let mut _i = 0;
+                let vm = vm;
+                let args = args;
                 $(
                     let $arg = &$args[_i];
                     _i += 1;
@@ -49,7 +51,7 @@ macro_rules! def {
         )*
 
         let idx = $compiler.vm.pool.new_object(object);
-        $compiler.globals.insert($module.into(),idx);
+        $compiler.globals.insert($name.into(),idx);
         $compiler.vm.globals.insert(idx,gc!(waffle::value::Value::Object(idx)));
     };
 }

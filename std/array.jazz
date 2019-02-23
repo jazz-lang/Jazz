@@ -1,0 +1,23 @@
+class Array {
+    function __init__() {
+        self.array = anew()
+    }
+
+    function push(value) {
+        apush(self.array,value)
+    }
+    function pop() {
+        return apop(self.array)
+    }
+
+
+    function get_raw() {
+        return self.array
+    }
+    function set(idx,value) {
+        aset(self.array,idx,value)
+    }
+    function get(idx) {
+        return aget(self.array,idx)
+    }
+}
