@@ -69,7 +69,7 @@ impl<'a> Compiler<'a> {
 
     fn register_stdlib(&mut self) {
 
-
+        stdlib::system_class(self);
         let f = Function {
             typ: FunctionType::Internal(stdlib::string),
             name: "string".to_owned(),
