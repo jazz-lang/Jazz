@@ -1,7 +1,47 @@
 # Jazz
-Simple dynamically typed language inspired by ML, Neko and Rust
+Language designed for embeddin, making games and desktop programs including optional GC and JIT compiler
 
-# Documentation
-Book on [gitbook](https://jazz-lang.gitbook.io/jazz/)
+# UnsafeJazz
+Version of Jazz that allows writing "low level" programs, e.g you allowed to allocate memroy manually
 
-Jazz page on github pages: [link](https://jazz-lang.github.io/Jazz/)
+
+# Examples
+
+```javascript
+open "std/io"
+
+function main() {
+  writeln("Hello,world!");
+}
+```
+
+```javascript
+function add(x: ref int,y: ref int,z: ref int) {
+   *x = *y = *z;
+}
+
+function main(): int {
+  var x,y,z  = 0;
+  
+  add(&x,&y,&z);
+   return x;
+}
+```
+
+```javascript
+#unsafe // this thing needed for calling functions such as `alloc`,`transmute` and etc
+
+
+struct Point {
+  x: int,
+  y: int
+}
+
+function new_point(x,y: int): ref Point {
+  var ptr = alloc<Point>();
+  ptr.x = x;
+  ptr.y = y;
+  return ptr;
+}
+```
+
