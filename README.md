@@ -38,7 +38,7 @@ struct Point {
 }
 
 function new_point(x,y: int): ref Point {
-  var ptr = alloc<Point>();
+  var ptr = alloc<Point>(); // allocates memory, if GC enabled alloacte memory using GC otherwise use malloc
   ptr.x = x;
   ptr.y = y;
   return ptr;
