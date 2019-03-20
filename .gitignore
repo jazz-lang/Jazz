@@ -1,4 +1,5 @@
-/target
+/target/
+/.idea/
 **/*.rs.bk
 /Cargo.lock
 /waffle

@@ -1,22 +1,20 @@
 use crate::token::Position;
 
 #[derive(Clone, PartialEq)]
-pub struct Expr
-{
+pub struct Expr {
     pub pos: Position,
     pub expr: ExprKind,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum ExprKind
-{
+pub enum ExprKind {
     Assign(Box<Expr>, Box<Expr>),
     BinOp(Box<Expr>, String, Box<Expr>),
     Unop(String, Box<Expr>),
     Access(Box<Expr>, String),
     Ident(String),
-    Function(String,Vec<String>, Box<Expr>),
-    Class(String,Box<Expr>,Option<Box<Expr>>),
+    Function(String, Vec<String>, Box<Expr>),
+    Class(String, Box<Expr>, Option<Box<Expr>>),
     Lambda(Vec<String>, Box<Expr>),
     Match(Box<Expr>, Vec<(Box<Expr>, Box<Expr>)>, Option<Box<Expr>>),
     If(Box<Expr>, Box<Expr>, Option<Box<Expr>>),
@@ -45,45 +43,35 @@ pub enum ExprKind
 
 use std::fmt;
 
-impl Expr
-{
-    pub fn is_access(&self) -> bool
-    {
-        if let ExprKind::Access(_, _) = self.expr
-        {
+impl Expr {
+    pub fn is_access(&self) -> bool {
+        if let ExprKind::Access(_, _) = self.expr {
             return true;
         };
         false
     }
 
-    pub fn is_binop(&self) -> bool
-    {
-        if let ExprKind::BinOp(_, _, _) = self.expr
-        {
+    pub fn is_binop(&self) -> bool {
+        if let ExprKind::BinOp(_, _, _) = self.expr {
             return true;
         };
         false
     }
 
-    pub fn is_binop_cmp(&self) -> bool
-    {
-        if let ExprKind::BinOp(_, ref op, _) = self.expr
-        {
+    pub fn is_binop_cmp(&self) -> bool {
+        if let ExprKind::BinOp(_, ref op, _) = self.expr {
             let op: &str = op;
-            match op
-            {
+            match op {
                 ">" | "<" | ">=" | "<=" | "==" | "!=" => return true,
                 _ => return false,
             }
         }
-        return false;
+        false
     }
 }
 
-impl fmt::Debug for Expr
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
-    {
+impl fmt::Debug for Expr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:#?}", self.expr)
     }
 }
