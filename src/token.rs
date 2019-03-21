@@ -1,31 +1,25 @@
 use std::fmt;
-use std::result::Result;
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
-pub struct Position
-{
+pub struct Position {
     pub line: u32,
     pub column: u32,
 }
-impl Position
-{
-    pub fn new(x: u32, y: u32) -> Self
-    {
+
+impl Position {
+    pub fn new(x: u32, y: u32) -> Self {
         Self { line: x, column: y }
     }
 }
 
-impl fmt::Display for Position
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
-    {
+impl fmt::Display for Position {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "({}:{})", self.line, self.column)
     }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub enum TokenKind
-{
+pub enum TokenKind {
     String(String),
     LitChar(char),
     LitInt(String, IntBase, IntSuffix),
@@ -106,15 +100,11 @@ pub enum TokenKind
     LtLt,
 }
 
-impl TokenKind
-{
-    pub fn name(&self) -> &str
-    {
-        match *self
-        {
+impl TokenKind {
+    pub fn name(&self) -> &str {
+        match *self {
             TokenKind::String(_) => "string",
-            TokenKind::LitInt(_, _, suffix) => match suffix
-            {
+            TokenKind::LitInt(_, _, suffix) => match suffix {
                 IntSuffix::Byte => "byte number",
                 IntSuffix::Int => "int number",
                 IntSuffix::Long => "long number",
@@ -201,46 +191,38 @@ impl TokenKind
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum IntSuffix
-{
+pub enum IntSuffix {
     Int,
     Long,
     Byte,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Token
-{
+pub struct Token {
     pub kind: TokenKind,
     pub position: Position,
 }
 
-impl Token
-{
-    pub fn new(tok: TokenKind, pos: Position) -> Token
-    {
-        Token { kind: tok,
-                position: pos }
+impl Token {
+    pub fn new(tok: TokenKind, pos: Position) -> Token {
+        Token {
+            kind: tok,
+            position: pos,
+        }
     }
 
-    pub fn is_eof(&self) -> bool
-    {
+    pub fn is_eof(&self) -> bool {
         self.kind == TokenKind::End
     }
 
-    pub fn is(&self, kind: TokenKind) -> bool
-    {
+    pub fn is(&self, kind: TokenKind) -> bool {
         self.kind == kind
     }
 
-    pub fn name(&self) -> String
-    {
-        match self.kind
-        {
-            TokenKind::LitInt(ref val, _, suffix) =>
-            {
-                let suffix = match suffix
-                {
+    pub fn name(&self) -> String {
+        match self.kind {
+            TokenKind::LitInt(ref val, _, suffix) => {
+                let suffix = match suffix {
                     IntSuffix::Byte => "B",
                     IntSuffix::Int => "",
                     IntSuffix::Long => "L",
@@ -257,28 +239,22 @@ impl Token
     }
 }
 
-impl fmt::Display for Token
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error>
-    {
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(f, "{}", self.name())
     }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum IntBase
-{
+pub enum IntBase {
     Bin,
     Dec,
     Hex,
 }
 
-impl IntBase
-{
-    pub fn num(self) -> u32
-    {
-        match self
-        {
+impl IntBase {
+    pub fn num(self) -> u32 {
+        match self {
             IntBase::Bin => 2,
             IntBase::Dec => 10,
             IntBase::Hex => 16,

@@ -55,4 +55,3 @@ macro_rules! def {
         $compiler.vm.globals.insert(idx,gc!(waffle::value::Value::Object(idx)));
     };
 }
-
