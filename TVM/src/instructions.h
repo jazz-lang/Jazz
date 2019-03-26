@@ -1,12 +1,12 @@
 #pragma once
 
 #ifndef INSTR_BEGIN
-#define INSTR_BEGIN \
-    typedef enum    \
-    {
-#define INSTR_END \
-    }             \
-    instructions;
+#define INSTR_BEGIN                                                            \
+  typedef enum                                                                 \
+  {
+#define INSTR_END                                                              \
+  }                                                                            \
+  instructions;
 #endif
 
 #ifndef INSTRUCTION
@@ -32,23 +32,23 @@ INSTRUCTION(InsShl, 3)  // R(A) = R(B) << R(C)
 INSTRUCTION(InsSShr, 3) // R(A) = R(B) >> R(C)
 INSTRUCTION(InsUShr, 3) // R(A) = R(B) >> R(C)
 INSTRUCTION(
-    InsAnd,
-    3) // if R(B) and R(C) booleans: R(A) = R(B) && R(C) else R(A) = R(B) & R(C)
+  InsAnd,
+  3) // if R(B) and R(C) booleans: R(A) = R(B) && R(C) else R(A) = R(B) & R(C)
 INSTRUCTION(
-    InsOr,
-    3)                 // if R(B) and R(C) booleans: R(A) = R(B) || R(C) else R(A) = R(B) | R(C)
+  InsOr,
+  3) // if R(B) and R(C) booleans: R(A) = R(B) || R(C) else R(A) = R(B) | R(C)
 INSTRUCTION(InsXOR, 3) // R(A) = R(B) ^ R(C)
 
-INSTRUCTION(InsNeg, 2)            // R(A) = -R(B)
-INSTRUCTION(InsNot, 2)            // R(A) = ~R(B)
-INSTRUCTION(InsInvoke, -1)        // R(A) = invoke R(A) args
-INSTRUCTION(InsInvoke0, 2)        // R(A) = invoke R(A) [R(B)]
-INSTRUCTION(InsInvoke1, 3)        // R(A) = invoke R(A) [R(B),R(C)]
-INSTRUCTION(InsInvoke2, 4)        // R(A) = invoke R(A) [R(B),R(C),R(F)]
-INSTRUCTION(InsInvoke3, 5)        // R(A) = invoke R(A) [R(B),R(C),R(F),R(G)]
-INSTRUCTION(InsInvoke4, 6)        // R(A) = invoke R(A) [R(B),R(C),R(F),R(G),R(H)]
-INSTRUCTION(InsInvokeField, -1)   // R(A) = invoke R(A) args
-INSTRUCTION(InsInvokeThis, -1)    // R(A) = invoke R(A) args
+INSTRUCTION(InsNeg, 2)          // R(A) = -R(B)
+INSTRUCTION(InsNot, 2)          // R(A) = ~R(B)
+INSTRUCTION(InsInvoke, -1)      // R(A) = invoke R(A) args
+INSTRUCTION(InsInvoke0, 2)      // R(A) = invoke R(A) [R(B)]
+INSTRUCTION(InsInvoke1, 3)      // R(A) = invoke R(A) [R(B),R(C)]
+INSTRUCTION(InsInvoke2, 4)      // R(A) = invoke R(A) [R(B),R(C),R(F)]
+INSTRUCTION(InsInvoke3, 5)      // R(A) = invoke R(A) [R(B),R(C),R(F),R(G)]
+INSTRUCTION(InsInvoke4, 6)      // R(A) = invoke R(A) [R(B),R(C),R(F),R(G),R(H)]
+INSTRUCTION(InsInvokeField, -1) // R(A) = invoke R(A) args
+INSTRUCTION(InsInvokeThis, -1)  // R(A) = invoke R(A) args
 INSTRUCTION(InsInvokeClosure, -1) // R(A) = invoke R(A) args
 INSTRUCTION(InsLoadGlobal, 2)     // R(A) = G(B)
 INSTRUCTION(InsStoreGlobal, 2)    // G(A) = R(A)
@@ -76,7 +76,7 @@ INSTRUCTION(InsCastToFloat, 2)
 INSTRUCTION(InsCastToUFloat, 2)
 INSTRUCTION(InsCastToInt, 2)
 INSTRUCTION(InsCastSafe, 2)
-INSTRUCTION(InsCastUnsafe, 2)
+INSTRUCTION(InsCastBitcast, 2)
 INSTRUCTION(InsCastToVirt, 2)
 INSTRUCTION(InsCheckNull, 1)
 INSTRUCTION(InsLabel, 0)
