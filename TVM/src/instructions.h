@@ -19,5 +19,3 @@ INSTR_BEGIN
 #include "instructions.def"
 
 INSTR_END
-
-#include <inttypes.h>

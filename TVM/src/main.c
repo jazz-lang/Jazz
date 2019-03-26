@@ -1,6 +1,6 @@
 
 #include <instructions.h>
-
-int
-main()
-{}
+#include "types.h"
+int main()
+{
+}
