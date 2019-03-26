@@ -1,6 +1,6 @@
 project('torpedo-vm','c')
 
-src = ['src/main.cc']
+src = ['src/main.c']
 
 inc_dir = include_directories(['src'])
 
