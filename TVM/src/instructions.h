@@ -1,12 +1,13 @@
+
 #pragma once
 
 #ifndef INSTR_BEGIN
-#define INSTR_BEGIN \
-    typedef enum    \
-    {
-#define INSTR_END \
-    }             \
-    instructions;
+#define INSTR_BEGIN                                                            \
+  typedef enum                                                                 \
+  {
+#define INSTR_END                                                              \
+  }                                                                            \
+  instructions;
 
 #endif
 
@@ -19,3 +20,7 @@ INSTR_BEGIN
 #include "instructions.def"
 
 INSTR_END
+
+#undef INSTRUCTION
+#undef INSTR_BEGIN
+#undef INSTR_END
