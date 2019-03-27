@@ -91,10 +91,18 @@ INSTRUCTION(InsWeakRef, 2)
 INSTRUCTION(InsDeref, 2)
 INSTRUCTION(InsSetRef, 2)
 INSTRUCTION(InsRefData, 2)
-INSTRUCTION(InsRefLoad, 3)
+INSTRUCTION(InsRefOffset, 3)
 INSTRUCTION(InsNop, 0)
 INSTRUCTION(BrNzS, 2) // BrNz short form
 INSTRUCTION(BrZS,2) // BrZ short form
 INSTRUCTION(BrNullS,2) // BrNull short form
 INSTRUCTION(BrS,1) // Br short form
+INSTRUCTION(InsInitEnum,-1)
+INSTRUCTION(InsAllocEnum,2)
+INSTRUCTION(InsEnumIndex,2)
+INSTRUCTION(InsEnumGet,4)
+INSTRUCTION(InsEnumSet,3)
+INSTRUCTION(InsStaticClosure,2)
+INSTRUCTION(InsClosure,2)
+INSTRUCTION(InsVirtClosure,2)
 INSTRUCTION(InsLast, 0)
