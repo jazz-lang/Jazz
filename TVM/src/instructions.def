@@ -41,35 +41,35 @@ INSTRUCTION(InsGetField, 3)       // R(A) = R(B)[R(C)]
 INSTRUCTION(InsStoreField, 3)     // R(B)[R(C)] = R(A)
 INSTRUCTION(InsHybridLoad, 3)
 INSTRUCTION(InsHybridStore, 3)
-INSTRUCTION(InsBrNz, 2) // BrNz R(A) <B>
-INSTRUCTION(InsBrZ, 2) // BrZ R(A) <B>
-INSTRUCTION(InsBrNull, 2) // BrNull R(A) <B>
-INSTRUCTION(InsBrLt, 2) // BrLt R(A) <B>
-INSTRUCTION(InsBrGt, 2)
-INSTRUCTION(InsBrGte, 2)
-INSTRUCTION(InsBrLte, 2)
-INSTRUCTION(InsBrULt, 2)
-INSTRUCTION(InsBrUGt, 2)
-INSTRUCTION(InsBrUGte, 2)
-INSTRUCTION(InsBrULte, 2)
-INSTRUCTION(InsUDiv, 3)
-INSTRUCTION(InsUMod, 3)
-INSTRUCTION(InsCastToHybrid, 2)
-INSTRUCTION(InsCastToFloat, 2)
-INSTRUCTION(InsCastToUFloat, 2)
-INSTRUCTION(InsCastToInt, 2)
-INSTRUCTION(InsCastSafe, 2)
-INSTRUCTION(InsCastBitcast, 2)
-INSTRUCTION(InsCastToVirt, 2)
-INSTRUCTION(InsCheckNull, 1)
-INSTRUCTION(InsLabel, 0)
-INSTRUCTION(InsRet, 1)
-INSTRUCTION(InsRetVoid, 0)
-INSTRUCTION(InsThrow, 1)
-INSTRUCTION(InsReThrow, 1)
-INSTRUCTION(InsBranchTable, -1)
+INSTRUCTION(InsBrNz, 2) // Branch if not zero R(A) <B>
+INSTRUCTION(InsBrZ, 2) // Branch if zero R(A) <B>
+INSTRUCTION(InsBrNull, 2) // Branch if null (alias to BrZ) R(A) <B>
+INSTRUCTION(InsBrLt, 3) // Branch if less R(A) < R(B)
+INSTRUCTION(InsBrGt, 3) // Branch if greater R(A) > (B) <C>
+INSTRUCTION(InsBrGte, 3) // Branch if greater or equal R(A) >= R(B) <C>
+INSTRUCTION(InsBrLte, 3) // Branch if less or equal R(A) <= R(B) <C>
+INSTRUCTION(InsBrULt, 3) // Branch if less (unsigned version) R(A) < R(B) <C>
+INSTRUCTION(InsBrUGt, 3) // Branch if greater (unsigned version) R(A) > R(B)<C>
+INSTRUCTION(InsBrUGte, 3) // Branch if greater or equal (unsigned version) R(A) >= R(B) <C>
+INSTRUCTION(InsBrULte, 3) // Branch if less or equal (unsigned version) R(A) <= R(B) <C>
+INSTRUCTION(InsUDiv, 3) // R(A) = R(C) / R(B) (unsigned version)
+INSTRUCTION(InsUMod, 3) // R(A) = R(C) % R(B) (unsigned version)
+INSTRUCTION(InsCastToHybrid, 2) // Cast value to Hybrid (a.k.a DynObj)
+INSTRUCTION(InsCastToFloat, 2) // Cast value to float
+INSTRUCTION(InsCastToUFloat, 2) // Float from bits
+INSTRUCTION(InsCastToInt, 2) // Cast value to integer
+INSTRUCTION(InsCastSafe, 2) // Safe cast value R(B) to Type(A) 
+INSTRUCTION(InsCastBitcast, 2) // Bitcast value R(B) to Type(A)
+INSTRUCTION(InsCastToVirt, 2) // Cast value to virtual value
+INSTRUCTION(InsCheckNull, 1) // R(A) == null
+INSTRUCTION(InsLabel, 0) // Create label (used for jumps)
+INSTRUCTION(InsRet, 1) // Return R(A) 
+INSTRUCTION(InsRetVoid, 0) // Return void 
+INSTRUCTION(InsThrow, 1) // Throw exception R(A)
+INSTRUCTION(InsReThrow, 1) // Rethrow exception
+INSTRUCTION(InsBranchTable, -1) // Branch table
 
-INSTRUCTION(InsTrap, 2)
+INSTRUCTION(InsTrap, 2) 
 INSTRUCTION(InsEndTrap, 1)
 INSTRUCTION(InsLoadI8, 3)
 INSTRUCTION(InsLoadI16, 3)
@@ -93,8 +93,8 @@ INSTRUCTION(InsSetRef, 2)
 INSTRUCTION(InsRefData, 2)
 INSTRUCTION(InsRefLoad, 3)
 INSTRUCTION(InsNop, 0)
-INSTRUCTION(BrNzS, 2)
-INSTRUCTION(BrZS,2)
-INSTRUCTION(BrNullS,2)
-INSTRUCTION(BrS,1)
+INSTRUCTION(BrNzS, 2) // BrNz short form
+INSTRUCTION(BrZS,2) // BrZ short form
+INSTRUCTION(BrNullS,2) // BrNull short form
+INSTRUCTION(BrS,1) // Br short form
 INSTRUCTION(InsLast, 0)
