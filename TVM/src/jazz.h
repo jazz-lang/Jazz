@@ -92,18 +92,18 @@ typedef uint64_t u64;
 #include <wchar.h>
 typedef wchar_t uchar;
 #define USTR(str) L##str
-#define HL_NATIVE_UCHAR_FUN
+#define NATIVE_UCHAR_FUN
 #define usprintf swprintf
 #define uprintf wprintf
 #define ustrlen wcslen
 #define ustrdup _wcsdup
-HL_API int
+extern int
 uvszprintf(uchar *out, int out_size, const uchar *fmt, va_list arglist);
 #define utod(s, end) wcstod(s, end)
 #define utoi(s, end) wcstol(s, end, 10)
 #define ucmp(a, b) wcscmp(a, b)
 #define utostr(out, size, str) wcstombs(out, str, size)
-#elif defined(HL_MAC)
+#elif defined(JAZZ_MAC)
 typedef uint16_t uchar;
 #undef USTR
 #define USTR(str) u##str
@@ -459,14 +459,24 @@ hash_gen(uchar *name, bool cache);
 extern EXPORT byte *
 str_from_hash(int hash);
 
-#define throw_error(msg, ...) jazz_throw(alloc_strbytes(USTR(msg), ##__VA_ARGS__))
-extern EXPORT ValueDynamic *alloc_strbytes(const uchar *fmt, ...);
-extern EXPORT jazz_assert(void);
-extern EXPORT no_return(void jazz_throw(ValueDynamic *v));
-extern EXPORT no_return(void jazz_rethrow(ValueDynamic *v));
-extern EXPORT void setup_jump(void *j);
-extern EXPORT void prepare_exception(void *symbol, void *stack);
-extern EXPORT void dump_stack();
-extern EXPORT ValueArray *exception_stack();
+#define throw_error(msg, ...) \
+    jazz_throw(alloc_strbytes(USTR(msg), ##__VA_ARGS__))
+extern EXPORT ValueDynamic *
+alloc_strbytes(const uchar *fmt, ...);
+extern EXPORT
+jazz_assert(void);
+extern EXPORT
+no_return(void jazz_throw(ValueDynamic *v));
+extern EXPORT
+no_return(void jazz_rethrow(ValueDynamic *v));
+extern EXPORT void
+setup_jump(void *j);
+extern EXPORT void
+prepare_exception(void *symbol, void *stack);
+extern EXPORT void
+dump_stack();
+extern EXPORT ValueArray *
+exception_stack();
 
-extern EXPORT ValueVirtual *cast_to_virtual(Type *ty, ValueDynamic *obj);
+extern EXPORT ValueVirtual *
+cast_to_virtual(Type *ty, ValueDynamic *obj);
