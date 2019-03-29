@@ -1,9 +1,9 @@
 [package]
-name = "jazzc"
+name = "jazzvm"
 version = "0.1.0"
 authors = ["Adel Prokurov <adel.prokurov@protonmail.com>"]
 edition = "2018"
 
 [dependencies]
-hmap = "0.1"
-jazzvm = {path = "jazz-vm"}
+lazy_static = "1.3"
+parking_lot = "0.7.1"

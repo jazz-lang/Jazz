@@ -1,34 +1,33 @@
-extern crate jazz;
+extern crate jazzc;
 
-use jazz::module::Module;
-use jazz::opcode::Opcode;
-use jazz::value::*;
-use jazz::vm::VM;
-use jazz::P;
-
+use jazzc::compile::compile_ast;
+use jazzc::parser::Parser;
+use jazzc::reader::Reader;
+use jazzvm::module::Module;
+use jazzvm::vm::VM;
+use jazzvm::P;
 fn main() {
+    let reader = Reader::from_string(
+        "
+        var a = 2 + 3 
+        var b = a + 2
+    return b
+    ",
+    );
+    let mut ast = vec![];
+    let mut parser = Parser::new(reader, &mut ast);
+    parser.parse().unwrap();
+    let ctx = compile_ast(ast);
+
+    for op in ctx.ops.iter() {
+        println!("{:?}", op);
+    }
+
     let mut m = Module::new("main");
-    m.code = vec![
-        Opcode::AccInt(3),
-        Opcode::Push,
-        Opcode::AccInt(5),
-        Opcode::Add,
-        Opcode::Last,
-    ];
-    let mut module = P(m);
-    let func = Function {
-        module: module.clone(),
-        var: FuncVar::Offset(1),
-        nargs: 1,
-        env: P(Value::Array(P(vec![]))),
-    };
+    m.code = ctx.ops.clone();
 
-    let m = module.borrow_mut();
-    m.globals.push(P(Value::Func(P(func))));
-
+    let mut m = P(m);
     let mut vm = VM::new();
-
-    vm.code = m.code.clone();
-
-    println!("{:?}", vm.interp(&mut module));
+    vm.code = ctx.ops.clone();
+    println!("{:?}", vm.interp(&mut m));
 }
