@@ -1,43 +1,46 @@
+extern crate jazz;
+
+use jazz::ast::{Token, TokenKind};
+use jazz::lexer::Lexer;
+use jazz::parser::Parser;
+use jazz::reader::Reader;
+use jazz::to_js::translate;
+use structopt::StructOpt;
+
 use std::path::PathBuf;
 
-use gc::{Gc, GcCell};
-use jazz::{codegen::Compiler, parser::Parser, reader::Reader};
-use structopt::StructOpt;
-use time::PreciseTime;
-use waffle::{value::Value, vm::VirtualMachine};
-
 #[derive(StructOpt, Debug)]
-pub struct Options {
+#[structopt(name = "jazz", version = "0.0.1")]
+pub struct Opts {
     #[structopt(name = "FILE", parse(from_os_str))]
     file: Option<PathBuf>,
+    #[structopt(short = "o", long = "output")]
+    output: Option<String>,
 }
 
 fn main() {
-    let ops = Options::from_args();
-    if let Some(path) = ops.file {
-        let path: PathBuf = path;
-        let reader = Reader::from_file(path.as_os_str().to_str().unwrap()).unwrap();
-        let mut ast = vec![];
-        let mut parser = Parser::new(reader, &mut ast);
-        parser.parse().unwrap();
-        let mut vm = VirtualMachine::new();
+    let opts = Opts::from_args();
 
-        let mut compiler = Compiler::new(&mut vm, "__main__".into());
-        compiler.compile_ast(ast);
+    let file = opts.file.unwrap();
+    let reader = Reader::from_file(file.to_str().unwrap()).unwrap();
 
-        let f = compiler.globals.get("main").unwrap();
-        let start = PreciseTime::now();
-        let result = compiler
-            .vm
-            .run_function(*f, vec![], Gc::new(GcCell::new(Value::Int(0))));
-        let end = PreciseTime::now();
+    let mut ast = vec![];
+    let mut parser = Parser::new(reader, &mut ast);
+    parser.parse().unwrap();
+    let s = translate(&ast);
 
-        println!(
-            "RESULT: {:?} in {} ms",
-            result,
-            start.to(end).num_milliseconds()
-        );
+    if opts.output.is_some() {
+        let output = opts.output.unwrap();
+        use std::fs::OpenOptions;
+        use std::io::Write;
+
+        let mut f = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(&output)
+            .unwrap();
+        f.write_all(s.as_bytes()).unwrap();
     } else {
-        panic!("You should enter file path");
+        println!("{}", s);
     }
 }

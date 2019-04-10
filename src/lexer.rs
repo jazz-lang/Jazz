@@ -1,473 +1,491 @@
-use std::{collections::HashMap, str::FromStr};
+use crate::ast::{Const, Keyword, Token};
+
+use std::collections::HashMap;
 
 use hmap::hmap;
 
 use crate::{
-    msg::{Msg, MsgWithPos},
-    reader::Reader,
-    token::*,
+  ast::*,
+  msg::{Msg, MsgWithPos},
+  reader::Reader,
 };
 
 pub struct Lexer {
-    reader: Reader,
-    keywords: HashMap<&'static str, TokenKind>,
-}
-
-impl FromStr for Lexer {
-    type Err = ();
-
-    fn from_str(code: &str) -> Result<Self, Self::Err> {
-        let reader = Reader::from_string(code);
-        Ok(Lexer::new(reader))
-    }
+  reader: Reader,
+  keywords: HashMap<&'static str, TokenKind>,
 }
 
 impl Lexer {
-    pub fn new(reader: Reader) -> Lexer {
-        let keywords = hmap!(
-            "self" => TokenKind::This,
-            "function" => TokenKind::Fun,
-            "let" => TokenKind::Let,
-            "var" => TokenKind::Var,
-            "while" => TokenKind::While,
-            "for" => TokenKind::For,
-            "if" => TokenKind::If,
-            "else" => TokenKind::Else,
-            "in" => TokenKind::In,
-            "loop" => TokenKind::Loop,
-            "break" => TokenKind::Break,
-            "match" => TokenKind::Match,
-            "continue" => TokenKind::Continue,
-            "const" => TokenKind::Const,
-            "return" => TokenKind::Return,
-            "true" => TokenKind::True,
-            "false" => TokenKind::False,
-            "nil" => TokenKind::Nil,
-            "type" => TokenKind::Type,
-            "throw" => TokenKind::Throw,
-            "do" => TokenKind::Do,
-            "import" => TokenKind::Import,
-            "internal" => TokenKind::Internal,
-            "class" => TokenKind::Class,
-            "implements" => TokenKind::Implements,
-            "new" => TokenKind::New,
-            "include" => TokenKind::Include
-        );
+  pub fn from_str(code: &str) -> Lexer {
+    let reader = Reader::from_string(code);
+    Lexer::new(reader)
+  }
 
-        Lexer { reader, keywords }
+  pub fn new(reader: Reader) -> Lexer {
+    let keywords = hmap!(
+
+        "function" => TokenKind::Function,
+        "var" => TokenKind::Var,
+        "while" => TokenKind::While,
+        "when" => TokenKind::When,
+        "if" => TokenKind::If,
+        "else" => TokenKind::Else,
+        "break" => TokenKind::Break,
+        "then" => TokenKind::Then,
+        "match" => TokenKind::Match,
+        "continue" => TokenKind::Continue,
+        "true" => TokenKind::Const(Const::Bool(true)),
+        "false" => TokenKind::Const(Const::Bool(false)),
+        "open" => TokenKind::Open,
+        "type" => TokenKind::Type,
+        "rec" => TokenKind::Rec,
+        "return" => TokenKind::Return
+
+    );
+
+    Lexer {
+      reader: reader,
+      keywords: keywords,
+    }
+  }
+  pub fn path(&self) -> String {
+    self.filename()
+  }
+  pub fn filename(&self) -> String {
+    self.reader.filename().to_owned()
+  }
+
+  fn read_multi_comment(&mut self) -> Result<(), MsgWithPos> {
+    let pos = self.reader.pos();
+
+    self.read_char();
+    self.read_char();
+
+    while !self.cur().is_none() && !self.is_multi_comment_end() {
+      self.read_char();
     }
 
-    pub fn filename(&self) -> &str {
-        self.reader.filename()
+    if self.cur().is_none() {
+      return Err(MsgWithPos::new(self.path(), pos, Msg::UnclosedComment));
     }
 
-    fn read_multi_comment(&mut self) -> Result<(), MsgWithPos> {
-        let pos = self.reader.pos();
+    self.read_char();
+    self.read_char();
 
-        self.read_char();
-        self.read_char();
+    Ok(())
+  }
 
-        while self.cur().is_some() && !self.is_multi_comment_end() {
-            self.read_char();
-        }
+  pub fn read_token(&mut self) -> Result<Token, MsgWithPos> {
+    loop {
+      self.skip_white();
 
-        if self.cur().is_none() {
-            return Err(MsgWithPos::new(pos, Msg::UnclosedComment));
-        }
+      let pos = self.reader.pos();
+      let ch = self.cur();
 
-        self.read_char();
-        self.read_char();
+      if let None = ch {
+        return Ok(Token::new(TokenKind::End, pos));
+      }
 
-        Ok(())
+      if is_digit(ch) {
+        return self.read_number();
+      } else if self.is_comment_start() {
+        self.read_comment()?;
+      } else if self.is_multi_comment_start() {
+        self.read_multi_comment()?;
+      } else if is_identifier_start(ch) {
+        return self.read_identifier();
+      } else if is_quote(ch) {
+        return self.read_string();
+      } else if is_char_quote(ch) {
+        return self.read_char_literal();
+      } else if is_operator(ch) {
+        return self.read_operator();
+      } else {
+        let ch = ch.unwrap();
+
+        return Err(MsgWithPos::new(self.filename(), pos, Msg::UnknownChar(ch)));
+      }
+    }
+  }
+
+  fn skip_white(&mut self) {
+    while is_whitespace(self.cur()) {
+      self.read_char();
+    }
+  }
+
+  fn read_identifier(&mut self) -> Result<Token, MsgWithPos> {
+    let pos = self.reader.pos();
+    let mut value = String::new();
+
+    while is_identifier(self.cur()) {
+      let ch = self.cur().unwrap();
+      self.read_char();
+      value.push(ch);
     }
 
-    pub fn read_token(&mut self) -> Result<Token, MsgWithPos> {
-        loop {
-            self.skip_white();
+    let lookup = self.keywords.get(&value[..]).cloned();
+    let mut ttype;
 
-            let pos = self.reader.pos();
-            let ch = self.cur();
-
-            if ch.is_none() {
-                return Ok(Token::new(TokenKind::End, pos));
-            }
-
-            if is_digit(ch) {
-                return self.read_number();
-            } else if self.is_comment_start() {
-                self.read_comment()?;
-            } else if self.is_multi_comment_start() {
-                self.read_multi_comment()?;
-            } else if is_identifier_start(ch) {
-                return self.read_identifier();
-            } else if is_quote(ch) {
-                return self.read_string();
-            } else if is_char_quote(ch) {
-                return self.read_char_literal();
-            } else if is_operator(ch) {
-                return self.read_operator();
-            } else {
-                let ch = ch.unwrap();
-
-                return Err(MsgWithPos::new(pos, Msg::UnknownChar(ch)));
-            }
-        }
+    if let Some(tok_type) = lookup {
+      ttype = tok_type;
+    } else if value == "_" {
+      ttype = TokenKind::Underscore;
+    } else {
+      ttype = TokenKind::Const(Const::Ident(value));
     }
 
-    fn skip_white(&mut self) {
-        while is_whitespace(self.cur()) {
-            self.read_char();
-        }
+    Ok(Token::new(ttype, pos))
+  }
+
+  fn read_char_literal(&mut self) -> Result<Token, MsgWithPos> {
+    let pos = self.reader.pos();
+
+    self.read_char();
+    let ch = self.read_escaped_char(pos, Msg::UnclosedChar)?;
+
+    if is_char_quote(self.cur()) {
+      self.read_char();
+
+      let ttype = TokenKind::Const(Const::Char(ch));
+      Ok(Token::new(ttype, pos))
+    } else {
+      Err(MsgWithPos::new(self.filename(), pos, Msg::UnclosedChar))
     }
+  }
 
-    fn read_identifier(&mut self) -> Result<Token, MsgWithPos> {
-        let pos = self.reader.pos();
-        let mut value = String::new();
+  fn read_escaped_char(&mut self, pos: Position, unclosed: Msg) -> Result<char, MsgWithPos> {
+    if let Some(ch) = self.cur() {
+      self.read_char();
 
-        while is_identifier(self.cur()) {
-            let ch = self.cur().unwrap();
-            self.read_char();
-            value.push(ch);
-        }
-
-        let lookup = self.keywords.get(&value[..]).cloned();
-        let mut ttype;
-
-        if let Some(tok_type) = lookup {
-            ttype = tok_type;
-        } else if value == "_" {
-            ttype = TokenKind::Underscore;
+      if ch == '\\' {
+        let ch = if let Some(ch) = self.cur() {
+          ch
         } else {
-            ttype = TokenKind::Identifier(value);
-        }
-
-        Ok(Token::new(ttype, pos))
-    }
-
-    fn read_char_literal(&mut self) -> Result<Token, MsgWithPos> {
-        let pos = self.reader.pos();
-
-        self.read_char();
-        let ch = self.read_escaped_char(pos, Msg::UnclosedChar)?;
-
-        if is_char_quote(self.cur()) {
-            self.read_char();
-
-            let ttype = TokenKind::LitChar(ch);
-            Ok(Token::new(ttype, pos))
-        } else {
-            Err(MsgWithPos::new(pos, Msg::UnclosedChar))
-        }
-    }
-
-    fn read_escaped_char(&mut self, pos: Position, unclosed: Msg) -> Result<char, MsgWithPos> {
-        if let Some(ch) = self.cur() {
-            self.read_char();
-
-            if ch == '\\' {
-                let ch = if let Some(ch) = self.cur() {
-                    ch
-                } else {
-                    return Err(MsgWithPos::new(pos, unclosed));
-                };
-
-                self.read_char();
-
-                match ch {
-                    '\\' => Ok('\\'),
-                    'n' => Ok('\n'),
-                    't' => Ok('\t'),
-                    'r' => Ok('\r'),
-                    '\"' => Ok('\"'),
-                    '\'' => Ok('\''),
-                    '0' => Ok('\0'),
-                    _ => {
-                        let msg = Msg::InvalidEscapeSequence(ch);
-                        Err(MsgWithPos::new(pos, msg))
-                    }
-                }
-            } else {
-                Ok(ch)
-            }
-        } else {
-            Err(MsgWithPos::new(pos, unclosed))
-        }
-    }
-
-    fn read_string(&mut self) -> Result<Token, MsgWithPos> {
-        let pos = self.reader.pos();
-        let mut value = String::new();
-
-        self.read_char();
-
-        while self.cur().is_some() && !is_quote(self.cur()) {
-            let ch = self.read_escaped_char(pos, Msg::UnclosedString)?;
-            value.push(ch);
-        }
-
-        if is_quote(self.cur()) {
-            self.read_char();
-
-            let ttype = TokenKind::String(value);
-            Ok(Token::new(ttype, pos))
-        } else {
-            Err(MsgWithPos::new(pos, Msg::UnclosedString))
-        }
-    }
-
-    fn read_operator(&mut self) -> Result<Token, MsgWithPos> {
-        let mut tok = self.build_token(TokenKind::End);
-        let ch = self.cur().unwrap();
-        self.read_char();
-
-        let nch = self.cur().unwrap_or('x');
-
-        tok.kind = match ch {
-            '+' => TokenKind::Add,
-            '-' => {
-                if nch == '>' {
-                    self.read_char();
-                    TokenKind::Arrow
-                } else {
-                    TokenKind::Sub
-                }
-            }
-
-            '*' => TokenKind::Mul,
-            '/' => TokenKind::Div,
-            '%' => TokenKind::Mod,
-
-            '(' => TokenKind::LParen,
-            ')' => TokenKind::RParen,
-            '[' => TokenKind::LBracket,
-            ']' => TokenKind::RBracket,
-            '{' => TokenKind::LBrace,
-            '}' => TokenKind::RBrace,
-
-            '|' => {
-                if nch == '|' {
-                    self.read_char();
-                    TokenKind::Or
-                } else {
-                    TokenKind::BitOr
-                }
-            }
-
-            '&' => {
-                if nch == '&' {
-                    self.read_char();
-                    TokenKind::And
-                } else {
-                    TokenKind::BitAnd
-                }
-            }
-
-            '^' => TokenKind::Caret,
-            '~' => TokenKind::Tilde,
-            ',' => TokenKind::Comma,
-            ';' => TokenKind::Semicolon,
-            ':' => {
-                if nch == ':' {
-                    self.read_char();
-                    TokenKind::Sep
-                } else {
-                    TokenKind::Colon
-                }
-            }
-            '.' => TokenKind::Dot,
-            '=' => {
-                if nch == '=' {
-                    self.read_char();
-                    TokenKind::EqEq
-                } else {
-                    TokenKind::Eq
-                }
-            }
-
-            '<' => match nch {
-                '=' => {
-                    self.read_char();
-                    TokenKind::Le
-                }
-
-                '<' => {
-                    self.read_char();
-                    TokenKind::LtLt
-                }
-
-                _ => TokenKind::Lt,
-            },
-
-            '>' => match nch {
-                '=' => {
-                    self.read_char();
-                    TokenKind::Ge
-                }
-
-                '>' => {
-                    self.read_char();
-
-                    TokenKind::GtGt
-                }
-
-                _ => TokenKind::Gt,
-            },
-
-            '!' => {
-                if nch == '=' {
-                    self.read_char();
-                    TokenKind::Ne
-                } else {
-                    TokenKind::Not
-                }
-            }
-
-            _ => {
-                return Err(MsgWithPos::new(tok.position, Msg::UnknownChar(ch)));
-            }
+          return Err(MsgWithPos::new(self.filename(), pos, unclosed));
         };
 
-        Ok(tok)
-    }
+        self.read_char();
 
-    fn read_comment(&mut self) -> Result<(), MsgWithPos> {
-        while self.cur().is_some() && !is_newline(self.cur()) {
-            self.read_char();
+        match ch {
+          '\\' => Ok('\\'),
+          'n' => Ok('\n'),
+          't' => Ok('\t'),
+          'r' => Ok('\r'),
+          '\"' => Ok('\"'),
+          '\'' => Ok('\''),
+          '0' => Ok('\0'),
+          _ => {
+            let msg = Msg::InvalidEscapeSequence(ch);
+            Err(MsgWithPos::new(self.filename(), pos, msg))
+          }
         }
+      } else {
+        Ok(ch)
+      }
+    } else {
+      Err(MsgWithPos::new(self.filename(), pos, unclosed))
+    }
+  }
 
-        Ok(())
+  fn read_string(&mut self) -> Result<Token, MsgWithPos> {
+    let pos = self.reader.pos();
+    let mut value = String::new();
+
+    self.read_char();
+
+    while !self.cur().is_none() && !is_quote(self.cur()) {
+      let ch = self.read_escaped_char(pos, Msg::UnclosedString)?;
+      value.push(ch);
     }
 
-    fn read_digits(&mut self, buffer: &mut String, base: IntBase) {
-        while is_digit_or_underscore(self.cur(), base) {
-            let ch = self.cur().unwrap();
-            self.read_char();
-            buffer.push(ch);
-        }
+    if is_quote(self.cur()) {
+      self.read_char();
+
+      let ttype = TokenKind::Const(Const::Str(value));
+      Ok(Token::new(ttype, pos))
+    } else {
+      Err(MsgWithPos::new(self.filename(), pos, Msg::UnclosedString))
     }
+  }
 
-    fn read_char(&mut self) {
-        self.reader.advance();
-    }
+  fn read_operator(&mut self) -> Result<Token, MsgWithPos> {
+    let mut tok = self.build_token(TokenKind::End);
+    let ch = self.cur().unwrap();
+    self.read_char();
 
-    fn cur(&self) -> Option<char> {
-        self.reader.cur()
-    }
+    let nch = self.cur().unwrap_or('x');
 
-    fn next(&self) -> Option<char> {
-        self.reader.next()
-    }
-
-    fn build_token(&self, kind: TokenKind) -> Token {
-        Token::new(kind, self.reader.pos())
-    }
-
-    fn is_comment_start(&self) -> bool {
-        self.cur() == Some('/') && self.next() == Some('/')
-    }
-
-    fn is_multi_comment_start(&self) -> bool {
-        self.cur() == Some('/') && self.next() == Some('*')
-    }
-
-    fn is_multi_comment_end(&self) -> bool {
-        self.cur() == Some('*') && self.next() == Some('/')
-    }
-
-    fn read_number(&mut self) -> Result<Token, MsgWithPos> {
-        let pos = self.reader.pos();
-        let mut value = String::new();
-
-        let base = if self.cur() == Some('0') {
-            let next = self.next();
-
-            match next {
-                Some('x') => {
-                    self.read_char();
-                    self.read_char();
-
-                    IntBase::Hex
-                }
-
-                Some('b') => {
-                    self.read_char();
-                    self.read_char();
-
-                    IntBase::Bin
-                }
-
-                _ => IntBase::Dec,
-            }
+    tok.kind = match ch {
+      '+' => TokenKind::Add,
+      '-' => {
+        if nch == '>' {
+          self.read_char();
+          TokenKind::Arrow
         } else {
-            IntBase::Dec
-        };
+          TokenKind::Sub
+        }
+      }
 
-        self.read_digits(&mut value, base);
+      '*' => TokenKind::Mul,
+      '/' => TokenKind::Div,
+      '%' => TokenKind::Mod,
 
-        if base == IntBase::Dec && self.cur() == Some('.') && is_digit(self.next()) {
-            self.read_char();
-            value.push('.');
+      '(' => TokenKind::LParen,
+      ')' => TokenKind::RParen,
+      '[' => TokenKind::LBracket,
+      ']' => TokenKind::RBracket,
+      '{' => TokenKind::LBrace,
+      '}' => TokenKind::RBrace,
 
-            self.read_digits(&mut value, IntBase::Dec);
+      '|' => {
+        if nch == '|' {
+          self.read_char();
+          TokenKind::Or
+        } else {
+          TokenKind::BitOr
+        }
+      }
 
-            if self.cur() == Some('e') || self.cur() == Some('E') {
-                value.push(self.cur().unwrap());
-                self.read_char();
+      '&' => {
+        if nch == '&' {
+          self.read_char();
+          TokenKind::And
+        } else {
+          TokenKind::BitAnd
+        }
+      }
 
-                if self.cur() == Some('+') || self.cur() == Some('-') {
-                    value.push(self.cur().unwrap());
-                    self.read_char();
-                }
+      '^' => TokenKind::Caret,
+      '~' => TokenKind::Tilde,
+      ',' => TokenKind::Comma,
+      ';' => TokenKind::Semicolon,
+      ':' => {
+        if nch == ':' {
+          self.read_char();
+          TokenKind::Sep
+        } else {
+          TokenKind::Colon
+        }
+      }
+      '.' => TokenKind::Dot,
+      '=' => {
+        if nch == '=' {
+          self.read_char();
+          TokenKind::EqEq
+        } else {
+          TokenKind::Eq
+        }
+      }
 
-                self.read_digits(&mut value, IntBase::Dec);
-            }
-
-            let ttype = TokenKind::LitFloat(value);
-            return Ok(Token::new(ttype, pos));
+      '<' => match nch {
+        '=' => {
+          self.read_char();
+          TokenKind::Le
         }
 
-        let ttype = TokenKind::LitInt(value, base, IntSuffix::Int);
-        Ok(Token::new(ttype, pos))
+        '<' => {
+          self.read_char();
+          TokenKind::LtLt
+        }
+
+        _ => TokenKind::Lt,
+      },
+
+      '>' => match nch {
+        '=' => {
+          self.read_char();
+          TokenKind::Ge
+        }
+
+        '>' => {
+          self.read_char();
+
+          TokenKind::GtGt
+        }
+
+        _ => TokenKind::Gt,
+      },
+
+      '!' => {
+        if nch == '=' {
+          self.read_char();
+          TokenKind::Ne
+        } else {
+          TokenKind::Not
+        }
+      }
+
+      _ => {
+        return Err(MsgWithPos::new(self.path(), tok.pos, Msg::UnknownChar(ch)));
+      }
+    };
+
+    Ok(tok)
+  }
+
+  fn read_comment(&mut self) -> Result<(), MsgWithPos> {
+    while !self.cur().is_none() && !is_newline(self.cur()) {
+      self.read_char();
     }
+
+    Ok(())
+  }
+
+  fn read_digits(&mut self, buffer: &mut String, base: IntBase) {
+    while is_digit_or_underscore(self.cur(), base) {
+      let ch = self.cur().unwrap();
+      self.read_char();
+      buffer.push(ch);
+    }
+  }
+
+  fn read_char(&mut self) {
+    self.reader.advance();
+  }
+
+  fn cur(&self) -> Option<char> {
+    self.reader.cur()
+  }
+
+  fn next(&self) -> Option<char> {
+    self.reader.next()
+  }
+
+  fn build_token(&self, kind: TokenKind) -> Token {
+    Token::new(kind, self.reader.pos())
+  }
+
+  fn is_comment_start(&self) -> bool {
+    self.cur() == Some('/') && self.next() == Some('/')
+  }
+
+  fn is_multi_comment_start(&self) -> bool {
+    self.cur() == Some('/') && self.next() == Some('*')
+  }
+
+  fn is_multi_comment_end(&self) -> bool {
+    self.cur() == Some('*') && self.next() == Some('/')
+  }
+
+  fn read_number(&mut self) -> Result<Token, MsgWithPos> {
+    let pos = self.reader.pos();
+    let mut value = String::new();
+
+    let base = if self.cur() == Some('0') {
+      let next = self.next();
+
+      match next {
+        Some('x') => {
+          self.read_char();
+          self.read_char();
+
+          IntBase::Hex
+        }
+
+        Some('b') => {
+          self.read_char();
+          self.read_char();
+
+          IntBase::Bin
+        }
+
+        _ => IntBase::Dec,
+      }
+    } else {
+      IntBase::Dec
+    };
+
+    self.read_digits(&mut value, base);
+
+    if base == IntBase::Dec && self.cur() == Some('.') && is_digit(self.next()) {
+      self.read_char();
+      value.push('.');
+
+      self.read_digits(&mut value, IntBase::Dec);
+
+      if self.cur() == Some('e') || self.cur() == Some('E') {
+        value.push(self.cur().unwrap());
+        self.read_char();
+
+        if self.cur() == Some('+') || self.cur() == Some('-') {
+          value.push(self.cur().unwrap());
+          self.read_char();
+        }
+
+        self.read_digits(&mut value, IntBase::Dec);
+      }
+
+      let ttype = TokenKind::Const(Const::Float(value.parse().unwrap()));
+      return Ok(Token::new(ttype, pos));
+    }
+
+    let ttype = TokenKind::Const(Const::Int(value.parse().unwrap()));
+    Ok(Token::new(ttype, pos))
+  }
 }
 
 fn is_digit(ch: Option<char>) -> bool {
-    ch.map(|ch| ch.is_digit(10)).unwrap_or(false)
+  ch.map(|ch| ch.is_digit(10)).unwrap_or(false)
 }
 
 fn is_digit_or_underscore(ch: Option<char>, base: IntBase) -> bool {
-    ch.map(|ch| ch.is_digit(base.num()) || ch == '_')
-        .unwrap_or(false)
+  ch.map(|ch| ch.is_digit(base.num()) || ch == '_')
+    .unwrap_or(false)
 }
 
 fn is_whitespace(ch: Option<char>) -> bool {
-    ch.map(|ch| ch.is_whitespace()).unwrap_or(false)
+  ch.map(|ch| ch.is_whitespace()).unwrap_or(false)
 }
 
 fn is_newline(ch: Option<char>) -> bool {
-    ch == Some('\n')
+  ch == Some('\n')
 }
 
 fn is_quote(ch: Option<char>) -> bool {
-    ch == Some('\"')
+  ch == Some('\"')
 }
 
 fn is_char_quote(ch: Option<char>) -> bool {
-    ch == Some('\'')
+  ch == Some('\'')
 }
 
 fn is_operator(ch: Option<char>) -> bool {
-    ch.map(|ch| "^+-*/%&|,=!~;:.()[]{}<>".contains(ch))
-        .unwrap_or(false)
+  ch.map(|ch| "^+-*/%&|,=!~;:.()[]{}<>".contains(ch))
+    .unwrap_or(false)
 }
 
 fn is_identifier_start(ch: Option<char>) -> bool {
-    match ch {
-        Some(ch) => (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_',
-        _ => false,
-    }
+  match ch {
+    Some(ch) => (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_',
+    _ => false,
+  }
 }
 
 fn is_identifier(ch: Option<char>) -> bool {
-    is_identifier_start(ch) || is_digit(ch)
+  is_identifier_start(ch) || is_digit(ch)
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum IntBase {
+  Bin,
+  Dec,
+  Hex,
+}
+
+impl IntBase {
+  pub fn num(self) -> u32 {
+    match self {
+      IntBase::Bin => 2,
+      IntBase::Dec => 10,
+      IntBase::Hex => 16,
+    }
+  }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum IntSuffix {
+  Int,
+  Long,
+  Byte,
 }
