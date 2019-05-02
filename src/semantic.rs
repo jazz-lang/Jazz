@@ -12,7 +12,7 @@ pub struct SemCheck<'a> {
     signatures: HashMap<Name, Vec<FuncSig>>,
     globals: HashMap<Name, Global>,
     constants: HashMap<Name, Const>,
-    vars: HashMap<Name, Type>,
+    vars: Vec<HashMap<Name, Type>>,
     ret: Type,
     types: HashMap<NodeId,Type>,
 }
@@ -109,7 +109,7 @@ impl<'a> SemCheck<'a> {
             functions: HashMap::new(),
             globals: HashMap::new(),
             constants: HashMap::new(),
-            vars: HashMap::new(),
+            vars: vec![],
             signatures: HashMap::new(),
             ret: Type::Void(Position::new(intern("<>"), 0, 0)),
             types: HashMap::new(),
@@ -123,14 +123,17 @@ impl<'a> SemCheck<'a> {
             for (_, fun) in self.functions.clone().iter() {
                 self.ret = self.infer_type(&fun.ret);
                 self.vars.clear();
+                self.vars.push(HashMap::new());
                 if !fun.external {
                     for (name, ty) in fun.params.iter() {
-                        self.vars.insert(*name, self.infer_type(ty));
+                        let ty = self.infer_type(ty);
+                        self.vars.last_mut().unwrap().insert(*name, ty);
                     }
 
                     if fun.this.is_some() {
                         let (name, ty) = fun.this.clone().unwrap();
-                        self.vars.insert(name, self.infer_type(&ty));
+                        let ty = self.infer_type(&ty);
+                        self.vars.last_mut().unwrap().insert(name,ty);
                     }
 
                     let body = fun.body.clone();
@@ -446,16 +449,16 @@ impl<'a> SemCheck<'a> {
                 }
             }
             StmtKind::Var(name, _, ty, init) => {
-                if self.vars.contains_key(name) {
+                if self.vars.last().unwrap().contains_key(name) {
                     warn!(format!("Redefining variable {}", str(*name)),stmt.pos);
                 }
                 if init.is_some() && ty.is_none() {
                     let init = init.clone().unwrap();
                     let mut t = self.tc_expr(&init);
                     t = self.infer_type(&t);
-                    self.vars.insert(*name, t);
+                    self.vars.last_mut().unwrap().insert(*name, t);
                 } else if ty.is_some() && init.is_none() {
-                    self.vars.insert(*name, ty.clone().unwrap());
+                    self.vars.last_mut().unwrap().insert(*name, ty.clone().unwrap());
                 } else if ty.is_none() && init.is_none() {
                     error!("Type annotation required",stmt.pos);
                 } else {
@@ -465,7 +468,7 @@ impl<'a> SemCheck<'a> {
                     let mut t2 = ty.clone().unwrap();
                     t2 = self.infer_type(&t2);
                     if ty_is_any_int(&t2) && ty_is_any_int(&t) {
-                        self.vars.insert(*name, t2);
+                        self.vars.last_mut().unwrap().insert(*name, t2);
                     } else {
                         if t2 != t {
                             error!(format!("Expected {}, found {}",t,t2),stmt.pos);
@@ -474,9 +477,17 @@ impl<'a> SemCheck<'a> {
                 }
             }
             StmtKind::Block(stmts) => {
+                let prev;
+                if self.vars.len() != 0 {
+                    prev = self.vars.last().unwrap().clone();
+                } else {
+                    prev = HashMap::new();
+                };
+                self.vars.push(prev);
                 for stmt in stmts.iter() {
                     self.tc_stmt(stmt);
                 }
+                self.vars.pop();
             }
             StmtKind::Loop(stmt) => self.tc_stmt(stmt),
         };
@@ -604,8 +615,8 @@ impl<'a> SemCheck<'a> {
                             }
                         }
                     }
-                } else if self.vars.contains_key(&path.name()) {
-                    let ty: &Type = self.vars.get(&path.name()).unwrap();
+                } else if self.vars.last().unwrap().contains_key(&path.name()) {
+                    let ty: &Type = self.vars.last().unwrap().get(&path.name()).unwrap();
                     let f = ty.to_func();
                     if f.is_none() {
                        error!("Function type expected",expr.pos);
@@ -782,7 +793,7 @@ impl<'a> SemCheck<'a> {
                     self.types.insert(expr.id,ty.clone());
                     ty
                 } else {
-                    let ty = self.vars.get(name).expect("Variable not found").clone();
+                    let ty = self.vars.last().unwrap().get(name).expect(&format!("Variable {} not found",str(*name))).clone();
                     self.types.insert(expr.id, ty.clone());
                     ty
                 }
