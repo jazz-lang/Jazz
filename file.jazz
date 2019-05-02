@@ -1,0 +1,17 @@
+struct Point {
+    x: i32,
+    y: i32
+}
+
+extern func printf(fmt: *u8,...) void;
+
+func main() i32 {
+    var p = Point {
+        x: 0,
+        y: 0
+    };
+
+    printf("(%i;%i)",p.x,p.y);
+    printf(p); // error: ERROR file.jazz|15:5: Function printf(Point(i32,i32)) -> void not found
+    return 0;
+}
