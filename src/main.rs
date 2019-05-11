@@ -1,14 +1,15 @@
 extern crate jazz;
 
+use jazz::ast2cpp;
 use jazz::err::MsgWithPos;
 use jazz::semantic::*;
 use jazz::syntax::ast::*;
 use jazz::syntax::lexer::reader::Reader;
 use jazz::syntax::parser::*;
 use jazz::Context;
+use jazz::gccjit::Codegen;
 
 fn main() -> Result<(), MsgWithPos> {
-    pretty_backtrace::force_setup();
     let mut file = File {
         root: String::new(),
         src: String::new(),
@@ -36,5 +37,7 @@ fn main() -> Result<(), MsgWithPos> {
     let mut semantic = SemCheck::new(&mut ctx);
 
     semantic.run();
+    let mut cgen = Codegen::new(&ctx, "module");
+    cgen.compile();
     Ok(())
 }

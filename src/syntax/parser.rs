@@ -760,6 +760,7 @@ impl<'a> Parser<'a> {
             params: params,
             variadic,
             body,
+            ir_temp_id: 0
         })
     }
 

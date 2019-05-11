@@ -5,9 +5,10 @@ authors = ["playXE <adel.prokurov@protonmail.com>"]
 edition = "2018"
 
 [dependencies]
-parking_lot = "0.7.1"
+parking_lot = "0.8"
 wrc = "0.4"
 lazy_static = "1.3"
 colored = "1.8"
-pretty_backtrace = "0.1"
-llvm-sys = "80"
+
+
+gccjit-rs = {git = "https://github.com/playXE/gccjit-rs"}

@@ -14,7 +14,7 @@ pub struct SemCheck<'a> {
     constants: HashMap<Name, Const>,
     vars: Vec<HashMap<Name, Type>>,
     ret: Type,
-    types: HashMap<NodeId,Type>,
+    types: HashMap<NodeId, Type>,
 }
 
 pub fn ty_is_any_int(ty: &Type) -> bool {
@@ -22,9 +22,8 @@ pub fn ty_is_any_int(ty: &Type) -> bool {
         Type::Basic(basic) => {
             let s: &str = &str(basic.name).to_string();
             match s {
-                "u8" | "u16" | "u32" | "u64" | "i64" | "i32" | "i16" | "i8" | "isize" | "usize" => {
-                    true
-                }
+                "uchar" | "char" | "u8" | "u16" | "u32" | "u64" | "i64" | "i32" | "i16" | "i8"
+                | "isize" | "usize" => true,
                 _ => false,
             }
         }
@@ -133,7 +132,8 @@ impl<'a> SemCheck<'a> {
                     if fun.this.is_some() {
                         let (name, ty) = fun.this.clone().unwrap();
                         let ty = self.infer_type(&ty);
-                        self.vars.last_mut().unwrap().insert(name,ty);
+
+                        self.vars.last_mut().unwrap().insert(name, ty);
                     }
 
                     let body = fun.body.clone();
@@ -145,7 +145,9 @@ impl<'a> SemCheck<'a> {
             eprintln!("{}", maybe_err.unwrap_err());
         }
 
-        self.ctx.types = self.types.clone();
+        for (k,v) in self.types.iter() {
+            self.ctx.types.insert(k.clone(),v.clone());
+        }
     }
 
     pub fn imports(&mut self) {
@@ -172,7 +174,10 @@ impl<'a> SemCheck<'a> {
                     let mut parser = Parser::new(reader, &mut file);
                     parser.parse().expect("Error");
 
-                    let mut ctx = Context { file: file,types: HashMap::new() };
+                    let mut ctx = Context {
+                        file: file,
+                        types: HashMap::new(),
+                    };
 
                     let mut sem = SemCheck::new(&mut ctx);
                     sem.imports();
@@ -225,7 +230,7 @@ impl<'a> SemCheck<'a> {
                         pos: s.pos,
                         name: s.name,
                         public: s.public,
-                        fields: s.fields.clone(),  
+                        fields: s.fields.clone(),
                     };
                     self.structures.insert(s.name, s.clone());
                 }
@@ -414,6 +419,7 @@ impl<'a> SemCheck<'a> {
     }
 
     pub fn tc_stmt(&mut self, stmt: &Stmt) {
+        let id = stmt.id;
         let _ = match &stmt.kind {
             StmtKind::Continue | StmtKind::Break => (),
             StmtKind::Expr(e) => {
@@ -429,10 +435,10 @@ impl<'a> SemCheck<'a> {
                     } else if ty_is_any_int(&t) && ty_is_any_int(&self.ret) {
                         return;
                     } else {
-                        error!(format!("Expected {} type,found {}", self.ret, t),stmt.pos);
+                        error!(format!("Expected {} type,found {}", self.ret, t), stmt.pos);
                     }
                 }
-                
+
                 assert!(self.ret.is_void());
             }
             StmtKind::While(e, s) => {
@@ -449,18 +455,24 @@ impl<'a> SemCheck<'a> {
                 }
             }
             StmtKind::Var(name, _, ty, init) => {
+                
                 if self.vars.last().unwrap().contains_key(name) {
-                    warn!(format!("Redefining variable {}", str(*name)),stmt.pos);
+                    error!(format!("Variable {} already exists", str(*name)), stmt.pos);
                 }
                 if init.is_some() && ty.is_none() {
                     let init = init.clone().unwrap();
                     let mut t = self.tc_expr(&init);
                     t = self.infer_type(&t);
-                    self.vars.last_mut().unwrap().insert(*name, t);
+                    self.vars.last_mut().unwrap().insert(*name, t.clone());
+                    self.ctx.types.insert(stmt.id, t);
                 } else if ty.is_some() && init.is_none() {
-                    self.vars.last_mut().unwrap().insert(*name, ty.clone().unwrap());
+                    self.vars
+                        .last_mut()
+                        .unwrap()
+                        .insert(*name, ty.clone().unwrap());
+                    self.ctx.types.insert(stmt.id,ty.clone().unwrap());
                 } else if ty.is_none() && init.is_none() {
-                    error!("Type annotation required",stmt.pos);
+                    error!("Type annotation required", stmt.pos);
                 } else {
                     let init = init.clone().unwrap();
                     let mut t = self.tc_expr(&init);
@@ -468,13 +480,17 @@ impl<'a> SemCheck<'a> {
                     let mut t2 = ty.clone().unwrap();
                     t2 = self.infer_type(&t2);
                     if ty_is_any_int(&t2) && ty_is_any_int(&t) {
-                        self.vars.last_mut().unwrap().insert(*name, t2);
+                        self.vars.last_mut().unwrap().insert(*name, t2.clone());
+                        self.ctx.types.insert(stmt.id, t2);
                     } else {
                         if t2 != t {
-                            error!(format!("Expected {}, found {}",t,t2),stmt.pos);
+                            error!(format!("Expected {}, found {}", t, t2), stmt.pos);
                         }
+                        self.vars.last_mut().unwrap().insert(*name,t2.clone());
+                        self.ctx.types.insert(stmt.id,t2);
                     }
                 }
+                
             }
             StmtKind::Block(stmts) => {
                 let prev;
@@ -507,8 +523,8 @@ impl<'a> SemCheck<'a> {
                 self.types.insert(expr.id, ty.clone());
                 ty
             }
-            ExprKind::Float(_, suffix) => { 
-                let ty =match suffix {
+            ExprKind::Float(_, suffix) => {
+                let ty = match suffix {
                     FloatSuffix::Float => Type::create_basic(expr.id, expr.pos, intern("f32")),
                     FloatSuffix::Double => Type::create_basic(expr.id, expr.pos, intern("f64")),
                 };
@@ -522,7 +538,7 @@ impl<'a> SemCheck<'a> {
                 for (_, sigs) in self.signatures.iter() {
                     for sig in sigs.iter() {
                         if sig.name == *name {
-                            let ty =  Type::create_func(
+                            let ty = Type::create_func(
                                 expr.id,
                                 expr.pos,
                                 sig.params.iter().map(|t| Box::new(t.clone())).collect(),
@@ -534,7 +550,7 @@ impl<'a> SemCheck<'a> {
                         }
                     }
                 }
-                error!(format!("Function {} not found", str(*name)),expr.pos);
+                error!(format!("Function {} not found", str(*name)), expr.pos);
             }
             ExprKind::Deref(expr_) => {
                 let ty = self.tc_expr(expr_);
@@ -543,7 +559,7 @@ impl<'a> SemCheck<'a> {
                     self.types.insert(expr.id, *ty.subtype.clone());
                     return *ty.subtype.clone();
                 } else {
-                    error!(format!("Dereferencing non-ptr type {}",ty),expr.pos);
+                    error!(format!("Dereferencing non-ptr type {}", ty), expr.pos);
                 }
             }
             ExprKind::AddressOf(expr_) => {
@@ -575,7 +591,7 @@ impl<'a> SemCheck<'a> {
                         }
                         for sig in sigs.iter() {
                             if sig.params == params && sig.this == Some(objty.clone()) {
-                                let ty =  *sig.ret.clone();
+                                let ty = *sig.ret.clone();
                                 self.types.insert(expr.id, ty.clone());
 
                                 return ty;
@@ -597,9 +613,7 @@ impl<'a> SemCheck<'a> {
                             let mut types_good = false;
                             for (i, param) in params.iter().enumerate() {
                                 if i < sig.params.len() {
-                                    
-                                    types_good =
-                                        param == &sig.params[i];
+                                    types_good = param == &sig.params[i];
                                 }
                             }
                             this_sig = if sig.variadic {
@@ -619,23 +633,21 @@ impl<'a> SemCheck<'a> {
                     let ty: &Type = self.vars.last().unwrap().get(&path.name()).unwrap();
                     let f = ty.to_func();
                     if f.is_none() {
-                       error!("Function type expected",expr.pos);
+                        error!("Function type expected", expr.pos);
                     } else {
                         let f = f.unwrap().clone();
                         let mut types_good = false;
-                        for (i,p) in params.iter().enumerate() {
+                        for (i, p) in params.iter().enumerate() {
                             if i < f.params.len() {
                                 types_good = p == &self.infer_type(&f.params[i]);
-                            }                            
+                            }
                         }
-                        
 
                         if types_good {
-                            let ty =  self.infer_type(&f.ret);
+                            let ty = self.infer_type(&f.ret);
                             self.types.insert(expr.id, ty.clone());
                             return ty;
                         }
-
                     }
                 }
 
@@ -646,13 +658,18 @@ impl<'a> SemCheck<'a> {
                     Box::new(Type::Void(expr.pos)),
                 );
                 if objty.is_none() {
-                    error!(format!("Function {}{} not found", str(path.name()), fun_ty),expr.pos);
+                    error!(
+                        format!("Function {}{} not found", str(path.name()), fun_ty),
+                        expr.pos
+                    );
                 } else {
                     error!(
-                        format!("Function ({}) {}{} not found",
-                        objty.unwrap(),
-                        str(path.name()),
-                        fun_ty),
+                        format!(
+                            "Function ({}) {}{} not found",
+                            objty.unwrap(),
+                            str(path.name()),
+                            fun_ty
+                        ),
                         expr.pos
                     );
                 }
@@ -678,28 +695,27 @@ impl<'a> SemCheck<'a> {
                         _ => {
                             self.types.insert(expr.id, t1.clone());
                             return t1;
-                        },
+                        }
                     }
                 } else if ty_is_any_float(&t1) && ty_is_any_float(&t2) {
                     match op {
                         "<" | ">" | ">=" | "<=" | "!=" | "==" => {
-                            let ty =  Type::create_basic(expr.id, expr.pos, intern("bool"));
+                            let ty = Type::create_basic(expr.id, expr.pos, intern("bool"));
                             self.types.insert(expr.id, ty.clone());
                             return ty;
                         }
                         _ => {
                             self.types.insert(expr.id, t1.clone());
                             return t1;
-                        },
+                        }
                     }
                 } else {
                     match op {
                         "&&" | "||" => {
-
                             let t1 = t1.to_basic();
                             let t2 = t2.to_basic();
                             if t1.is_none() && t2.is_none() {
-                                error!("Expected basic type bool",expr.pos);
+                                error!("Expected basic type bool", expr.pos);
                             } else {
                                 let t1 = t1.unwrap();
                                 let t2 = t2.unwrap();
@@ -708,10 +724,10 @@ impl<'a> SemCheck<'a> {
                                     && str(t2.name).to_string() == "bool".to_string()
                                 {
                                     let t = Type::create_basic(expr.id, expr.pos, intern("bool"));
-                                    self.types.insert(expr.id,t.clone());
+                                    self.types.insert(expr.id, t.clone());
                                     return t;
                                 } else {
-                                    error!("Expected bool type",expr.pos);
+                                    error!("Expected bool type", expr.pos);
                                 }
                             }
                         }
@@ -748,12 +764,12 @@ impl<'a> SemCheck<'a> {
                                         && sig.params == vec![t2.clone()]
                                     {
                                         self.types.insert(expr.id, *sig.ret.clone());
-                                        
+
                                         return *sig.ret.clone();
                                     }
                                 }
                             }
-                            error!(format!("Expected {} found {}",t1,t2),expr.pos);
+                            error!(format!("Expected {} found {}", t1, t2), expr.pos);
                         }
                     }
                 }
@@ -770,7 +786,7 @@ impl<'a> SemCheck<'a> {
                 }
 
                 if to != from {
-                    error!(format!("Expected {} type,found {}", to, from),expr.pos);
+                    error!(format!("Expected {} type,found {}", to, from), expr.pos);
                 }
 
                 return Type::Void(expr.pos);
@@ -778,7 +794,7 @@ impl<'a> SemCheck<'a> {
 
             ExprKind::Conv(e, to) => {
                 self.tc_expr(e);
-                self.types.insert(expr.id,*to.clone());
+                self.types.insert(expr.id, *to.clone());
                 return *to.clone();
             }
 
@@ -790,10 +806,16 @@ impl<'a> SemCheck<'a> {
                     ty
                 } else if self.globals.contains_key(name) {
                     let ty = *self.globals.get(name).unwrap().typ.clone();
-                    self.types.insert(expr.id,ty.clone());
+                    self.types.insert(expr.id, ty.clone());
                     ty
                 } else {
-                    let ty = self.vars.last().unwrap().get(name).expect(&format!("Variable {} not found",str(*name))).clone();
+                    let ty = self
+                        .vars
+                        .last()
+                        .unwrap()
+                        .get(name)
+                        .expect(&format!("Variable {} not found", str(*name)))
+                        .clone();
                     self.types.insert(expr.id, ty.clone());
                     ty
                 }
@@ -812,15 +834,15 @@ impl<'a> SemCheck<'a> {
                             return ty;
                         }
                     }
-                    error!(format!("Field {} not found", str(*field_name)),expr.pos);
+                    error!(format!("Field {} not found", str(*field_name)), expr.pos);
                 } else {
-                    error!(format!("Structure type expected,found {}",ty),expr.pos);
+                    error!(format!("Structure type expected,found {}", ty), expr.pos);
                 }
             }
             ExprKind::Struct(construct, _) => {
                 let name = construct.name();
                 let struct_ = self.structures.get(&name).expect("struct not found");
-                let ty =  self.infer_type(&Type::create_struct(
+                let ty = self.infer_type(&Type::create_struct(
                     expr.id,
                     expr.pos,
                     name,
@@ -833,14 +855,14 @@ impl<'a> SemCheck<'a> {
                 let ty = Type::create_basic(expr.id, expr.pos, intern("rune"));
                 self.types.insert(expr.id, ty.clone());
                 ty
-            },
+            }
             ExprKind::Null => {
                 let ty = Type::create_ptr(
-                expr.id,
-                expr.pos,
-                Box::new(Type::create_basic(expr.id, expr.pos, intern("u8"))),
-            );
-                self.types.insert(expr.id,ty.clone());
+                    expr.id,
+                    expr.pos,
+                    Box::new(Type::create_basic(expr.id, expr.pos, intern("u8"))),
+                );
+                self.types.insert(expr.id, ty.clone());
                 ty
             }
             ExprKind::Unary(_, expr_) => {
@@ -849,11 +871,12 @@ impl<'a> SemCheck<'a> {
                 self.types.insert(expr.id, t.clone());
                 return t;
             }
-            ExprKind::Str(_) => {let ty = Type::create_ptr(
-                expr.id,
-                expr.pos,
-                Box::new(Type::create_basic(expr.id, expr.pos, intern("u8"))),
-            );
+            ExprKind::Str(_) => {
+                let ty = Type::create_ptr(
+                    expr.id,
+                    expr.pos,
+                    Box::new(Type::create_basic(expr.id, expr.pos, intern("char"))),
+                );
                 self.types.insert(expr.id, ty.clone());
                 ty
             }

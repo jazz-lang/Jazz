@@ -116,7 +116,7 @@ impl PartialEq for Type {
             (Type::Ptr(ptr), Type::Ptr(ptr2)) => ptr.subtype == ptr2.subtype,
             (Type::Struct(s), Type::Struct(s2)) => (s.fields == s2.fields) && (s.name == s2.name),
             (Type::Void(_), Type::Void(_)) => true,
-            (Type::Func(f),Type::Func(f2)) => (f.params == f2.params) && (f.ret == f2.ret),
+            (Type::Func(f), Type::Func(f2)) => (f.params == f2.params) && (f.ret == f2.ret),
             _ => false,
         }
     }
@@ -310,12 +310,11 @@ impl fmt::Display for Type {
             Type::Basic(basic) => write!(f, "{}", str(basic.name)),
             Type::Struct(struc) => {
                 write!(f, "{}(", str(struc.name))?;
-                for (i,field) in struc.fields.iter().enumerate() {
-                    write!(f, "{}",field.data_type)?;
+                for (i, field) in struc.fields.iter().enumerate() {
+                    write!(f, "{}", field.data_type)?;
                     if i != struc.fields.len() - 1 {
-                        write!(f,",");
+                        write!(f, ",");
                     }
-
                 }
                 write!(f, ")")
             }
@@ -361,6 +360,22 @@ pub struct Function {
     pub ret: Box<Type>,
     pub this: Option<(Name, Box<Type>)>,
     pub body: Option<Box<Stmt>>,
+    pub ir_temp_id: usize
+}
+
+impl PartialEq for Function {
+    fn eq(&self,other: &Self) -> bool {
+        let mut params_match = false;
+        for (p1,p2) in self.params.iter().zip(&other.params) {
+            params_match = if p1.1 == p2.1 {
+                true
+            } else {
+                false
+            };
+        }
+        
+        self.name == other.name && self.ret == other.ret && params_match && self.this == other.this && self.variadic == other.variadic
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -423,6 +438,11 @@ pub struct Stmt {
     pub pos: Position,
     pub kind: StmtKind,
 }
+impl Stmt {
+    pub fn is_if(&self) -> bool {
+        self.kind.is_if()
+    }
+}
 
 #[derive(Clone, Debug)]
 pub enum StmtKind {
@@ -435,6 +455,15 @@ pub enum StmtKind {
     If(Box<Expr>, Box<Stmt>, Option<Box<Stmt>>),
     Continue,
     Break,
+}
+
+impl StmtKind {
+    pub fn is_if(&self) -> bool {
+        match self {
+            StmtKind::If(_, _, _) => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

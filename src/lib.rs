@@ -2,11 +2,12 @@
 
 #[macro_use]
 pub mod macros;
+pub mod ast2cpp;
 pub mod err;
+pub mod gccjit;
+pub mod ir;
 pub mod semantic;
 pub mod syntax;
-pub mod ir;
-
 
 pub use syntax::ast;
 pub use syntax::position::Position;
@@ -53,18 +54,21 @@ impl NodeIdGenerator {
     }
 }
 
+use ast::Type;
 use std::collections::HashMap;
 use syntax::ast::File;
-use ast::Type;
 
 pub struct Context {
     pub file: File,
-    pub types: HashMap<NodeId,Type>,
+    pub types: HashMap<NodeId, Type>,
 }
 
 impl Context {
     pub fn new(file: File) -> Context {
-        Context { file: file,types: HashMap::new() }
+        Context {
+            file: file,
+            types: HashMap::new(),
+        }
     }
 
     pub fn import(&mut self, path: &str) {
@@ -87,7 +91,10 @@ impl Context {
         let mut parser = Parser::new(reader, &mut file);
         parser.parse().expect("Error");
 
-        let mut ctx = Context { file: file,types: HashMap::new() };
+        let mut ctx = Context {
+            file: file,
+            types: HashMap::new(),
+        };
         ctx.imports();
 
         for elem in ctx.file.elems {
