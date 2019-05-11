@@ -8,6 +8,8 @@ inline func fac(x: i32) i32 {
 
 extern func printf(fmt: *char,...) void;
 
+
+
 pub func main() i32 {
 	printf("factorial(5) = %i\n",fac(5));
 

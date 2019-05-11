@@ -45,7 +45,7 @@ pub enum Elem {
         pos: Position,
         name: Name,
         expr: Box<Expr>,
-    }
+    },
 }
 #[derive(Clone, Debug)]
 pub struct Global {
@@ -123,6 +123,8 @@ impl PartialEq for Type {
             (Type::Struct(s), Type::Struct(s2)) => (s.fields == s2.fields) && (s.name == s2.name),
             (Type::Void(_), Type::Void(_)) => true,
             (Type::Func(f), Type::Func(f2)) => (f.params == f2.params) && (f.ret == f2.ret),
+            (Type::Struct(s), Type::Basic(b)) => s.name == b.name,
+            (Type::Basic(b), Type::Struct(s)) => s.name == b.name,
             _ => false,
         }
     }

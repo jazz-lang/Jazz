@@ -354,7 +354,7 @@ impl Translator {
                 Elem::Link(_) => {}
                 Elem::Enum => {}
                 Elem::Import(_) => {}
-                _ => {},
+                _ => {}
             }
         }
     }

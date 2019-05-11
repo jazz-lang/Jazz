@@ -13,7 +13,7 @@ pub struct SemCheck<'a> {
     globals: HashMap<Name, Global>,
     constants: HashMap<Name, Const>,
     vars: Vec<HashMap<Name, Type>>,
-    constexprs: HashMap<Name,Box<Expr>>,
+    constexprs: HashMap<Name, Box<Expr>>,
     ret: Type,
     types: HashMap<NodeId, Type>,
 }
@@ -113,7 +113,7 @@ impl<'a> SemCheck<'a> {
             signatures: HashMap::new(),
             ret: Type::Void(Position::new(intern("<>"), 0, 0)),
             types: HashMap::new(),
-            constexprs: HashMap::new()
+            constexprs: HashMap::new(),
         }
     }
 
@@ -238,7 +238,7 @@ impl<'a> SemCheck<'a> {
         }
         for elem in self.ctx.file.elems.iter() {
             match elem {
-                Elem::ConstExpr {name,expr,..} => {
+                Elem::ConstExpr { name, expr, .. } => {
                     self.constexprs.insert(*name, expr.clone());
                 }
                 Elem::Const(c) => {
@@ -614,7 +614,6 @@ impl<'a> SemCheck<'a> {
                             }
                             let mut types_good = false;
                             for (i, param) in params.iter().enumerate() {
-                            
                                 if i < sig.params.len() {
                                     types_good = param == &sig.params[i];
                                 }
@@ -897,7 +896,7 @@ impl<'a> SemCheck<'a> {
                 self.types.insert(expr.id, basic.clone());
 
                 return basic;
-            } 
+            }
             _ => unimplemented!(),
         }
     }

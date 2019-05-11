@@ -51,7 +51,7 @@ pub struct Codegen<'a> {
     functions: HashMap<Name, Vec<FunctionUnit>>,
     external_functions: HashMap<Name, FunctionUnit>,
     structures: HashMap<Name, GccStruct>,
-    constants: HashMap<Name,Expr>,
+    constants: HashMap<Name, Expr>,
     block_id: usize,
     fun_id: usize,
 }
@@ -78,12 +78,12 @@ impl<'a> Codegen<'a> {
                         let interned = crate::syntax::interner::intern(s);
                         if self.structures.contains_key(&interned) {
                             let ty = self.structures.get(&interned).unwrap().ty.as_type();
-                            
+
                             return ty;
                         } else {
                             unreachable!()
                         }
-                    },
+                    }
                 }
             }
             Type::Ptr(ptr) => self.ty_to_ctype(&ptr.subtype).make_pointer(),
@@ -95,9 +95,7 @@ impl<'a> Codegen<'a> {
                     .collect::<Vec<_>>();
                 ctx.new_function_pointer_type(None, self.ty_to_ctype(&tyfunc.ret), &params, false)
             }
-            Type::Struct(struct_) => {
-                self.structures.get(&struct_.name).unwrap().ty.as_type()
-            }
+            Type::Struct(struct_) => self.structures.get(&struct_.name).unwrap().ty.as_type(),
             Type::Array(array) => {
                 if array.len.is_some() {
                     let len = *array.len.as_ref().unwrap();
@@ -162,26 +160,38 @@ impl<'a> Codegen<'a> {
             }
             ExprKind::Field(object, name) => {
                 let ty: Type = self.get_id_type(object.id).clone();
-               
 
                 if ty.is_ptr() {
                     let ptr = ty.to_ptr().unwrap();
                     if ptr.subtype.is_struct() {
-                        let struct_ = self.structures.get(&ptr.subtype.to_struct().unwrap().name).unwrap().clone();
+                        let struct_ = self
+                            .structures
+                            .get(&ptr.subtype.to_struct().unwrap().name)
+                            .unwrap()
+                            .clone();
 
                         let cfield = struct_.fields.get(name).expect("Field not found");
                         let lval = self.expr_to_lvalue(object).expect("LValue expected");
                         return Some(lval.to_rvalue().dereference_field(None, *cfield));
-                        
-                    } else if ty.is_struct() {
-                        let struct_: GccStruct = self.structures.get(&ty.to_struct().unwrap().name).unwrap().clone();
+                    } else if let Type::Basic(basic) = &*ptr.subtype.clone() {
+                        let struct_ = self.structures.get(&basic.name).unwrap().clone();
 
                         let cfield = struct_.fields.get(name).expect("Field not found");
                         let lval = self.expr_to_lvalue(object).expect("LValue expected");
-                        return Some(lval.access_field(None, *cfield));
+                        return Some(lval.to_rvalue().dereference_field(None, *cfield));
                     } else {
                         panic!()
                     }
+                } else if ty.is_struct() {
+                    let struct_: GccStruct = self
+                        .structures
+                        .get(&ty.to_struct().unwrap().name)
+                        .unwrap()
+                        .clone();
+
+                    let cfield = struct_.fields.get(name).expect("Field not found");
+                    let lval = self.expr_to_lvalue(object).expect("LValue expected");
+                    return Some(lval.access_field(None, *cfield));
                 }
                 return None;
             }
@@ -307,12 +317,12 @@ impl<'a> Codegen<'a> {
                     self.gen_stmt(otherwise.as_ref().unwrap(), true);
                 }
             }
-            StmtKind::While(cond,block_) => {
+            StmtKind::While(cond, block_) => {
                 let func: CFunction = self.cur_func.unwrap();
                 let block = self.cur_block.unwrap();
-                let loop_cond: Block = func.new_block( self.block_name_new());
-                let loop_body: Block = func.new_block( self.block_name_new());
-                let after_loop: Block = func.new_block( self.block_name_new());
+                let loop_cond: Block = func.new_block(self.block_name_new());
+                let loop_body: Block = func.new_block(self.block_name_new());
+                let after_loop: Block = func.new_block(self.block_name_new());
                 self.break_blocks.push_back(after_loop);
                 self.continue_blocks.push_back(loop_cond);
 
@@ -329,7 +339,6 @@ impl<'a> Codegen<'a> {
 
                 self.continue_blocks.pop_back();
                 self.break_blocks.pop_back();
-
             }
             _ => unimplemented!(),
         }
@@ -337,7 +346,7 @@ impl<'a> Codegen<'a> {
 
     pub fn gen_expr<'c: 'a>(&mut self, expr: &Expr) -> RValue {
         let val = match &expr.kind {
-            ExprKind::Ident(name) => { 
+            ExprKind::Ident(name) => {
                 if self.constants.contains_key(name) {
                     let constexpr = self.constants.get(name).unwrap().clone();
                     if let Some(lval) = self.expr_to_lvalue(&constexpr) {
@@ -347,7 +356,7 @@ impl<'a> Codegen<'a> {
                     }
                 };
                 self.expr_to_lvalue(expr).unwrap().to_rvalue()
-            },
+            }
             ExprKind::Float(f, suffix) => {
                 use crate::syntax::lexer::token::FloatSuffix;
                 let float: f64 = *f as _;
@@ -396,29 +405,35 @@ impl<'a> Codegen<'a> {
                 if ast_ty.is_ptr() {
                     let ptr = ast_ty.to_ptr().unwrap();
                     if ptr.subtype.is_struct() {
-                        let struct_: GccStruct = self.structures.get(&ptr.subtype.to_struct().unwrap().name).unwrap().clone();
+                        let struct_: GccStruct = self
+                            .structures
+                            .get(&ptr.subtype.to_struct().unwrap().name)
+                            .unwrap()
+                            .clone();
 
                         let cfield = struct_.fields.get(name).expect("Field not found");
                         let rval = self.gen_expr(expr_);
-                        return rval.dereference_field(None, *cfield).to_rvalue()
+                        return rval.dereference_field(None, *cfield).to_rvalue();
                     } else {
                         panic!();
                     }
                 } else if ast_ty.is_struct() {
-                    
-                        let struct_: GccStruct = self.structures.get(&ast_ty.to_struct().unwrap().name).unwrap().clone();
+                    let struct_: GccStruct = self
+                        .structures
+                        .get(&ast_ty.to_struct().unwrap().name)
+                        .unwrap()
+                        .clone();
 
-                        let cfield = struct_.fields.get(name).expect("Field not found");
-                        rvalue.access_field(None,*cfield)
-                    
+                    let cfield = struct_.fields.get(name).expect("Field not found");
+                    rvalue.access_field(None, *cfield)
                 } else {
                     let basic = ast_ty.to_basic().unwrap();
-                    
+
                     let cstruct: &GccStruct = self.structures.get(&basic.name).expect("not found");
 
                     let field = cstruct.fields.get(name).unwrap();
 
-                    rvalue.access_field(None,*field)
+                    rvalue.access_field(None, *field)
                 }
             }
             ExprKind::Assign(lval, rval) => {
@@ -465,7 +480,6 @@ impl<'a> Codegen<'a> {
                         for ((i, (_name, param_ty)), arg_ty) in
                             unit.f.params.iter().enumerate().zip(&param_types)
                         {
-                            
                             params_match = (*param_ty.clone() == arg_ty.clone()
                                 && i < unit.f.params.len())
                                 || i > unit.f.params.len();
@@ -633,7 +647,7 @@ impl<'a> Codegen<'a> {
                     let struct_ = self
                         .ctx
                         .new_struct_type(None, &str(s.name).to_string(), &fields);
-                   
+
                     let cstruct = GccStruct {
                         ty: struct_,
                         fields: cfields,
@@ -641,9 +655,9 @@ impl<'a> Codegen<'a> {
                     self.structures.insert(s.name, cstruct);
                 }
                 Elem::Link(name) => {
-                    self.ctx.add_driver_option(&format!("-l{}",str(*name)));
+                    self.ctx.add_driver_option(&format!("-l{}", str(*name)));
                 }
-                Elem::ConstExpr{name,expr,..} => {
+                Elem::ConstExpr { name, expr, .. } => {
                     self.constants.insert(*name, *expr.clone());
                 }
                 _ => (),
@@ -653,7 +667,7 @@ impl<'a> Codegen<'a> {
         /*for elem in elems.iter() {
             match elem {
                 Elem::Struct(s) => {
-                    
+
                     let mut fields = vec![];
                     let mut cfields = HashMap::new();
                     for field in s.fields.iter() {
@@ -819,10 +833,10 @@ impl<'a> Codegen<'a> {
         if self.context.emit_asm {
             self.ctx.set_dump_code(true);
         }
-        
+
         self.ctx
             .set_opt_level(unsafe { std::mem::transmute(self.context.opt as i32) });
-        
+
         let mut elems = self.context.file.elems.clone();
 
         self.gen_toplevel(&mut elems);
