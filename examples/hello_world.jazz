@@ -1,0 +1,6 @@
+extern func printf(fmt: *char,...) void;
+
+pub func main() i32 {
+	printf("Hello,world!\n");
+	return 0;
+}

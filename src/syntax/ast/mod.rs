@@ -40,6 +40,12 @@ pub enum Elem {
     Global(Global),
     Link(Name),
     Import(String),
+    ConstExpr {
+        id: NodeId,
+        pos: Position,
+        name: Name,
+        expr: Box<Expr>,
+    }
 }
 #[derive(Clone, Debug)]
 pub struct Global {
@@ -360,21 +366,21 @@ pub struct Function {
     pub ret: Box<Type>,
     pub this: Option<(Name, Box<Type>)>,
     pub body: Option<Box<Stmt>>,
-    pub ir_temp_id: usize
+    pub ir_temp_id: usize,
 }
 
 impl PartialEq for Function {
-    fn eq(&self,other: &Self) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         let mut params_match = false;
-        for (p1,p2) in self.params.iter().zip(&other.params) {
-            params_match = if p1.1 == p2.1 {
-                true
-            } else {
-                false
-            };
+        for (p1, p2) in self.params.iter().zip(&other.params) {
+            params_match = if p1.1 == p2.1 { true } else { false };
         }
-        
-        self.name == other.name && self.ret == other.ret && params_match && self.this == other.this && self.variadic == other.variadic
+
+        self.name == other.name
+            && self.ret == other.ret
+            && params_match
+            && self.this == other.this
+            && self.variadic == other.variadic
     }
 }
 

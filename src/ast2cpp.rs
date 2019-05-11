@@ -3,7 +3,6 @@ use crate::{intern, str, Context};
 pub struct Translator {
     ctx: Context,
     pub code: String,
-    tmpid: usize,
 }
 
 use crate::syntax::ast::*;
@@ -21,7 +20,6 @@ impl Translator {
 
 "
             ),
-            tmpid: 0,
         }
     }
 
@@ -177,7 +175,7 @@ impl Translator {
                 self.code.push(')');
                 self.gen_expr(val);
             }
-            ExprKind::Struct(name, args) => {
+            ExprKind::Struct(_name, args) => {
                 self.code.push_str("{\n");
                 for (i, arg) in args.iter().enumerate() {
                     let arg: &StructArg = arg;
@@ -356,6 +354,7 @@ impl Translator {
                 Elem::Link(_) => {}
                 Elem::Enum => {}
                 Elem::Import(_) => {}
+                _ => {},
             }
         }
     }

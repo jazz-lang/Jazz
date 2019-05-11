@@ -1,4 +1,4 @@
-use crate::{intern, str, Position};
+use crate::{intern, Position};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct IRValue {
@@ -6,8 +6,6 @@ pub struct IRValue {
     pub data: ValueData,
     pub id: usize,
 }
-
-use std::cell::RefMut;
 
 impl IRValue {
     pub fn empty() -> IRValue {

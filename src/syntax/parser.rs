@@ -150,8 +150,13 @@ impl<'a> Parser<'a> {
             }
             TokenKind::Link => {
                 self.advance_token()?;
-                let string = self.expect_identifier()?;
-                elements.push(Elem::Link(string))
+                let string = self.parse_string()?;
+                let string = if let ExprKind::Str(s) = &string.kind {
+                    s.clone()
+                } else {
+                    unreachable!()
+                };
+                elements.push(Elem::Link(intern(&string)));
             }
             TokenKind::Fun => {
                 let fun = self.parse_function(modifiers)?;
@@ -164,6 +169,18 @@ impl<'a> Parser<'a> {
             }
             TokenKind::Let | TokenKind::Var => {
                 self.parse_global(elements)?;
+            }
+            TokenKind::ConstExpr => {
+                let pos = self.advance_token()?.position;
+                let name = self.expect_identifier()?;
+                self.expect_token(TokenKind::Eq);
+                let expr = self.parse_expression()?;
+                elements.push(Elem::ConstExpr {
+                    id: self.generate_id(),
+                    pos,
+                    expr,
+                    name: name,
+                })
             }
             TokenKind::Const => {
                 let mut xconst = self.parse_const()?;
@@ -760,7 +777,7 @@ impl<'a> Parser<'a> {
             params: params,
             variadic,
             body,
-            ir_temp_id: 0
+            ir_temp_id: 0,
         })
     }
 

@@ -61,6 +61,12 @@ use syntax::ast::File;
 pub struct Context {
     pub file: File,
     pub types: HashMap<NodeId, Type>,
+    pub opt: u8,
+    pub jit: bool,
+    pub emit_asm: bool,
+    pub emit_obj: bool,
+    pub output: String,
+    pub shared: bool,
 }
 
 impl Context {
@@ -68,6 +74,12 @@ impl Context {
         Context {
             file: file,
             types: HashMap::new(),
+            opt: 2,
+            emit_asm: false,
+            emit_obj: false,
+            jit: true,
+            output: String::new(),
+            shared: false,
         }
     }
 
@@ -91,10 +103,7 @@ impl Context {
         let mut parser = Parser::new(reader, &mut file);
         parser.parse().expect("Error");
 
-        let mut ctx = Context {
-            file: file,
-            types: HashMap::new(),
-        };
+        let mut ctx = Context::new(file);
         ctx.imports();
 
         for elem in ctx.file.elems {

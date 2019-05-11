@@ -1,0 +1,12 @@
+constexpr TEST = x * 2
+
+extern func printf(fmt: *char,...) void;
+
+pub func main() i32 {
+
+	var x = 4
+	printf("%i\n",TEST)
+
+
+	return 0;
+}

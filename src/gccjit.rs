@@ -9,65 +9,10 @@ use gccjit_rs::structs::Struct;
 use gccjit_rs::ty::{Type as CType, Typeable};
 
 use crate::str;
-use crate::syntax::ast::*;
-use std::cell::RefCell;
-use std::rc::Rc;
-
-pub fn ty_to_ctype<'a>(ty: &Type, ctx: &'a Context) -> CType {
-    match ty {
-        Type::Void(_) => ctx.new_type::<()>(),
-        Type::Basic(basic) => {
-            let name: &str = &str(basic.name);
-            match name {
-                "u8" => ctx.new_type::<u8>(),
-                "i8" => ctx.new_type::<i8>(),
-                "char" => ctx.new_type::<char>(),
-                "i16" => ctx.new_type::<i16>(),
-                "u16" => ctx.new_type::<u16>(),
-                "i32" => ctx.new_type::<i32>(),
-                "u32" => ctx.new_type::<u32>(),
-                "i64" => ctx.new_type::<i64>(),
-                "u64" => ctx.new_type::<u64>(),
-
-                _ => unimplemented!(),
-            }
-        }
-        Type::Ptr(ptr) => ty_to_ctype(&ptr.subtype, ctx).make_pointer(),
-        Type::Func(tyfunc) => {
-            let params = tyfunc
-                .params
-                .iter()
-                .map(|elem| ty_to_ctype(elem, ctx))
-                .collect::<Vec<_>>();
-            ctx.new_function_pointer_type(None, ty_to_ctype(&tyfunc.ret, ctx), &params, false)
-        }
-        Type::Struct(struct_) => {
-            let fields = struct_
-                .fields
-                .iter()
-                .map(|field: &StructField| {
-                    ctx.new_field(
-                        None,
-                        ty_to_ctype(&field.data_type, ctx),
-                        &str(field.name).to_string(),
-                    )
-                })
-                .collect::<Vec<_>>();
-
-            ctx.new_struct_type(None, &str(struct_.name).to_string(), &fields)
-                .as_type()
-        }
-        Type::Array(array) => {
-            if array.len.is_some() {
-                let len = *array.len.as_ref().unwrap();
-
-                ctx.new_array_type(None, ty_to_ctype(&array.subtype, ctx), len as i32)
-            } else {
-                ty_to_ctype(&array.subtype, ctx).make_pointer()
-            }
-        }
-    }
-}
+use crate::syntax::ast::{
+    Elem, Expr, ExprKind, Function, NodeId, Stmt, StmtKind, StructArg, StructField, Type, TypeFunc,
+    TypeStruct,
+};
 
 use crate::syntax::interner::Name;
 use std::collections::HashMap;
@@ -87,6 +32,11 @@ pub struct VarInfo {
     pub ty: Type,
     pub cty: CType,
 }
+#[derive(Clone)]
+pub struct GccStruct {
+    pub ty: Struct,
+    pub fields: HashMap<Name, Field>,
+}
 
 pub struct Codegen<'a> {
     ctx: Context,
@@ -100,11 +50,65 @@ pub struct Codegen<'a> {
     globals: HashMap<Name, VarInfo>,
     functions: HashMap<Name, Vec<FunctionUnit>>,
     external_functions: HashMap<Name, FunctionUnit>,
+    structures: HashMap<Name, GccStruct>,
+    constants: HashMap<Name,Expr>,
     block_id: usize,
-    fun_id: usize
+    fun_id: usize,
 }
 
 impl<'a> Codegen<'a> {
+    pub fn ty_to_ctype(&self, ty: &Type) -> CType {
+        let ctx = self.ctx;
+        match ty {
+            Type::Void(_) => ctx.new_type::<()>(),
+            Type::Basic(basic) => {
+                let name: &str = &str(basic.name);
+                match name {
+                    "u8" => ctx.new_type::<u8>(),
+                    "i8" => ctx.new_type::<i8>(),
+                    "char" => ctx.new_type::<char>(),
+                    "i16" => ctx.new_type::<i16>(),
+                    "u16" => ctx.new_type::<u16>(),
+                    "i32" => ctx.new_type::<i32>(),
+                    "u32" => ctx.new_type::<u32>(),
+                    "i64" => ctx.new_type::<i64>(),
+                    "u64" => ctx.new_type::<u64>(),
+
+                    s => {
+                        let interned = crate::syntax::interner::intern(s);
+                        if self.structures.contains_key(&interned) {
+                            let ty = self.structures.get(&interned).unwrap().ty.as_type();
+                            
+                            return ty;
+                        } else {
+                            unreachable!()
+                        }
+                    },
+                }
+            }
+            Type::Ptr(ptr) => self.ty_to_ctype(&ptr.subtype).make_pointer(),
+            Type::Func(tyfunc) => {
+                let params = tyfunc
+                    .params
+                    .iter()
+                    .map(|elem| self.ty_to_ctype(elem))
+                    .collect::<Vec<_>>();
+                ctx.new_function_pointer_type(None, self.ty_to_ctype(&tyfunc.ret), &params, false)
+            }
+            Type::Struct(struct_) => {
+                self.structures.get(&struct_.name).unwrap().ty.as_type()
+            }
+            Type::Array(array) => {
+                if array.len.is_some() {
+                    let len = *array.len.as_ref().unwrap();
+
+                    ctx.new_array_type(None, self.ty_to_ctype(&array.subtype), len as i32)
+                } else {
+                    self.ty_to_ctype(&array.subtype).make_pointer()
+                }
+            }
+        }
+    }
     pub fn new(context: &'a CContext, name: &str) -> Codegen<'a> {
         let ctx = Context::default();
 
@@ -121,8 +125,10 @@ impl<'a> Codegen<'a> {
             globals: HashMap::new(),
             functions: HashMap::new(),
             external_functions: HashMap::new(),
+            structures: HashMap::new(),
+            constants: HashMap::new(),
             block_id: 0,
-            fun_id: 0
+            fun_id: 0,
         }
     }
 
@@ -141,8 +147,8 @@ impl<'a> Codegen<'a> {
                     return None;
                 }
             }
-            ExprKind::Binary(op,lhs,rhs) => {
-                let op: &str = op;
+            ExprKind::Binary(op, lhs, rhs) => {
+                let _op: &str = op;
                 let t1 = self.get_id_type(lhs.id);
                 let t2 = self.get_id_type(rhs.id);
 
@@ -151,54 +157,28 @@ impl<'a> Codegen<'a> {
                     let idx = self.gen_expr(rhs);
                     return Some(self.ctx.new_array_access(None, array, idx));
                 } else {
-                    unimplemented!()
+                    return None;
                 }
             }
             ExprKind::Field(object, name) => {
                 let ty: Type = self.get_id_type(object.id).clone();
-                let mut field = None;
+               
 
                 if ty.is_ptr() {
                     let ptr = ty.to_ptr().unwrap();
                     if ptr.subtype.is_struct() {
-                        let struct_: TypeStruct = ptr.subtype.to_struct().unwrap().clone();
-                        for f in struct_.fields.iter() {
-                            let f: &StructField = f;
-                            if f.name == *name {
-                                field = Some(f.clone());
-                            }
-                        }
-                        let rval = self.gen_expr(object);
-                        if field.is_none() {
-                            panic!("Field not found");
-                        } else {
-                            let field: &StructField = field.as_ref().unwrap();
-                            let cfield = self.ctx.new_field(
-                                None,
-                                ty_to_ctype(&field.data_type, &self.ctx),
-                                &str(field.name).to_string(),
-                            );
+                        let struct_ = self.structures.get(&ptr.subtype.to_struct().unwrap().name).unwrap().clone();
 
-                            return Some(rval.dereference_field(None, cfield));
-                        }
-                    } else if ty.is_struct() {
-                        let struct_: TypeStruct = ptr.subtype.to_struct().unwrap().clone();
-
-                        for f in struct_.fields.iter() {
-                            let f: &StructField = f;
-                            if f.name == *name {
-                                field = Some(f.clone());
-                            }
-                        }
-                        let field: &StructField = field.as_ref().expect("Field not found");
-                        let cfield = self.ctx.new_field(
-                            None,
-                            ty_to_ctype(&field.data_type, &self.ctx),
-                            &str(field.name).to_string(),
-                        );
+                        let cfield = struct_.fields.get(name).expect("Field not found");
                         let lval = self.expr_to_lvalue(object).expect("LValue expected");
+                        return Some(lval.to_rvalue().dereference_field(None, *cfield));
+                        
+                    } else if ty.is_struct() {
+                        let struct_: GccStruct = self.structures.get(&ty.to_struct().unwrap().name).unwrap().clone();
 
-                        return Some(lval.access_field(None, cfield));
+                        let cfield = struct_.fields.get(name).expect("Field not found");
+                        let lval = self.expr_to_lvalue(object).expect("LValue expected");
+                        return Some(lval.access_field(None, *cfield));
                     } else {
                         panic!()
                     }
@@ -232,7 +212,7 @@ impl<'a> Codegen<'a> {
         name
     }
 
-    pub fn gen_stmt(&mut self, stmt: &Stmt,init: bool) {
+    pub fn gen_stmt(&mut self, stmt: &Stmt, init: bool) {
         match &stmt.kind {
             StmtKind::Expr(expr) => {
                 let rval = self.gen_expr(expr);
@@ -240,16 +220,16 @@ impl<'a> Codegen<'a> {
             }
             StmtKind::Block(stmts) => {
                 if !init {
-                let old_block = self.cur_block;
-                let block_name = self.block_name_new();
-                let block = self.cur_func.unwrap().new_block(&block_name);
-                self.cur_block = Some(block);
+                    let old_block = self.cur_block;
+                    let block_name = self.block_name_new();
+                    let block = self.cur_func.unwrap().new_block(&block_name);
+                    self.cur_block = Some(block);
 
-                for stmt in stmts.iter() {
-                    self.gen_stmt(stmt,false);
-                }
+                    for stmt in stmts.iter() {
+                        self.gen_stmt(stmt, false);
+                    }
 
-                self.cur_block = old_block;
+                    self.cur_block = old_block;
                 } else {
                     for stmt in stmts.iter() {
                         self.gen_stmt(stmt, false);
@@ -277,17 +257,16 @@ impl<'a> Codegen<'a> {
                 if expr.is_some() {
                     let expr = expr.as_ref().unwrap();
                     let rval = self.gen_expr(expr);
-                    
+
                     self.cur_block.unwrap().end_with_return(None, rval);
                 } else {
                     self.cur_block.unwrap().end_with_void_return(None);
                 }
             }
             StmtKind::Var(name, _, _, init) => {
-                
                 let ty = self.get_id_type(stmt.id).clone();
 
-                let cty = ty_to_ctype(&ty, &self.ctx);
+                let cty = self.ty_to_ctype(&ty);
                 let local = self
                     .cur_func
                     .unwrap()
@@ -312,31 +291,75 @@ impl<'a> Codegen<'a> {
                 let block = self.cur_block.unwrap();
                 let then_name = self.block_name_new();
                 let else_name = self.block_name_new();
-                println!(" {} {}",then_name,else_name);
+
                 let bb_then = func.new_block(then_name);
                 let bb_else = func.new_block(else_name);
                 //let bb_merge: Block = func.new_block(self.block_name_new());
-                
+
                 let rval = self.gen_expr(cond);
                 block.end_with_conditional(None, rval, bb_then, bb_else);
 
                 self.cur_block = Some(bb_then);
-                self.gen_stmt(then,true);
+                self.gen_stmt(then, true);
                 //self.cur_block.unwrap().end_with_jump(None, bb_merge);
                 self.cur_block = Some(bb_else);
                 if otherwise.is_some() {
-                    self.gen_stmt(otherwise.as_ref().unwrap(),true);
+                    self.gen_stmt(otherwise.as_ref().unwrap(), true);
                 }
-                
             }
+            StmtKind::While(cond,block_) => {
+                let func: CFunction = self.cur_func.unwrap();
+                let block = self.cur_block.unwrap();
+                let loop_cond: Block = func.new_block( self.block_name_new());
+                let loop_body: Block = func.new_block( self.block_name_new());
+                let after_loop: Block = func.new_block( self.block_name_new());
+                self.break_blocks.push_back(after_loop);
+                self.continue_blocks.push_back(loop_cond);
 
+                block.end_with_jump(None, loop_cond);
+                self.cur_block = Some(loop_cond);
+                let cond = self.gen_expr(cond);
+                loop_cond.end_with_conditional(None, cond, after_loop, loop_body);
+
+                self.cur_block = Some(loop_body);
+                self.gen_stmt(block_, true);
+                loop_body.end_with_jump(None, loop_cond);
+
+                self.cur_block = Some(after_loop);
+
+                self.continue_blocks.pop_back();
+                self.break_blocks.pop_back();
+
+            }
             _ => unimplemented!(),
         }
     }
 
     pub fn gen_expr<'c: 'a>(&mut self, expr: &Expr) -> RValue {
         let val = match &expr.kind {
-            ExprKind::Ident(_) => self.expr_to_lvalue(expr).unwrap().to_rvalue(),
+            ExprKind::Ident(name) => { 
+                if self.constants.contains_key(name) {
+                    let constexpr = self.constants.get(name).unwrap().clone();
+                    if let Some(lval) = self.expr_to_lvalue(&constexpr) {
+                        return lval.to_rvalue();
+                    } else {
+                        return self.gen_expr(&constexpr);
+                    }
+                };
+                self.expr_to_lvalue(expr).unwrap().to_rvalue()
+            },
+            ExprKind::Float(f, suffix) => {
+                use crate::syntax::lexer::token::FloatSuffix;
+                let float: f64 = *f as _;
+                match suffix {
+                    FloatSuffix::Float => self
+                        .ctx
+                        .new_rvalue_from_double(self.ctx.new_type::<f32>(), float),
+                    FloatSuffix::Double => self
+                        .ctx
+                        .new_rvalue_from_double(self.ctx.new_type::<f64>(), float),
+                }
+            }
             ExprKind::Int(i, _, suffix) => {
                 use crate::syntax::lexer::token::IntSuffix;
                 let int: i64 = *i as _;
@@ -367,55 +390,35 @@ impl<'a> Codegen<'a> {
                 rvalue.dereference(None).to_rvalue()
             }
             ExprKind::Field(expr_, name) => {
-                let ast_ty = self.get_id_type(expr.id);
+                let ast_ty = self.get_id_type(expr_.id);
                 let rvalue = self.gen_expr(expr_).clone();
 
                 if ast_ty.is_ptr() {
                     let ptr = ast_ty.to_ptr().unwrap();
                     if ptr.subtype.is_struct() {
-                        let struct_type: TypeStruct = ptr.subtype.to_struct().unwrap().clone();
-                        let mut field = None;
-                        for f in struct_type.fields.iter() {
-                            let f: &StructField = f;
-                            if f.name == *name {
-                                field = Some(f.clone());
-                            }
-                        }
-                        if field.is_none() {
-                            panic!("Field not found");
-                        } else {
-                            let field: &StructField = field.as_ref().unwrap();
-                            let cfield = self.ctx.new_field(
-                                None,
-                                ty_to_ctype(&field.data_type, &self.ctx),
-                                &str(field.name).to_string(),
-                            );
+                        let struct_: GccStruct = self.structures.get(&ptr.subtype.to_struct().unwrap().name).unwrap().clone();
 
-                            rvalue.dereference_field(None, cfield).to_rvalue()
-                        }
+                        let cfield = struct_.fields.get(name).expect("Field not found");
+                        let rval = self.gen_expr(expr_);
+                        return rval.dereference_field(None, *cfield).to_rvalue()
                     } else {
                         panic!();
                     }
                 } else if ast_ty.is_struct() {
-                    let struct_type = ast_ty.to_struct().unwrap().clone();
-                    let mut field = None;
-                    for f in struct_type.fields.iter() {
-                        let f: &StructField = f;
-                        if f.name == *name {
-                            field = Some(f.clone());
-                        }
-                    }
-                    if field.is_none() {
-                        panic!("Field not found");
-                    } else {
-                        let field: &StructField = field.as_ref().unwrap();
-                        let cty = ty_to_ctype(&field.data_type, &self.ctx);
-                        let cfield = self.ctx.new_field(None, cty, &str(field.name).to_string());
+                    
+                        let struct_: GccStruct = self.structures.get(&ast_ty.to_struct().unwrap().name).unwrap().clone();
 
-                        rvalue.access_field(None, cfield)
-                    }
+                        let cfield = struct_.fields.get(name).expect("Field not found");
+                        rvalue.access_field(None,*cfield)
+                    
                 } else {
-                    panic!();
+                    let basic = ast_ty.to_basic().unwrap();
+                    
+                    let cstruct: &GccStruct = self.structures.get(&basic.name).expect("not found");
+
+                    let field = cstruct.fields.get(name).unwrap();
+
+                    rvalue.access_field(None,*field)
                 }
             }
             ExprKind::Assign(lval, rval) => {
@@ -433,8 +436,8 @@ impl<'a> Codegen<'a> {
 
                 return val.get_address(None);
             }
-            ExprKind::Conv(val,to) => {
-                let cty = ty_to_ctype(to,&self.ctx);
+            ExprKind::Conv(val, to) => {
+                let cty = self.ty_to_ctype(to);
                 let rval = self.gen_expr(val);
                 return self.ctx.new_cast(None, rval, cty);
             }
@@ -462,6 +465,7 @@ impl<'a> Codegen<'a> {
                         for ((i, (_name, param_ty)), arg_ty) in
                             unit.f.params.iter().enumerate().zip(&param_types)
                         {
+                            
                             params_match = (*param_ty.clone() == arg_ty.clone()
                                 && i < unit.f.params.len())
                                 || i > unit.f.params.len();
@@ -470,6 +474,9 @@ impl<'a> Codegen<'a> {
                             lval = Some(unit.c);
                             not_found = false;
                             break;
+                        } else if unit.f.params.len() == 0 && param_types.len() == 0 {
+                            lval = Some(unit.c);
+                            not_found = false;
                         }
                     }
                     if not_found {
@@ -511,12 +518,19 @@ impl<'a> Codegen<'a> {
 
                 self.ctx.new_call_through_ptr(None, var, &params)
             }
-            
-            ExprKind::Binary(op,e1,e2) => {
+
+            ExprKind::Binary(op, e1, e2) => {
                 let t1 = self.get_id_type(e1.id);
                 let t2 = self.get_id_type(e2.id);
-                use crate::semantic::{ty_is_any_int,ty_is_any_float};
-                if op.contains("==") || op.contains("!=") || op.contains(">") || op.contains("<") || op.contains(">") || op.contains(">=") || op.contains("<=") {
+                use crate::semantic::{ty_is_any_float, ty_is_any_int};
+                if op.contains("==")
+                    || op.contains("!=")
+                    || op.contains(">")
+                    || op.contains("<")
+                    || op.contains(">")
+                    || op.contains(">=")
+                    || op.contains("<=")
+                {
                     let op: &str = op;
                     let comparison = match op {
                         "==" => ComparisonOp::Equals,
@@ -525,22 +539,21 @@ impl<'a> Codegen<'a> {
                         ">=" => ComparisonOp::GreaterThanEquals,
                         "<=" => ComparisonOp::LessThanEquals,
                         "!=" => ComparisonOp::NotEquals,
-                        _ => unreachable!()
+                        _ => unreachable!(),
                     };
-                    let cty = ty_to_ctype(&t1, &self.ctx);
+                    let cty = self.ty_to_ctype(&t1);
                     let e1 = self.gen_expr(e1);
                     let e2 = self.gen_expr(e2);
                     let e2 = self.ctx.new_cast(None, e2, cty);
                     return self.ctx.new_comparison(None, comparison, e1, e2);
-
                 }
 
                 if t1.is_ptr() && crate::semantic::ty_is_any_int(&t2) {
                     let array = self.gen_expr(e1);
                     let index = self.gen_expr(e2);
-                    return self.ctx.new_array_access(None, array, index).to_rvalue()
+                    return self.ctx.new_array_access(None, array, index).to_rvalue();
                 } else if ty_is_any_int(&t1) && ty_is_any_int(&t2) {
-                    let cty = ty_to_ctype(&t1, &self.ctx);
+                    let cty = self.ty_to_ctype(&t1);
                     let op: &str = op;
                     let binary = match op {
                         "+" => BinaryOp::Plus,
@@ -553,15 +566,15 @@ impl<'a> Codegen<'a> {
                         "^" => BinaryOp::BitwiseXor,
                         ">>" => BinaryOp::RShift,
                         "<<" => BinaryOp::LShift,
-                        
-                        _ => unreachable!()
+
+                        _ => unreachable!(),
                     };
                     let l = self.gen_expr(e1);
                     let r = self.gen_expr(e2);
                     let r = self.ctx.new_cast(None, r, cty);
-                    return self.ctx.new_binary_op(None,binary, cty, l,r);
+                    return self.ctx.new_binary_op(None, binary, cty, l, r);
                 } else if ty_is_any_float(&t1) && ty_is_any_float(&t2) {
-                    let cty = ty_to_ctype(&t1, &self.ctx);
+                    let cty = self.ty_to_ctype(&t1);
                     let op: &str = op;
                     let binary = match op {
                         "+" => BinaryOp::Plus,
@@ -570,14 +583,14 @@ impl<'a> Codegen<'a> {
                         "/" => BinaryOp::Divide,
                         "%" => BinaryOp::Modulo,
 
-                        _ => unreachable!()
+                        _ => unreachable!(),
                     };
                     let l = self.gen_expr(e1);
                     let r = self.gen_expr(e2);
                     let r = self.ctx.new_cast(None, r, cty);
-                    return self.ctx.new_binary_op(None,binary, cty, l,r);
+                    return self.ctx.new_binary_op(None, binary, cty, l, r);
                 } else if ty_is_any_float(&t1) && ty_is_any_int(&t2) {
-                    let cty = ty_to_ctype(&t1, &self.ctx);
+                    let cty = self.ty_to_ctype(&t1);
                     let op: &str = op;
                     let binary = match op {
                         "+" => BinaryOp::Plus,
@@ -586,12 +599,12 @@ impl<'a> Codegen<'a> {
                         "/" => BinaryOp::Divide,
                         "%" => BinaryOp::Modulo,
 
-                        _ => unreachable!()
+                        _ => unreachable!(),
                     };
                     let l = self.gen_expr(e1);
                     let r = self.gen_expr(e2);
                     let r = self.ctx.new_cast(None, r, cty);
-                    return self.ctx.new_binary_op(None,binary, cty, l,r);
+                    return self.ctx.new_binary_op(None, binary, cty, l, r);
                 } else {
                     unimplemented!()
                 }
@@ -603,6 +616,64 @@ impl<'a> Codegen<'a> {
     }
 
     pub fn gen_toplevel(&mut self, elems: &mut [Elem]) {
+        for elem in elems.iter() {
+            match elem {
+                Elem::Struct(s) => {
+                    let s: &crate::syntax::ast::Struct = s;
+                    let mut fields = vec![];
+                    let mut cfields = HashMap::new();
+                    for field in s.fields.iter() {
+                        let field: &StructField = field;
+                        let cty = self.ty_to_ctype(&field.data_type).clone();
+                        let name: &str = &str(field.name).to_string();
+                        let cfield = self.ctx.new_field(None, cty, name);
+                        cfields.insert(field.name, cfield);
+                        fields.push(cfield);
+                    }
+                    let struct_ = self
+                        .ctx
+                        .new_struct_type(None, &str(s.name).to_string(), &fields);
+                   
+                    let cstruct = GccStruct {
+                        ty: struct_,
+                        fields: cfields,
+                    };
+                    self.structures.insert(s.name, cstruct);
+                }
+                Elem::Link(name) => {
+                    self.ctx.add_driver_option(&format!("-l{}",str(*name)));
+                }
+                Elem::ConstExpr{name,expr,..} => {
+                    self.constants.insert(*name, *expr.clone());
+                }
+                _ => (),
+            }
+        }
+
+        /*for elem in elems.iter() {
+            match elem {
+                Elem::Struct(s) => {
+                    
+                    let mut fields = vec![];
+                    let mut cfields = HashMap::new();
+                    for field in s.fields.iter() {
+                        let field: &StructField = field;
+                        let cty = self.ty_to_ctype(&field.data_type).clone();
+                        let name: &str = &str(field.name).to_string();
+                        let cfield = self.ctx.new_field(None, cty, name);
+                        cfields.insert(field.name, cfield);
+                        fields.push(cfield);
+                    }
+                    let cstruct: &mut GccStruct = self.structures.get_mut(&s.name).unwrap();
+                    cstruct.fields = cfields;
+                    cstruct.ty = self
+                        .ctx
+                        .new_struct_type(None, &str(s.name).to_string(), &fields);
+                    //cstruct.ty.set_fields(None, &fields);
+                }
+                _ => {}
+            }
+        }*/
         for elem in elems.iter_mut() {
             match elem {
                 Elem::Func(func) => {
@@ -620,51 +691,57 @@ impl<'a> Codegen<'a> {
                     if func.external {
                         let mut params = vec![];
 
-                        for (name,ty) in func.params.iter() {
-                            let ty = ty_to_ctype(ty, &self.ctx);
+                        for (name, ty) in func.params.iter() {
+                            let ty = self.ty_to_ctype(ty);
                             params.push(self.ctx.new_parameter(None, ty, &str(*name).to_string()));
-                        }                        
+                        }
 
                         let f = self.ctx.new_function(
-                            None, 
-                            linkage, 
-                            ty_to_ctype(&func.ret, &self.ctx), 
-                            &params, 
-                            &str(func.name).to_string(), 
-                            func.variadic);
-                        
+                            None,
+                            linkage,
+                            self.ty_to_ctype(&func.ret),
+                            &params,
+                            &str(func.name).to_string(),
+                            func.variadic,
+                        );
+
                         let unit = FunctionUnit {
                             f: func.clone(),
                             c: f,
-                            irname: str(func.name).to_string()
+                            irname: str(func.name).to_string(),
                         };
 
                         self.external_functions.insert(func.name, unit);
                     } else {
                         let mut params = vec![];
                         if func.this.is_some() {
-                            let (name,ty) = func.this.as_ref().unwrap();
-                            let ty = ty_to_ctype(ty, &self.ctx);
+                            let (name, ty) = func.this.as_ref().unwrap();
+                            let ty = self.ty_to_ctype(ty);
                             params.push(self.ctx.new_parameter(None, ty, &str(*name).to_string()));
                         }
 
-                        for (name,ty) in func.params.iter() {
-                            let ty = ty_to_ctype(ty, &self.ctx);
+                        for (name, ty) in func.params.iter() {
+                            let ty = self.ty_to_ctype(ty);
                             params.push(self.ctx.new_parameter(None, ty, &str(*name).to_string()));
                         }
                         let name_str: &str = &str(func.name).to_string();
                         let id = self.fun_id;
                         func.ir_temp_id = id;
-                        let name = if name_str == "main" {"main".to_owned()} else {format!("a{}",self.fun_id)};
+                        let name = if name_str == "main" {
+                            "main".to_owned()
+                        } else {
+                            format!("a{}", self.fun_id)
+                        };
                         self.fun_id += 1;
                         let f = self.ctx.new_function(
-                            None, 
-                            linkage, 
-                            ty_to_ctype(&func.ret, &self.ctx), 
-                            &params, 
-                            &name, 
-                            func.variadic);
-                        
+                            None,
+                            linkage,
+                            self.ty_to_ctype(&func.ret),
+                            &params,
+                            &name,
+                            func.variadic,
+                        );
+
                         if let Some(functions) = self.functions.get_mut(&func.name) {
                             for fun in functions.iter() {
                                 if &fun.f == func {
@@ -676,21 +753,23 @@ impl<'a> Codegen<'a> {
                             functions.push(FunctionUnit {
                                 f: func.clone(),
                                 c: f,
-                                irname: name
+                                irname: name,
                             });
                         } else {
-                            self.functions.insert(func.name, vec![FunctionUnit {
-                                f: func.clone(),
-                                c: f,
-                                irname: name
-                            }]);
+                            self.functions.insert(
+                                func.name,
+                                vec![FunctionUnit {
+                                    f: func.clone(),
+                                    c: f,
+                                    irname: name,
+                                }],
+                            );
                         }
                     }
                 }
-                _ => unimplemented!(),
+                _ => (),
             }
         }
-
 
         for elem in elems.iter() {
             match elem {
@@ -703,21 +782,27 @@ impl<'a> Codegen<'a> {
                         let functions = self.functions.get(&func.name).unwrap().clone();
 
                         for fun in functions.iter() {
-                           
                             if fun.f.ir_temp_id == func.ir_temp_id {
                                 self.cur_func = Some(fun.c);
                                 self.cur_block = Some(fun.c.new_block("entry"));
                                 let block = self.cur_block.unwrap();
 
-                                for (i,(name,param)) in func.params.iter().enumerate() {
-                                    let cty = ty_to_ctype(param, &self.ctx);
-                                    let loc = fun.c.new_local(None,cty,&str(*name).to_string());
+                                for (i, (name, param)) in func.params.iter().enumerate() {
+                                    let cty = self.ty_to_ctype(param);
+                                    let loc = fun.c.new_local(None, cty, &str(*name).to_string());
                                     let param_ = fun.c.get_param(i as _);
-                                    block.add_assignment(None,loc,param_.to_rvalue());
-                                    self.variables.insert(*name, VarInfo {lval: loc,cty,ty: *param.clone()});
+                                    block.add_assignment(None, loc, param_.to_rvalue());
+                                    self.variables.insert(
+                                        *name,
+                                        VarInfo {
+                                            lval: loc,
+                                            cty,
+                                            ty: *param.clone(),
+                                        },
+                                    );
                                 }
-                                
-                                self.gen_stmt(func.body.as_ref().unwrap(),true);
+
+                                self.gen_stmt(func.body.as_ref().unwrap(), true);
                                 //let cty = ty_to_ctype(&func.ret, &self.ctx);
                                 //block.end_with_return(None,self.ctx.new_rvalue_zero(cty));
                             }
@@ -725,27 +810,43 @@ impl<'a> Codegen<'a> {
                     }
                 }
 
-                _ => unimplemented!()
+                _ => (),
             }
         }
     }
 
     pub fn compile(&mut self) {
+        if self.context.emit_asm {
+            self.ctx.set_dump_code(true);
+        }
         
-        self.ctx.set_dump_code(true);
-        self.ctx.set_dump_gimple(true);
-        self.ctx.set_opt_level(OptimizationLevel::Standard);
-
+        self.ctx
+            .set_opt_level(unsafe { std::mem::transmute(self.context.opt as i32) });
+        
         let mut elems = self.context.file.elems.clone();
 
         self.gen_toplevel(&mut elems);
-        
-        
-        let result = self.ctx.compile();
 
-        let main_fn: fn() -> i32 = unsafe {std::mem::transmute(result.get_function("main"))};
+        if self.context.jit {
+            let result = self.ctx.compile();
 
-        println!("Exit value: {}",main_fn());
+            let main_fn: fn() -> i32 = unsafe { std::mem::transmute(result.get_function("main")) };
 
+            println!("Exit value: {}", main_fn());
+        } else {
+            let out_path = if !self.context.output.is_empty() {
+                self.context.output.clone()
+            } else {
+                "a.out".to_owned()
+            };
+            let kind = if self.context.emit_obj {
+                OutputKind::ObjectFile
+            } else if self.context.shared {
+                OutputKind::DynamicLibrary
+            } else {
+                OutputKind::Executable
+            };
+            self.ctx.compile_to_file(kind, out_path);
+        }
     }
 }

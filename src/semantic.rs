@@ -13,6 +13,7 @@ pub struct SemCheck<'a> {
     globals: HashMap<Name, Global>,
     constants: HashMap<Name, Const>,
     vars: Vec<HashMap<Name, Type>>,
+    constexprs: HashMap<Name,Box<Expr>>,
     ret: Type,
     types: HashMap<NodeId, Type>,
 }
@@ -112,6 +113,7 @@ impl<'a> SemCheck<'a> {
             signatures: HashMap::new(),
             ret: Type::Void(Position::new(intern("<>"), 0, 0)),
             types: HashMap::new(),
+            constexprs: HashMap::new()
         }
     }
 
@@ -145,8 +147,8 @@ impl<'a> SemCheck<'a> {
             eprintln!("{}", maybe_err.unwrap_err());
         }
 
-        for (k,v) in self.types.iter() {
-            self.ctx.types.insert(k.clone(),v.clone());
+        for (k, v) in self.types.iter() {
+            self.ctx.types.insert(k.clone(), v.clone());
         }
     }
 
@@ -174,10 +176,7 @@ impl<'a> SemCheck<'a> {
                     let mut parser = Parser::new(reader, &mut file);
                     parser.parse().expect("Error");
 
-                    let mut ctx = Context {
-                        file: file,
-                        types: HashMap::new(),
-                    };
+                    let mut ctx = Context::new(file);
 
                     let mut sem = SemCheck::new(&mut ctx);
                     sem.imports();
@@ -239,6 +238,9 @@ impl<'a> SemCheck<'a> {
         }
         for elem in self.ctx.file.elems.iter() {
             match elem {
+                Elem::ConstExpr {name,expr,..} => {
+                    self.constexprs.insert(*name, expr.clone());
+                }
                 Elem::Const(c) => {
                     if self.constants.contains_key(&c.name) {
                         return Err(ErrorWPos::new(
@@ -419,7 +421,7 @@ impl<'a> SemCheck<'a> {
     }
 
     pub fn tc_stmt(&mut self, stmt: &Stmt) {
-        let id = stmt.id;
+        let _id = stmt.id;
         let _ = match &stmt.kind {
             StmtKind::Continue | StmtKind::Break => (),
             StmtKind::Expr(e) => {
@@ -455,7 +457,6 @@ impl<'a> SemCheck<'a> {
                 }
             }
             StmtKind::Var(name, _, ty, init) => {
-                
                 if self.vars.last().unwrap().contains_key(name) {
                     error!(format!("Variable {} already exists", str(*name)), stmt.pos);
                 }
@@ -464,13 +465,13 @@ impl<'a> SemCheck<'a> {
                     let mut t = self.tc_expr(&init);
                     t = self.infer_type(&t);
                     self.vars.last_mut().unwrap().insert(*name, t.clone());
-                    self.ctx.types.insert(stmt.id, t);
+                    self.types.insert(stmt.id, t);
                 } else if ty.is_some() && init.is_none() {
                     self.vars
                         .last_mut()
                         .unwrap()
                         .insert(*name, ty.clone().unwrap());
-                    self.ctx.types.insert(stmt.id,ty.clone().unwrap());
+                    self.types.insert(stmt.id, ty.clone().unwrap());
                 } else if ty.is_none() && init.is_none() {
                     error!("Type annotation required", stmt.pos);
                 } else {
@@ -481,16 +482,15 @@ impl<'a> SemCheck<'a> {
                     t2 = self.infer_type(&t2);
                     if ty_is_any_int(&t2) && ty_is_any_int(&t) {
                         self.vars.last_mut().unwrap().insert(*name, t2.clone());
-                        self.ctx.types.insert(stmt.id, t2);
+                        self.types.insert(stmt.id, t2);
                     } else {
                         if t2 != t {
                             error!(format!("Expected {}, found {}", t, t2), stmt.pos);
                         }
-                        self.vars.last_mut().unwrap().insert(*name,t2.clone());
-                        self.ctx.types.insert(stmt.id,t2);
+                        self.vars.last_mut().unwrap().insert(*name, t2.clone());
+                        self.types.insert(stmt.id, t2);
                     }
                 }
-                
             }
             StmtKind::Block(stmts) => {
                 let prev;
@@ -572,7 +572,9 @@ impl<'a> SemCheck<'a> {
                 let mut params = vec![];
                 for arg in args.iter() {
                     let ty = self.tc_expr(arg);
-                    params.push(self.infer_type(&ty));
+                    let ty = self.infer_type(&ty);
+                    params.push(ty.clone());
+                    self.types.insert(arg.id, ty);
                 }
                 let objty = if object.is_some() {
                     let ty = self.tc_expr(&object.clone().unwrap());
@@ -612,6 +614,7 @@ impl<'a> SemCheck<'a> {
                             }
                             let mut types_good = false;
                             for (i, param) in params.iter().enumerate() {
+                            
                                 if i < sig.params.len() {
                                     types_good = param == &sig.params[i];
                                 }
@@ -799,6 +802,15 @@ impl<'a> SemCheck<'a> {
             }
 
             ExprKind::Ident(name) => {
+                if self.constexprs.contains_key(name) {
+                    let expr_ = self.constexprs.get(name).unwrap().clone();
+
+                    let ty = self.tc_expr(&expr_);
+                    let ty = self.infer_type(&ty);
+                    self.types.insert(expr.id, ty.clone());
+                    return ty;
+                }
+
                 if self.constants.contains_key(name) {
                     let ty = self.constants.get(name).unwrap().typ.clone();
                     self.types.insert(expr.id, ty.clone());
@@ -880,6 +892,12 @@ impl<'a> SemCheck<'a> {
                 self.types.insert(expr.id, ty.clone());
                 ty
             }
+            ExprKind::Bool(_) => {
+                let basic = Type::create_basic(expr.id, expr.pos.clone(), intern("bool"));
+                self.types.insert(expr.id, basic.clone());
+
+                return basic;
+            } 
             _ => unimplemented!(),
         }
     }
