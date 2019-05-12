@@ -889,6 +889,7 @@ impl<'a> Codegen<'a> {
             ExprKind::Char(c) => self
                 .ctx
                 .new_rvalue_from_int(self.ctx.new_type::<char>(), *c as i32),
+            ExprKind::Null => self.ctx.new_rvalue_from_ptr(self.ctx.new_type::<*mut u8>(), 0 as *mut ()),
             v => panic!("{:?}", v),
         };
 
