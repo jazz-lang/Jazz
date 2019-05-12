@@ -730,7 +730,9 @@ impl<'a> SemCheck<'a> {
                 if ty_is_any_int(&t1) && ty_is_any_int(&t2) {
                     match op {
                         "<" | ">" | ">=" | "<=" | "!=" | "==" => {
-                            return Type::create_basic(expr.id, expr.pos, intern("bool"))
+                            let ty =  Type::create_basic(expr.id, expr.pos, intern("bool"));
+                            self.types.insert(expr.id, ty.clone());
+                            return ty;
                         }
                         _ => {
                             self.types.insert(expr.id, t1.clone());
@@ -902,7 +904,7 @@ impl<'a> SemCheck<'a> {
                 ty
             }
             ExprKind::Char(_) => {
-                let ty = Type::create_basic(expr.id, expr.pos, intern("rune"));
+                let ty = Type::create_basic(expr.id, expr.pos, intern("char"));
                 self.types.insert(expr.id, ty.clone());
                 ty
             }
