@@ -244,7 +244,7 @@ impl Msg {
             ExpectedIdentifier(ref tok) => format!("identifier expected but got {}.", tok),
             MisplacedModifier(ref modifier) => format!("misplaced modifier `{}`.", modifier),
             ExpectedTopLevelElement(ref token) => {
-                format!("expected function or class but got {}.", token)
+                format!("expected function,structure,global variable or constexpr but got {}.", token)
             }
             ExpectedClassElement(ref token) => {
                 format!("field or method expected but got {}.", token)
