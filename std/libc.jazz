@@ -18,6 +18,10 @@ pub extern func tan(x: f64) f64;
 pub extern func tanf(x: f32) f32;
 pub extern func sqrt(x: f64) f64;
 pub extern func sqrtf(x: f32) f32;
+pub extern func floor(x: f64) f64;
+pub extern func floorl(x: i64) i64;
+pub extern func ceil(x: f64) f64;
+pub extern func pow(x: f64,k: f64) f64; 
 
 // stdio.h
 link "jazzstd"
@@ -64,6 +68,7 @@ pub extern func freopen(file: *char,mode: *char,f: *FILE) *FILE;
 pub extern func fgetc(f: *FILE) char;
 pub extern func fgets(dst: *char,count: i32,file: *FILE) *char;
 pub extern func fputs(s: *char,f: *FILE) void;
+pub extern func putchar(c: char) void; 
 pub extern func getc(f: *FILE) char;
 pub extern func putc(c: char,f: *FILE) i32;
 pub extern func puts(c: *char) i32;
@@ -100,3 +105,4 @@ pub extern func memcpy(dst: *u8,src: *u8,count: usize) *u8;
 pub extern func memmove(dst: *u8,src: *u8,count: usize) *u8;
 pub extern func strlen(c: *char) i32;
 pub extern func memset(dst: *u8,b: u8,c: usize) *u8;
+pub extern func usleep(i: i32) void;
