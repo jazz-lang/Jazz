@@ -51,7 +51,7 @@ impl FromStr for Backend {
     }
 }
 
-use Backend::*;
+
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "jazz", about = "Jazz language compiler")]

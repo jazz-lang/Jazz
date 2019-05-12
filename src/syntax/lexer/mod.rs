@@ -31,12 +31,7 @@ impl Lexer {
         self.reader.path()
     }
 
-    fn expect_char(&mut self, c: char) {
-        if self.cur() != Some(c) {
-            panic!("Expected {},found {:?}", c, self.cur())
-        }
-        self.read_char();
-    }
+
 
     pub fn read_token(&mut self) -> Result<Token, MsgWithPos> {
         loop {

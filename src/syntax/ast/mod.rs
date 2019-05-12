@@ -53,7 +53,10 @@ pub struct Global {
     pub id: NodeId,
     pub pos: Position,
     pub name: Name,
+    pub external: bool,
+    pub public: bool,
     pub reassignable: bool,
+    
     pub typ: Box<Type>,
     pub expr: Option<Box<Expr>>,
 }

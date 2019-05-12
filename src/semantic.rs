@@ -209,6 +209,11 @@ impl<'a> SemCheck<'a> {
                                     self.ctx.file.elems.push(Elem::Struct(s.clone()));
                                 }
                             }
+                            Elem::Global(glob) => {
+                                if glob.public {
+                                    self.ctx.file.elems.push(Elem::Global(glob.clone()));
+                                }
+                            }
                             Elem::ConstExpr {
                                 name,
                                 expr,
@@ -364,6 +369,9 @@ impl<'a> SemCheck<'a> {
                             src.clone(),
                         ));
                     }
+                    
+                    let mut c = c.clone();
+                    c.typ = Box::new(self.infer_type(&*c.typ));
                     self.globals.insert(c.name, c.clone());
                 }
 
@@ -857,7 +865,14 @@ impl<'a> SemCheck<'a> {
 
                     ty
                 } else if self.globals.contains_key(name) {
+                    let expr_ = self.globals.get(name).unwrap().expr.clone();
+                    self.vars.push(HashMap::new());
+                    if expr_.is_some() {
+                        self.tc_expr(expr_.as_ref().unwrap());
+                    }
+                    self.vars.pop();
                     let ty = *self.globals.get(name).unwrap().typ.clone();
+                    let ty = self.infer_type(&ty);
                     self.types.insert(expr.id, ty.clone());
                     ty
                 } else {

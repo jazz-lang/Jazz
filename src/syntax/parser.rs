@@ -57,7 +57,7 @@ impl<'a> Parser<'a> {
             _ => self.parse_expression_statement(),
         }
     }
-    fn parse_global(&mut self, elements: &mut Vec<Elem>) -> Result<(), MsgWithPos> {
+    fn parse_global(&mut self,modifiers: &HashSet<String>, elements: &mut Vec<Elem>) -> Result<(), MsgWithPos> {
         let pos = self.token.position;
         let reassignable = self.token.is(TokenKind::Var);
 
@@ -84,6 +84,9 @@ impl<'a> Parser<'a> {
             typ: Box::new(data_type),
             reassignable: reassignable,
             expr: expr,
+            external: modifiers.contains("extern"),
+            public: modifiers.contains("pub"),
+            
         };
 
         elements.push(Elem::Global(global));
@@ -175,7 +178,7 @@ impl<'a> Parser<'a> {
                 elements.push(Elem::Struct(struc))
             }
             TokenKind::Let | TokenKind::Var => {
-                self.parse_global(elements)?;
+                self.parse_global(&modifiers, elements)?;
             }
             TokenKind::ConstExpr => {
                 let pos = self.advance_token()?.position;
