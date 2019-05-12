@@ -560,26 +560,22 @@ impl<'a> Codegen<'a> {
                         params.push(self.gen_expr(arg));
                     }
                     return self.ctx.new_call(None, lval.unwrap(), &params);
-                } else if let Some(fun) = self.external_functions.get(&name.name()) {
-                    let mut lval = None;
-                    let mut params_match = false;
-                    let unit: &FunctionUnit = fun;
-                    for ((i, (_name, param_ty)), arg_ty) in
-                        unit.f.params.iter().enumerate().zip(&param_types)
-                    {
-                        params_match = (*param_ty.clone() == arg_ty.clone()
-                            && i < unit.f.params.len())
-                            || i > unit.f.params.len();
-                    }
-                    if params_match {
-                        lval = Some(unit.c);
-                    }
+                } else if self.external_functions.contains_key(&name.name()) {
+                    let unit: &FunctionUnit = &self.external_functions.get(&name.name()).unwrap().clone();
 
                     let mut params = vec![];
-                    for arg in args.iter() {
-                        params.push(self.gen_expr(arg));
+                    for (i,arg) in args.iter().enumerate() {
+                        let val = self.gen_expr(arg);
+                        let val = if i < unit.f.params.len() {
+                            let ty: Type = *unit.f.params[i].1.clone();
+                            let cty = self.ty_to_ctype(&ty);
+                            self.ctx.new_cast(None, val,cty)
+                        } else {
+                            val
+                        };
+                        params.push(val);
                     }
-                    return self.ctx.new_call(None, lval.unwrap(), &params);
+                    return self.ctx.new_call(None, unit.c, &params);
                 } else {
                     panic!()
                 };
