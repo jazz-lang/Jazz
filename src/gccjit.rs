@@ -205,6 +205,12 @@ impl<'a> Codegen<'a> {
                     return None;
                 }
             }
+            ExprKind::ArrayIdx(array, index) => {
+                let array = self.gen_expr(array);
+                let index = self.gen_expr(index);
+
+                return Some(self.ctx.new_array_access(None, array, index));
+            }
             ExprKind::Field(object, name) => {
                 let ty: Type = self.get_id_type(object.id).clone();
 
@@ -253,13 +259,6 @@ impl<'a> Codegen<'a> {
                 let val = self.gen_expr(expr_);
 
                 return Some(val.dereference(None));
-            }
-
-            ExprKind::ArrayIdx(array, idx) => {
-                let array = self.gen_expr(array);
-                let idx = self.gen_expr(idx);
-
-                return Some(self.ctx.new_array_access(None, array, idx));
             }
 
             _ => return None, // unimplemented or impossible to get lval
@@ -432,6 +431,12 @@ impl<'a> Codegen<'a> {
 
     pub fn gen_expr(&mut self, expr: &Expr) -> RValue {
         let val = match &expr.kind {
+            ExprKind::ArrayIdx(array, index) => {
+                let array = self.gen_expr(array);
+                let index = self.gen_expr(index);
+
+                return self.ctx.new_array_access(None, array, index).to_rvalue();
+            }
             ExprKind::Ident(name) => {
                 if self.constants.contains_key(name) {
                     let constexpr = self.constants.get(name).unwrap().clone();
@@ -521,6 +526,15 @@ impl<'a> Codegen<'a> {
                         let rval = self.gen_expr(expr_);
                         return rval.dereference_field(None, *cfield).to_rvalue();
                     } else {
+                        if ptr.subtype.is_basic() {
+                            let basic = ptr.subtype.to_basic().unwrap();
+                            let struct_: GccStruct =
+                                self.structures.get(&basic.name).unwrap().clone();
+
+                            let cfield = struct_.fields.get(name).expect("Field not found");
+                            let rval = self.gen_expr(expr_);
+                            return rval.dereference_field(None, *cfield).to_rvalue();
+                        }
                         panic!();
                     }
                 } else if ast_ty.is_struct() {
@@ -549,6 +563,7 @@ impl<'a> Codegen<'a> {
 
                 return self.ctx.new_rvalue_zero(self.ctx.new_type::<i32>()); // todo: something better than this?
             }
+
             ExprKind::Bool(b) => self
                 .ctx
                 .new_rvalue_from_int(self.ctx.new_type::<bool>(), *b as i32),

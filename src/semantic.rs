@@ -646,7 +646,8 @@ impl<'a> SemCheck<'a> {
                             let mut types_good = false;
                             for (i, param) in params.iter().enumerate() {
                                 if i < sig.params.len() {
-                                    types_good = param == &sig.params[i];
+                                    types_good = param == &sig.params[i]
+                                        || (ty_is_any_int(param) && ty_is_any_int(&sig.params[i]));
                                 }
                             }
                             this_sig = if sig.variadic {
@@ -672,7 +673,8 @@ impl<'a> SemCheck<'a> {
                         let mut types_good = false;
                         for (i, p) in params.iter().enumerate() {
                             if i < f.params.len() {
-                                types_good = p == &self.infer_type(&f.params[i]);
+                                types_good = p == &self.infer_type(&f.params[i])
+                                    || (ty_is_any_int(p) && ty_is_any_int(&f.params[i]));
                             }
                         }
 
@@ -929,7 +931,30 @@ impl<'a> SemCheck<'a> {
 
                 return basic;
             }
-            _ => unimplemented!(),
+            ExprKind::SizeOf(_) => {
+                let basic = Type::create_basic(expr.id, expr.pos.clone(), intern("usize"));
+                self.types.insert(expr.id, basic.clone());
+
+                return basic;
+            }
+            ExprKind::ArrayIdx(array, idx) => {
+                let array_type = self.tc_expr(array);
+                let index = self.tc_expr(idx);
+                let array_type = self.infer_type(&array_type);
+                let _ = self.infer_type(&index);
+
+                let result_type = if array_type.is_array() {
+                    array_type.to_array().unwrap().subtype.clone()
+                } else if array_type.is_ptr() {
+                    array_type.to_ptr().unwrap().subtype.clone()
+                } else {
+                    error!(format!("Expected array or pointer,found value with type {}",array_type),expr.pos);
+                };
+                let result_type = self.infer_type(&result_type);
+                self.types.insert(expr.id, result_type.clone());
+                return result_type;
+            }
+            ExprKind::Array(_, _) => unimplemented!(),
         }
     }
 }

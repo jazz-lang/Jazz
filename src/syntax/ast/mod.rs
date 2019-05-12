@@ -278,6 +278,20 @@ impl Type {
         }
     }
 
+    pub fn is_array(&self) -> bool {
+        match self {
+            Type::Array(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_basic(&self) -> bool {
+        match self {
+            Type::Basic(_) => true,
+            _ => false,
+        }
+    }
+
     pub fn pos(&self) -> Position {
         match self {
             Type::Array(arr) => arr.pos,
@@ -456,6 +470,7 @@ pub enum ExprKind {
     Conv(Box<Expr>, Box<Type>),
     Struct(Path, Vec<StructArg>),
     AddressOf(Box<Expr>),
+    SizeOf(Box<Type>),
 }
 #[derive(Clone, Debug)]
 pub struct Stmt {

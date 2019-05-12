@@ -680,6 +680,17 @@ impl<'a> Parser<'a> {
                         })
                     }
                 }
+                TokenKind::LBracket => {
+                    let tok = self.advance_token()?;
+                    let index = self.parse_expression()?;
+                    self.expect_token(TokenKind::RBracket)?;
+
+                    Box::new(Expr {
+                        pos: tok.position,
+                        id: self.generate_id(),
+                        kind: ExprKind::ArrayIdx(left, index),
+                    })
+                }
 
                 _ => return Ok(left),
             }
