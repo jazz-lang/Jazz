@@ -206,7 +206,12 @@ impl<'a> SemCheck<'a> {
                                     self.ctx.file.elems.push(Elem::Struct(s.clone()));
                                 }
                             }
-
+                            Elem::ConstExpr{name,expr,id,pos} => {
+                                self.ctx.file.elems.push(Elem::ConstExpr{name: *name,expr: expr.clone(),id: *id,pos: pos.clone()});
+                            }
+                            Elem::Alias(name,ty) => {
+                                self.ctx.file.elems.push(Elem::Alias(*name,ty.clone()));
+                            }
                             _ => (),
                         }
                     }

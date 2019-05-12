@@ -1,8 +1,98 @@
+// math.h
+
+pub extern func acos(x: f64) f64;
+pub extern func acosf(x: f32) f32;
+pub extern func asin(x: f64) f64;
+pub extern func asinf(x: f32) f32;
+pub extern func atan(x: f64) f64;
+pub extern func atanf(x: f32) f32;
+pub extern func atan2(x: f64,y: f64) f64;
+pub extern func atan2f(x: f32,y: f32) f32;
+pub extern func cos(x: f64) f64;
+pub extern func cosf(x: f32) f32;
+pub extern func cosh(x: f64) f64;
+pub extern func coshf(x: f32) f32;
+pub extern func sin(x: f64) f64;
+pub extern func sinf(x: f32) f32;
+pub extern func tan(x: f64) f64;
+pub extern func tanf(x: f32) f32;
+pub extern func sqrt(x: f64) f64;
+pub extern func sqrtf(x: f32) f32;
+
+// stdio.h
+link "jazzstd"
+constexpr SEEK_SET = 0
+constexpr SEEK_CUR = 1
+constexpr SEEK_END = 2
+constexpr BUFSIZ = 2
+constexpr EOF = (-1)
+constexpr FILENAME_MAX = 250
+constexpr FOPEN_MAX = 20
+constexpr TMP_MAX = 32767
+
+pub struct FILE {
+	ptr: *u8,
+	cnt: i32,
+	base: *u8,
+	flag: i32,
+	file: i32,
+	charbuf: i32,
+	bufsiz: i32,
+	tmpfname: *char
+}
+
+
+pub extern func get_stdin() *FILE;
+pub extern func get_stderr() *FILE;
+pub extern func get_stdout() *FILE;
+
+constexpr STDIN = get_stdin()
+constexpr STDERR = get_stderr()
+constexpr STDOUT = get_stdout()
+
+pub extern func remove(file: *char) i32;
+pub extern func rename(file: *char,to: *char) i32;
+pub extern func tmpfile() *FILE;
+pub extern func fclose(f: *FILE) i32;
+pub extern func fflush(f: *FILE) i32;
+pub extern func fopen(file: *char,mode: *char) *FILE;
+pub extern func freopen(file: *char,mode: *char,f: *FILE) *FILE;
+pub extern func fgetc(f: *FILE) char;
+pub extern func fgets(dst: *char,count: i32,file: *FILE) *char;
+pub extern func fputs(s: *char,f: *FILE) void;
+pub extern func getc(f: *FILE) char;
+pub extern func putc(c: char,f: *FILE) i32;
+pub extern func puts(c: *char) i32;
+pub extern func gets(c: *char) *char;
+pub extern func fread(ptr: *u8,a0: usize,a1: usize,f: *FILE) i32;
+pub extern func fwrite(ptr: *u8,a0: usize,a1: usize,f: *FILE) i32;
+pub extern func fgetpos(f:* FILE,out: *i64) i32;
+pub extern func fseek(f: *FILE,x: i32,y: i32) i32;
+pub extern func fsetpos(f: *FILE,v: *i64) i32;
 pub extern func printf(fmt: *char,...) i32;
+pub extern func fprintf(f: *FILE,fmt: *char,...) i32;
+pub extern func sprintf(out: *char,in: *char,...) i32;
+pub extern func scanf(in: *char,...) i32;
+pub extern func fscanf(f: *FILE,c: *char,...) i32;
+pub extern func sscanf(c: *char,c1: *char,...) i32;
+
+// stdlib.h
+
 pub extern func malloc(size: usize) *u8;
-pub extern func calloc(elem_count: i32,size: usize) *u8;
-pub extern func memcpy(dst: *u8,from: *u8,count: usize) *u8;
-pub extern func memset(dst: *u8,value: i32,num: usize) *u8;
-pub extern func puts(str: *char) void;
-pub extern func free(ptr: *u8) void;
-pub extern func munmap(ptr: *u8) void;
+pub extern func calloc(c: i32,size: usize) *u8;
+pub extern func free(p: *u8) void;
+pub extern func realloc(p: *u8,size: usize) *u8;
+pub extern func exit(i: i32) void;
+pub extern func system(c: *char) i32;
+pub extern func rand() i32;
+pub extern func get_rand_max() i32;
+pub extern func srand(s: i32) void;
+
+constexpr RAND_MAX = get_rand_max()
+
+
+
+pub extern func memcpy(dst: *u8,src: *u8,count: usize) *u8;
+pub extern func memmove(dst: *u8,src: *u8,count: usize) *u8;
+pub extern func strlen(c: *char) i32;
+pub extern func memset(dst: *u8,b: u8,c: usize) *u8;
