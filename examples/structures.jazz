@@ -16,6 +16,7 @@ pub func main() i32 {
     p = calloc(1,8) as *Point;
     p.x = 3;
     p.y = 4;
-    point_print(p);
+	point_print(p);
+	printf("0x%lx\n",17179869187L);
 	return 0;
 }

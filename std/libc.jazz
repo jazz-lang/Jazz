@@ -1,0 +1,8 @@
+pub extern func printf(fmt: *char,...) i32;
+pub extern func malloc(size: usize) *u8;
+pub extern func calloc(elem_count: i32,size: usize) *u8;
+pub extern func memcpy(dst: *u8,from: *u8,count: usize) *u8;
+pub extern func memset(dst: *u8,value: i32,num: usize) *u8;
+pub extern func puts(str: *char) void;
+pub extern func free(ptr: *u8) void;
+pub extern func munmap(ptr: *u8) void;

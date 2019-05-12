@@ -76,6 +76,8 @@ impl<'a> Codegen<'a> {
                     "u64" => ctx.new_type::<u64>(),
                     "f32" => ctx.new_type::<f32>(),
                     "f64" => ctx.new_type::<f64>(),
+                    "bool" => ctx.new_type::<bool>(),
+                    "usize" => ctx.new_type::<usize>(),
                     s => {
                         let interned = crate::syntax::interner::intern(s);
                         if self.structures.contains_key(&interned) {
@@ -86,6 +88,8 @@ impl<'a> Codegen<'a> {
                             if let Some(ty) = self.aliases.get(&crate::syntax::interner::intern(s)).clone() {
                                 return self.ty_to_ctype(&ty);
                             }
+
+                            println!("{}",s);
                             unreachable!()
                         }
                     }
@@ -403,6 +407,24 @@ impl<'a> Codegen<'a> {
             ExprKind::Deref(expr) => {
                 let rvalue = self.gen_expr(expr);
                 rvalue.dereference(None).to_rvalue()
+            }
+            ExprKind::Unary(op,expr) => {
+                let op: &str = op;
+                let rval = self.gen_expr(expr);
+                let ty = rval.get_type();
+                match op {
+                    "-" => self.ctx.new_unary_op(None, UnaryOp::Minus, ty, rval),
+                    "!" => {
+                        let ast_ty = self.get_id_type(expr.id);
+                        if crate::semantic::ty_is_any_int(&ast_ty) {
+                            self.ctx.new_unary_op(None, UnaryOp::BitwiseNegate, ty, rval)
+                        } else {
+                            self.ctx.new_unary_op(None, UnaryOp::LogicalNegate,ty,rval)
+                        }
+                    }
+                    "+" => rval,
+                    _ => unreachable!()
+                }
             }
             ExprKind::Field(expr_, name) => {
                 let ast_ty = self.get_id_type(expr_.id);
@@ -842,7 +864,11 @@ impl<'a> Codegen<'a> {
         if self.context.emit_asm {
             self.ctx.set_dump_code(true);
         }
-
+        use gccjit_rs::sys::*;
+        unsafe {
+            let ptr = gccjit_rs::ctx::context_get_ptr(&self.ctx);
+            gcc_jit_context_set_bool_allow_unreachable_blocks(ptr,1);
+        }
         self.ctx
             .set_opt_level(unsafe { std::mem::transmute(self.context.opt as i32) });
 

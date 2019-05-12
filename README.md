@@ -9,3 +9,23 @@ Jazz - JIT/AOT compiled programming language that uses gccjit for emitting machi
 ```go
 var p = Point {x: 0,y: 0};
 ```
+
+# Example code
+
+Factorial: 
+```go
+import "std/libc.jazz"
+func factorial(x: i32) i32 {
+    if x == 0 {
+        return 1;
+    } else {
+        return factorial(x - 1) * x;
+    }
+}
+
+pub func main() i32 {
+    printf("%i\n",factorial(5));
+
+    return 0;
+} 
+```

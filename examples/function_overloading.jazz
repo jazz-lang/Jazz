@@ -1,0 +1,30 @@
+import "std/libc.jazz"
+
+pub func print(f: f64) void {
+    printf("%f\n",f);
+    return;
+}
+
+pub func print(i: i32) void {
+    printf("%i\n",i);
+
+    return;
+} 
+
+pub func print(str: *char) void {
+    printf("%s\n",str);
+    return;
+}
+
+pub func print(s: *u8) void {
+    printf("%p\n",s);
+
+    return;
+}
+
+pub func main() i32 {
+    print(0.0);
+    print(0);
+    print("Hello,world!");
+    return 0;
+}
