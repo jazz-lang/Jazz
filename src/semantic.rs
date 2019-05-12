@@ -793,10 +793,10 @@ impl<'a> SemCheck<'a> {
             }
 
             ExprKind::Assign(to, from) => {
-                println!("{:?}",to);
+                
                 let mut to = self.tc_expr(to);
                 to = self.infer_type(&to);
-                println!("{}",to);
+                
                 let mut from = self.tc_expr(from);
                 from = self.infer_type(&from);
 

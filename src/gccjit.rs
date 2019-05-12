@@ -56,6 +56,8 @@ pub struct Codegen<'a> {
     fun_id: usize,
     aliases: HashMap<Name,Type>,
     tmp_id: usize,
+    terminated: bool,
+    cur_return: Option<Type>
 }
 
 impl<'a> Codegen<'a> {
@@ -90,7 +92,7 @@ impl<'a> Codegen<'a> {
                                 return self.ty_to_ctype(&ty);
                             }
 
-                            println!("{}",s);
+                            
                             unreachable!()
                         }
                     }
@@ -121,7 +123,12 @@ impl<'a> Codegen<'a> {
         let ctx = Context::default();
 
         ctx.set_name(name);
-
+        ctx.set_dump_gimple(context.gimple);
+        use gccjit_rs::sys::*;
+        unsafe {
+            let ptr = gccjit_rs::ctx::context_get_ptr(&ctx);
+            gcc_jit_context_set_bool_allow_unreachable_blocks(ptr,true as _);
+        }
         Codegen {
             ctx,
             context,
@@ -138,7 +145,9 @@ impl<'a> Codegen<'a> {
             block_id: 0,
             fun_id: 0,
             aliases: HashMap::new(),
-            tmp_id: 0
+            tmp_id: 0,
+            terminated: false,
+            cur_return: None
         }
     }
 
@@ -234,7 +243,7 @@ impl<'a> Codegen<'a> {
 
                     return Some(lval.access_field(None, *cfield));
                 }
-                return None;
+                
             }
             ExprKind::Deref(expr_) => {
                 let val = self.gen_expr(expr_);
@@ -295,6 +304,7 @@ impl<'a> Codegen<'a> {
                 };
                 self.cur_block.unwrap().end_with_jump(None, break_bb);
                 self.cur_block = Some(break_bb);
+                self.terminated = true;
             }
             StmtKind::Continue => {
                 let continue_bb = if let Some(block) = self.continue_blocks.back() {
@@ -313,6 +323,7 @@ impl<'a> Codegen<'a> {
                 } else {
                     self.cur_block.unwrap().end_with_void_return(None);
                 }
+                self.terminated = true;
             }
             StmtKind::Var(name, _, _, init) => {
                 let ty = self.get_id_type(stmt.id).clone();
@@ -342,20 +353,35 @@ impl<'a> Codegen<'a> {
                 let block = self.cur_block.unwrap();
                 let then_name = self.block_name_new();
                 let else_name = self.block_name_new();
+                
+                let bb_then = func.new_block(&format!("if_true:{}",then_name));
+                let bb_else = func.new_block(&format!("if_false:{}",else_name));
+                let bb_merge: Block = if otherwise.is_some() {
+                    let merge_name = self.block_name_new();
+                    
+                    func.new_block(&format!("after:{}",merge_name))
+                } else {
+                    bb_else
+                };
 
-                let bb_then = func.new_block(then_name);
-                let bb_else = func.new_block(else_name);
-                //let bb_merge: Block = func.new_block(self.block_name_new());
+                let expr = self.gen_expr(cond);
 
-                let rval = self.gen_expr(cond);
-                block.end_with_conditional(None, rval, bb_then, bb_else);
+                block.end_with_conditional(None, expr, bb_then,bb_else);
 
                 self.cur_block = Some(bb_then);
                 self.gen_stmt(then, true);
-                //self.cur_block.unwrap().end_with_jump(None, bb_merge);
-                self.cur_block = Some(bb_else);
-                if otherwise.is_some() {
-                    self.gen_stmt(otherwise.as_ref().unwrap(), true);
+                if !self.terminated {
+                    self.cur_block.unwrap().end_with_jump(None, bb_merge);
+                }
+                if let Some(else_branch) = otherwise {
+                    self.cur_block = Some(bb_else);
+                    self.gen_stmt(else_branch, true);
+                    if !self.terminated {
+                        self.cur_block.unwrap().end_with_jump(None, bb_merge);
+                    }
+                }
+                if self.terminated {                 
+                    self.cur_block = Some(bb_merge);
                 }
             }
             StmtKind::While(cond, block_) => {
@@ -369,23 +395,38 @@ impl<'a> Codegen<'a> {
 
                 block.end_with_jump(None, loop_cond);
                 self.cur_block = Some(loop_cond);
-                let cond = self.gen_expr(cond);
-                loop_cond.end_with_conditional(None, cond, after_loop, loop_body);
+                let val = self.gen_expr(cond);
+                self.cur_block.unwrap().end_with_conditional(None, val, loop_body, after_loop);
 
                 self.cur_block = Some(loop_body);
                 self.gen_stmt(block_, true);
-                loop_body.end_with_jump(None, loop_cond);
+                self.cur_block.unwrap().end_with_jump(None, loop_cond);
 
-                self.cur_block = Some(after_loop);
+                
 
                 self.continue_blocks.pop_back();
                 self.break_blocks.pop_back();
+                self.cur_block = Some(after_loop);
             }
-            _ => unimplemented!(),
+            StmtKind::Loop(body) => {
+                let bb = self.cur_func.unwrap().new_block(self.block_name_new());
+                let after = self.cur_func.unwrap().new_block(self.block_name_new());
+                self.break_blocks.push_back(after);
+                self.continue_blocks.push_back(bb);
+
+                self.cur_block.unwrap().end_with_jump(None, bb);
+                self.cur_block = Some(bb);
+
+                self.gen_stmt(body, true);
+
+                self.cur_block.unwrap().end_with_jump(None, bb);
+
+                self.cur_block = Some(after);
+            }
         }
     }
 
-    pub fn gen_expr<'c: 'a>(&mut self, expr: &Expr) -> RValue {
+    pub fn gen_expr(&mut self, expr: &Expr) -> RValue {
         let val = match &expr.kind {
             ExprKind::Ident(name) => {
                 if self.constants.contains_key(name) {
@@ -892,8 +933,20 @@ impl<'a> Codegen<'a> {
                                         },
                                     );
                                 }
-
+                                self.cur_return = Some(*func.ret.clone());
                                 self.gen_stmt(func.body.as_ref().unwrap(), true);
+                                if !self.terminated {
+                                    let ret = self.cur_return.clone().unwrap().clone();
+                                    if ret.is_void() {
+                                        self.cur_block.unwrap().end_with_void_return(None);
+                                    } else {
+                                        if ret.is_struct() {
+                                            panic!("Can't create zero value for struct");
+                                        }
+                                        let val = self.ctx.new_rvalue_zero(self.ty_to_ctype(&ret));
+                                        self.cur_block.unwrap().end_with_return(None, val);
+                                    }
+                                }
                                 //let cty = ty_to_ctype(&func.ret, &self.ctx);
                                 //block.end_with_return(None,self.ctx.new_rvalue_zero(cty));
                             }
@@ -910,11 +963,7 @@ impl<'a> Codegen<'a> {
         if self.context.emit_asm {
             self.ctx.set_dump_code(true);
         }
-        use gccjit_rs::sys::*;
-        unsafe {
-            let ptr = gccjit_rs::ctx::context_get_ptr(&self.ctx);
-            gcc_jit_context_set_bool_allow_unreachable_blocks(ptr,1);
-        }
+        
         self.ctx
             .set_opt_level(unsafe { std::mem::transmute(self.context.opt as i32) });
 
@@ -923,11 +972,17 @@ impl<'a> Codegen<'a> {
         self.gen_toplevel(&mut elems);
 
         if self.context.jit {
+            use std::env::args;
+            
             let result = self.ctx.compile();
+            let args = args();
+            let argc = args.len() as i32;
+            let argv: Vec<String> = args.collect::<Vec<String>>();
+            let argv_c  = argv.iter().map(|s| std::ffi::CString::new(s.as_bytes()).unwrap().as_ptr()).collect::<Vec<_>>();
 
-            let main_fn: fn() -> i32 = unsafe { std::mem::transmute(result.get_function("main")) };
+            let main_fn: fn(i32,*const *const i8) -> i32 = unsafe { std::mem::transmute(result.get_function("main")) };
 
-            println!("Exit value: {}", main_fn());
+            println!("Exit value: {}", main_fn(argc,argv_c.as_ptr()));
         } else {
             let out_path = if !self.context.output.is_empty() {
                 self.context.output.clone()

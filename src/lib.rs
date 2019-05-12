@@ -67,6 +67,7 @@ pub struct Context {
     pub emit_obj: bool,
     pub output: String,
     pub shared: bool,
+    pub gimple: bool,
 }
 
 impl Context {
@@ -80,6 +81,7 @@ impl Context {
             jit: true,
             output: String::new(),
             shared: false,
+            gimple: false
         }
     }
 

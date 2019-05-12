@@ -29,6 +29,8 @@ pub struct Options {
     pub output: Option<PathBuf>,
     #[structopt(long = "shared")]
     pub shared: bool,
+    #[structopt(long = "emit-gimple")]
+    pub emit_gimple: bool,
 }
 
 fn main() -> Result<(), MsgWithPos> {
@@ -59,6 +61,7 @@ fn main() -> Result<(), MsgWithPos> {
         .output
         .map_or(String::new(), |e: PathBuf| e.to_str().unwrap().to_owned());
     ctx.opt = opts.opt_level;
+    ctx.gimple = opts.emit_gimple;
     let mut semantic = SemCheck::new(&mut ctx);
 
     semantic.run();
