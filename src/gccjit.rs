@@ -54,6 +54,7 @@ pub struct Codegen<'a> {
     constants: HashMap<Name, Expr>,
     block_id: usize,
     fun_id: usize,
+    aliases: HashMap<Name,Type>,
 }
 
 impl<'a> Codegen<'a> {
@@ -73,7 +74,8 @@ impl<'a> Codegen<'a> {
                     "u32" => ctx.new_type::<u32>(),
                     "i64" => ctx.new_type::<i64>(),
                     "u64" => ctx.new_type::<u64>(),
-
+                    "f32" => ctx.new_type::<f32>(),
+                    "f64" => ctx.new_type::<f64>(),
                     s => {
                         let interned = crate::syntax::interner::intern(s);
                         if self.structures.contains_key(&interned) {
@@ -81,6 +83,9 @@ impl<'a> Codegen<'a> {
 
                             return ty;
                         } else {
+                            if let Some(ty) = self.aliases.get(&crate::syntax::interner::intern(s)).clone() {
+                                return self.ty_to_ctype(&ty);
+                            }
                             unreachable!()
                         }
                     }
@@ -127,6 +132,7 @@ impl<'a> Codegen<'a> {
             constants: HashMap::new(),
             block_id: 0,
             fun_id: 0,
+            aliases: HashMap::new(),
         }
     }
 
@@ -659,6 +665,9 @@ impl<'a> Codegen<'a> {
                 }
                 Elem::ConstExpr { name, expr, .. } => {
                     self.constants.insert(*name, *expr.clone());
+                }
+                Elem::Alias(name,ty) => {
+                    self.aliases.insert(*name, ty.clone());
                 }
                 _ => (),
             }

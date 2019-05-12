@@ -144,6 +144,13 @@ impl<'a> Parser<'a> {
         let modifiers = self.parse_modifiers()?;
 
         match &self.token.kind {
+            TokenKind::Alias => {
+                self.advance_token()?;
+                let name = self.expect_identifier()?;
+                self.expect_token(TokenKind::Eq);
+                let ty = self.parse_type()?;
+                elements.push(Elem::Alias(name,ty));
+            }
             TokenKind::Import => {
                 self.advance_token()?;
                 elements.push(self.parse_import()?);
@@ -965,7 +972,20 @@ impl<'a> Parser<'a> {
                     kind: ExprKind::Unary(op.to_owned(), expr),
                 }))
             }
+            TokenKind::Mul => {
+                let pos = self.advance_token()?.position;
+                let expr = self.parse_primary(opts)?;
 
+                Ok(
+                    Box::new(
+                        Expr {
+                            pos: pos,
+                            id: self.generate_id(),
+                            kind: ExprKind::Deref(expr)
+                        }
+                    )
+                )
+            }
             _ => self.parse_primary(opts),
         }
     }

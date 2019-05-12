@@ -46,6 +46,7 @@ pub enum Elem {
         name: Name,
         expr: Box<Expr>,
     },
+    Alias(Name,Type),
 }
 #[derive(Clone, Debug)]
 pub struct Global {
@@ -391,6 +392,15 @@ pub struct Expr {
     pub id: NodeId,
     pub pos: Position,
     pub kind: ExprKind,
+}
+
+impl Expr {
+    pub fn is_deref(&self) -> bool {
+        match &self.kind {
+            ExprKind::Deref(_) => true,
+            _ => false
+        }
+    }
 }
 
 impl Expr {

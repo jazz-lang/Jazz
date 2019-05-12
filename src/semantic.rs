@@ -16,6 +16,7 @@ pub struct SemCheck<'a> {
     constexprs: HashMap<Name, Box<Expr>>,
     ret: Type,
     types: HashMap<NodeId, Type>,
+    aliases: HashMap<Name,Type>,
 }
 
 pub fn ty_is_any_int(ty: &Type) -> bool {
@@ -114,6 +115,7 @@ impl<'a> SemCheck<'a> {
             ret: Type::Void(Position::new(intern("<>"), 0, 0)),
             types: HashMap::new(),
             constexprs: HashMap::new(),
+            aliases: HashMap::new(),
         }
     }
 
@@ -240,6 +242,9 @@ impl<'a> SemCheck<'a> {
             match elem {
                 Elem::ConstExpr { name, expr, .. } => {
                     self.constexprs.insert(*name, expr.clone());
+                }
+                Elem::Alias(name,ty) => {
+                    self.aliases.insert(*name,ty.clone());
                 }
                 Elem::Const(c) => {
                     if self.constants.contains_key(&c.name) {
@@ -375,6 +380,9 @@ impl<'a> SemCheck<'a> {
                 });
             }
             Type::Basic(basic) => {
+                if let Some(ty) = self.aliases.get(&basic.name).clone() {
+                    return self.infer_type(&ty);
+                }
                 let id = ty.id();
                 if self.structures.contains_key(&basic.name) {
                     let struc = self.structures.get(&basic.name).unwrap();
@@ -778,8 +786,10 @@ impl<'a> SemCheck<'a> {
             }
 
             ExprKind::Assign(to, from) => {
+                println!("{:?}",to);
                 let mut to = self.tc_expr(to);
                 to = self.infer_type(&to);
+                println!("{}",to);
                 let mut from = self.tc_expr(from);
                 from = self.infer_type(&from);
 
