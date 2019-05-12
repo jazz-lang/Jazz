@@ -62,7 +62,6 @@ pub struct Codegen<'a> {
 
 impl<'a> Codegen<'a> {
     pub fn ty_size(&self, ty: &Type) -> usize {
-
         match ty {
             Type::Void(_) => 0,
             Type::Basic(basic) => {
@@ -439,7 +438,7 @@ impl<'a> Codegen<'a> {
                 self.cur_block = Some(bb_then);
                 self.gen_stmt(then, true);
                 //if !self.terminated {
-                    self.cur_block.unwrap().end_with_jump(None, bb_merge);
+                self.cur_block.unwrap().end_with_jump(None, bb_merge);
                 //}
                 if let Some(else_branch) = otherwise {
                     self.cur_block = Some(bb_else);
@@ -449,7 +448,7 @@ impl<'a> Codegen<'a> {
                     }
                 }
                 //if self.terminated {
-                    self.cur_block = Some(bb_merge);
+                self.cur_block = Some(bb_merge);
                 //}
             }
             StmtKind::While(cond, block_) => {
@@ -470,9 +469,9 @@ impl<'a> Codegen<'a> {
 
                 self.cur_block = Some(loop_body);
                 self.gen_stmt(block_, true);
-                
-                    self.cur_block.unwrap().end_with_jump(None, loop_cond);
-                
+
+                self.cur_block.unwrap().end_with_jump(None, loop_cond);
+
                 self.continue_blocks.pop_back();
                 self.break_blocks.pop_back();
                 self.cur_block = Some(after_loop);
@@ -744,7 +743,9 @@ impl<'a> Codegen<'a> {
             }
             ExprKind::SizeOf(ty) => {
                 let size = self.ty_size(ty);
-                return self.ctx.new_rvalue_from_int(self.ctx.new_type::<usize>(), size as i32);
+                return self
+                    .ctx
+                    .new_rvalue_from_int(self.ctx.new_type::<usize>(), size as i32);
             }
             ExprKind::GetFunc(name) => {
                 let val = if self.functions.contains_key(name) {
@@ -770,7 +771,6 @@ impl<'a> Codegen<'a> {
             }
 
             ExprKind::Binary(op, e1, e2) => {
-                
                 let t1 = self.get_id_type(e1.id);
                 let t2 = self.get_id_type(e2.id);
                 use crate::semantic::{ty_is_any_float, ty_is_any_int};
@@ -863,26 +863,32 @@ impl<'a> Codegen<'a> {
                         let s1: &str = &str(t1.name).to_string();
                         let s2: &str = &str(t2.name).to_string();
                         if s1 == "bool" && s2 == "bool" {
-                            let op: &str = op; 
+                            let op: &str = op;
                             let binary = match op {
                                 "&&" => BinaryOp::LogicalAnd,
                                 "||" => BinaryOp::LogicalOr,
-                                _ => unreachable!()
+                                _ => unreachable!(),
                             };
                             let l = self.gen_expr(e1);
                             let r = self.gen_expr(e2);
-                            return self.ctx.new_binary_op(None, binary, self.ctx.new_type::<bool>(), l, r);
-
+                            return self.ctx.new_binary_op(
+                                None,
+                                binary,
+                                self.ctx.new_type::<bool>(),
+                                l,
+                                r,
+                            );
                         } else {
                             unimplemented!()
-
                         }
                     }
                     unimplemented!()
                 }
             }
-            ExprKind::Char(c) => self.ctx.new_rvalue_from_int(self.ctx.new_type::<char>(), *c as i32),
-            v  => panic!("{:?}",v),
+            ExprKind::Char(c) => self
+                .ctx
+                .new_rvalue_from_int(self.ctx.new_type::<char>(), *c as i32),
+            v => panic!("{:?}", v),
         };
 
         return val;

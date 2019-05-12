@@ -13,7 +13,6 @@ pub struct Lexer {
 }
 
 impl Lexer {
-    #[cfg(test)]
     pub fn from_str(code: &str) -> Lexer {
         let reader = Reader::from_string(code);
         Lexer::new(reader)
@@ -30,6 +29,13 @@ impl Lexer {
 
     pub fn path(&self) -> &str {
         self.reader.path()
+    }
+
+    fn expect_char(&mut self, c: char) {
+        if self.cur() != Some(c) {
+            panic!("Expected {},found {:?}", c, self.cur())
+        }
+        self.read_char();
     }
 
     pub fn read_token(&mut self) -> Result<Token, MsgWithPos> {
@@ -57,6 +63,8 @@ impl Lexer {
                 return self.read_char_literal();
             } else if is_operator(ch) {
                 return self.read_operator();
+            } else if is_macro_call_start(ch) {
+                unimplemented!()
             } else {
                 let ch = ch.unwrap();
 
@@ -569,6 +577,10 @@ fn is_identifier_start(ch: Option<char>) -> bool {
 
 fn is_identifier(ch: Option<char>) -> bool {
     is_identifier_start(ch) || is_digit(ch)
+}
+
+fn is_macro_call_start(ch: Option<char>) -> bool {
+    ch == Some('@')
 }
 
 fn keywords_in_map() -> HashMap<&'static str, TokenKind> {

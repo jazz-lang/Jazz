@@ -12,25 +12,89 @@ use structopt::StructOpt;
 
 use std::path::PathBuf;
 
+#[derive(Debug, StructOpt)]
+pub enum Backend {
+    #[structopt(help = "Default backend, allows JIT and AOT compilation")]
+    GccJIT,
+    #[structopt(help = "C++ backend,still W.I.P")]
+    CPP,
+    #[structopt(help = "Cranelift backend (UNIMPLEMENTED!)")]
+    CraneLift,
+}
+
+impl Backend {
+    pub const fn gccjit() -> &'static str {
+        "gccjit"
+    }
+
+    pub const fn cpp() -> &'static str {
+        "cpp"
+    }
+
+    pub const fn cranelift() -> &'static str {
+        "cranelift"
+    }
+}
+
+use std::str::FromStr;
+
+impl FromStr for Backend {
+    type Err = &'static str;
+    fn from_str(s: &str) -> Result<Backend, &'static str> {
+        let s: &str = &s.to_lowercase();
+        match s {
+            "gccjit" => Ok(Backend::GccJIT),
+            "cranelift" => Ok(Backend::CraneLift),
+            "cpp" | "c++" => Ok(Backend::CPP),
+            _ => Err("expected gccjit,cpp or cranelift backend"),
+        }
+    }
+}
+
+use Backend::*;
+
 #[derive(StructOpt, Debug)]
 #[structopt(name = "jazz", about = "Jazz language compiler")]
 pub struct Options {
     #[structopt(parse(from_os_str))]
     pub file: PathBuf,
-    #[structopt(short = "O", long = "opt-level", default_value = "2")]
+    #[structopt(
+        short = "O",
+        long = "opt-level",
+        default_value = "2",
+        help = "Set optimization level"
+    )]
     pub opt_level: u8,
-    #[structopt(long = "jit")]
+    #[structopt(long = "jit", help = "Use JIT compilation instead of AOT compilation")]
     pub jit: bool,
-    #[structopt(long = "emit-obj")]
+    #[structopt(long = "emit-obj", help = "Output object file")]
     pub emit_obj: bool,
-    #[structopt(long = "emit-asm")]
+    #[structopt(long = "emit-asm", help = "Print assembly to stdout")]
     pub emit_asm: bool,
-    #[structopt(short = "o", long = "output", parse(from_os_str))]
+    #[structopt(
+        short = "o",
+        long = "output",
+        parse(from_os_str),
+        help = "Set output filename"
+    )]
     pub output: Option<PathBuf>,
-    #[structopt(long = "shared")]
+    #[structopt(long = "shared", help = "Output shared library (.dll or .so)")]
     pub shared: bool,
-    #[structopt(long = "emit-gimple")]
+    #[structopt(
+        long = "emit-gimple",
+        help = "Dump GIMPLE to stdout if gccjit backend used"
+    )]
     pub emit_gimple: bool,
+    #[structopt(
+        long = "backend",
+        raw(
+            possible_values = "&[\"gccjit\",\"cranelift\",\"cpp\"]",
+            case_insensitive = "true",
+            default_value = "\"gccjit\""
+        ),
+        help = "Select backend"
+    )]
+    pub backend: Backend,
 }
 
 fn main() -> Result<(), MsgWithPos> {
@@ -65,7 +129,21 @@ fn main() -> Result<(), MsgWithPos> {
     let mut semantic = SemCheck::new(&mut ctx);
 
     semantic.run();
-    let mut cgen = Codegen::new(&ctx, "module");
-    cgen.compile();
+    match opts.backend {
+        Backend::CPP => {
+            use jazz::ast2cpp::Translator;
+            let mut translator = Translator::new(ctx);
+            translator.run();
+        }
+        Backend::GccJIT => {
+            let mut cgen = Codegen::new(&ctx, "JazzModule");
+            cgen.compile();
+        }
+        Backend::CraneLift => {
+            eprintln!("Cranelift backend still unimplemented");
+        }
+    }
+    /*let mut cgen = Codegen::new(&ctx, "module");
+    cgen.compile();*/
     Ok(())
 }

@@ -39,6 +39,8 @@ impl Translator {
                     "char" => "char",
                     "usize" => "size_t",
                     "uchar" => "unsigned char",
+                    "f32" => "float",
+                    "f64" => "double",
                     s => s,
                 };
                 self.code.push_str(&s);
@@ -144,7 +146,21 @@ impl Translator {
             ExprKind::Int(i, _, _) => self.code.push_str(&i.to_string()),
             ExprKind::Float(f, _) => self.code.push_str(&f.to_string()),
             ExprKind::Char(c) => self.code.push_str(&format!("'{}'", c)),
-            ExprKind::Str(s) => self.code.push_str(&format!("\"{}\"", s)),
+            ExprKind::Str(s) => {
+                let mut bytes = vec![];
+                self.code.push('"');
+                for byte in s.as_bytes().iter() {
+                    if *byte == 10 {
+                        bytes.push(92);
+                        byte.push(110);
+                        continue;
+                    }
+                    bytes.push(*byte);
+                }
+                
+                self.code.push_str(std::str::from_utf8(&bytes).unwrap());
+                self.code.push('"');
+            },
             ExprKind::Binary(op, lhs, rhs) => {
                 self.gen_expr(lhs);
                 self.code.push_str(op);
@@ -225,6 +241,17 @@ impl Translator {
                 }
                 self.code.push(')');
             }
+            ExprKind::SizeOf(ty) => {
+                self.code.push_str("sizeof(");
+                self.type_to_c(ty);
+                self.code.push_str(")");
+            }
+            ExprKind::ArrayIdx(array,index) => {
+                self.gen_expr(array);
+                self.code.push('[');
+                self.gen_expr(index);
+                self.code.push(']');
+            }
             _ => panic!("{:?}", expr),
         }
     }
@@ -236,6 +263,15 @@ impl Translator {
                 Elem::Struct(struct_) => self
                     .code
                     .push_str(&format!("struct {};\n", str(struct_.name).to_string())),
+                Elem::ConstExpr {
+                    name,
+                    expr,
+                    ..
+                } => {
+                    self.code.push_str(&format!("#define {} ",str(*name).to_string()));
+                    self.gen_expr(expr);
+                    self.code.push('\n');
+                }
                 _ => {}
             }
         }

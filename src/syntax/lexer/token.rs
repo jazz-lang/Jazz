@@ -1,7 +1,17 @@
+use std::collections::HashMap;
 use std::fmt;
+
+pub struct Macro {
+    pub name: String,
+    pub public: bool,
+    pub tokens: Vec<Token>,
+    pub arguments: HashMap<String, Vec<(usize, Token)>>, // where arguments used
+}
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum TokenKind {
+    MacroCall(Box<Token>, Vec<Vec<Token>>),
+    At,
     String(String),
     LitChar(char),
     LitInt(String, IntBase, IntSuffix),
@@ -89,6 +99,7 @@ pub enum TokenKind {
 impl TokenKind {
     pub fn name(&self) -> &str {
         match *self {
+            TokenKind::MacroCall(_, _) => "macro call",
             TokenKind::String(_) => "string",
             TokenKind::LitInt(_, _, suffix) => match suffix {
                 IntSuffix::Byte => "byte number",
@@ -143,6 +154,7 @@ impl TokenKind {
             TokenKind::Defer => "defer",
 
             // Operators
+            TokenKind::At => "@",
             TokenKind::Add => "+",
             TokenKind::Sub => "-",
             TokenKind::Mul => "*",
@@ -191,7 +203,7 @@ impl TokenKind {
 
 use crate::syntax::position::Position;
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Token {
     pub kind: TokenKind,
     pub position: Position,
