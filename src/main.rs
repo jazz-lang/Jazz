@@ -100,9 +100,9 @@ pub struct Options {
 fn main() -> Result<(), MsgWithPos> {
     let opts: Options = Options::from_args();
     let mut file = File {
-        root: String::new(),
+        root: opts.file.parent().unwrap_or(&std::path::PathBuf::from("")).to_str().unwrap().to_owned(),
         src: String::new(),
-        path: opts.file.parent().unwrap_or(&std::path::PathBuf::from("")).to_str().unwrap().to_owned(),
+        path: opts.file.file_stem().unwrap().to_str().unwrap().to_owned(),
         elems: vec![],
     };
 
