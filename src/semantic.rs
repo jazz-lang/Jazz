@@ -166,7 +166,7 @@ impl<'a> SemCheck<'a> {
                         let path = std::path::Path::new(&self.ctx.file.root).parent().unwrap();
                         format!("{}/{}", path.display(), import)
                     };
-                    println!("Import path: {}",import);
+                    
                     let mut file = File {
                         elems: vec![],
                         src: String::new(),

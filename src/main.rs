@@ -46,7 +46,8 @@ fn main() -> Result<(), MsgWithPos> {
 
     let err = parser.parse();
     if err.is_err() {
-        println!("{}", err.clone().err().unwrap());
+        eprintln!("{}", err.clone().err().unwrap());
+        std::process::exit(-1);
     }
 
     let mut ctx = Context::new(file);
