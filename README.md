@@ -4,6 +4,8 @@ Jazz - JIT/AOT compiled programming language that uses gccjit for emitting machi
 
 
 # TODO
+- constexpr functions
+- Macros
 - Jazz2C++ Translator
 - ~~Struct initialization:~~ DONE!
 
