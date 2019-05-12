@@ -1,6 +1,6 @@
 use crate::Context as CContext;
 use gccjit_rs::block::{BinaryOp, Block, ComparisonOp, UnaryOp};
-use gccjit_rs::ctx::{Context, OutputKind,GlobalKind};
+use gccjit_rs::ctx::{Context, GlobalKind, OutputKind};
 use gccjit_rs::field::Field;
 use gccjit_rs::function::{Function as CFunction, FunctionType};
 use gccjit_rs::lvalue::LValue;
@@ -47,7 +47,7 @@ pub struct Codegen<'a> {
     cur_func: Option<CFunction>,
     cur_block: Option<Block>,
     variables: HashMap<Name, VarInfo>,
-    globals: HashMap<Name, (VarInfo,Option<Box<Expr>>)>,
+    globals: HashMap<Name, (VarInfo, Option<Box<Expr>>)>,
     functions: HashMap<Name, Vec<FunctionUnit>>,
     external_functions: HashMap<Name, FunctionUnit>,
     structures: HashMap<Name, GccStruct>,
@@ -448,9 +448,8 @@ impl<'a> Codegen<'a> {
                         self.cur_block.unwrap().end_with_jump(None, bb_merge);
                     }
                 }
-                
+
                 self.cur_block = Some(bb_merge);
-                
             }
             StmtKind::While(cond, block_) => {
                 let func: CFunction = self.cur_func.unwrap();
@@ -889,7 +888,9 @@ impl<'a> Codegen<'a> {
             ExprKind::Char(c) => self
                 .ctx
                 .new_rvalue_from_int(self.ctx.new_type::<char>(), *c as i32),
-            ExprKind::Null => self.ctx.new_rvalue_from_ptr(self.ctx.new_type::<*mut u8>(), 0 as *mut ()),
+            ExprKind::Null => self
+                .ctx
+                .new_rvalue_from_ptr(self.ctx.new_type::<*mut u8>(), 0 as *mut ()),
             v => panic!("{:?}", v),
         };
 
@@ -1064,12 +1065,11 @@ impl<'a> Codegen<'a> {
                     let cty = self.ty_to_ctype(&global.typ);
                     let name: &str = &str(global.name).to_string();
                     let lval = if global.external {
-                        
-                        self.ctx.new_global(None, GlobalKind::External,cty ,name)
+                        self.ctx.new_global(None, GlobalKind::External, cty, name)
                     } else if global.public {
-                        self.ctx.new_global(None, GlobalKind::Exported, cty,name)
+                        self.ctx.new_global(None, GlobalKind::Exported, cty, name)
                     } else {
-                        self.ctx.new_global(None, GlobalKind::Internal, cty,name)
+                        self.ctx.new_global(None, GlobalKind::Internal, cty, name)
                     };
 
                     let varinfo = VarInfo {
@@ -1078,16 +1078,14 @@ impl<'a> Codegen<'a> {
                         ty: *global.typ.clone(),
                     };
 
-                    self.globals.insert(global.name, (varinfo,global.expr.clone()));
-                    
-
+                    self.globals
+                        .insert(global.name, (varinfo, global.expr.clone()));
                 }
                 _ => (),
             }
         }
         for elem in elems.iter() {
             match elem {
-                
                 Elem::Func(func) => {
                     if func.external {
                         continue;
@@ -1103,8 +1101,7 @@ impl<'a> Codegen<'a> {
                                 let block = self.cur_block.unwrap();
 
                                 if &str(func.name).to_string() == "main" {
-                                    
-                                    for (_,(varinfo,expr)) in self.globals.clone().iter() {
+                                    for (_, (varinfo, expr)) in self.globals.clone().iter() {
                                         if expr.is_some() {
                                             let val = self.gen_expr(expr.as_ref().unwrap());
                                             block.add_assignment(None, varinfo.lval, val);
@@ -1137,8 +1134,9 @@ impl<'a> Codegen<'a> {
                                             panic!("Can't create zero value for struct");
                                         }
                                         if !self.terminated.last().unwrap_or(&false) {
-                                        let val = self.ctx.new_rvalue_zero(self.ty_to_ctype(&ret));
-                                        self.cur_block.unwrap().end_with_return(None, val);
+                                            let val =
+                                                self.ctx.new_rvalue_zero(self.ty_to_ctype(&ret));
+                                            self.cur_block.unwrap().end_with_return(None, val);
                                         }
                                     }
                                 }
@@ -1148,13 +1146,10 @@ impl<'a> Codegen<'a> {
                         }
                     }
                 }
-                
 
                 _ => (),
             }
         }
-
-        
     }
 
     pub fn compile(&mut self) {

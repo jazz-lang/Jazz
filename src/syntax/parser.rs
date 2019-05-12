@@ -57,7 +57,11 @@ impl<'a> Parser<'a> {
             _ => self.parse_expression_statement(),
         }
     }
-    fn parse_global(&mut self,modifiers: &HashSet<String>, elements: &mut Vec<Elem>) -> Result<(), MsgWithPos> {
+    fn parse_global(
+        &mut self,
+        modifiers: &HashSet<String>,
+        elements: &mut Vec<Elem>,
+    ) -> Result<(), MsgWithPos> {
         let pos = self.token.position;
         let reassignable = self.token.is(TokenKind::Var);
 
@@ -86,7 +90,6 @@ impl<'a> Parser<'a> {
             expr: expr,
             external: modifiers.contains("extern"),
             public: modifiers.contains("pub"),
-            
         };
 
         elements.push(Elem::Global(global));

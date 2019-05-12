@@ -369,7 +369,7 @@ impl<'a> SemCheck<'a> {
                             src.clone(),
                         ));
                     }
-                    
+
                     let mut c = c.clone();
                     c.typ = Box::new(self.infer_type(&*c.typ));
                     self.globals.insert(c.name, c.clone());

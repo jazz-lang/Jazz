@@ -31,8 +31,6 @@ impl Lexer {
         self.reader.path()
     }
 
-
-
     pub fn read_token(&mut self) -> Result<Token, MsgWithPos> {
         loop {
             self.skip_white();

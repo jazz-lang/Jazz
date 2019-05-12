@@ -147,8 +147,8 @@ impl Translator {
             ExprKind::Float(f, _) => self.code.push_str(&f.to_string()),
             ExprKind::Char(c) => self.code.push_str(&format!("'{}'", c)),
             ExprKind::Str(s) => {
-                self.code.push_str(&format!("{:?}",s));
-            },
+                self.code.push_str(&format!("{:?}", s));
+            }
             ExprKind::Binary(op, lhs, rhs) => {
                 self.gen_expr(lhs);
                 self.code.push_str(op);
@@ -234,7 +234,7 @@ impl Translator {
                 self.type_to_c(ty);
                 self.code.push_str(")");
             }
-            ExprKind::ArrayIdx(array,index) => {
+            ExprKind::ArrayIdx(array, index) => {
                 self.gen_expr(array);
                 self.code.push('[');
                 self.gen_expr(index);
@@ -251,12 +251,9 @@ impl Translator {
                 Elem::Struct(struct_) => self
                     .code
                     .push_str(&format!("struct {};\n", str(struct_.name).to_string())),
-                Elem::ConstExpr {
-                    name,
-                    expr,
-                    ..
-                } => {
-                    self.code.push_str(&format!("#define {} ",str(*name).to_string()));
+                Elem::ConstExpr { name, expr, .. } => {
+                    self.code
+                        .push_str(&format!("#define {} ", str(*name).to_string()));
                     self.gen_expr(expr);
                     self.code.push('\n');
                 }
@@ -302,8 +299,7 @@ impl Translator {
             }
         }
         for elem in elems.iter() {
-            match elem 
-            {
+            match elem {
                 Elem::Struct(s) => {
                     self.code
                         .push_str(&format!("struct {} {{\n", str(s.name).to_string()));
@@ -317,7 +313,7 @@ impl Translator {
                     }
                     self.code.push_str("};\n");
                 }
-                _ => {},
+                _ => {}
             }
         }
         for elem in elems.iter() {
@@ -365,7 +361,7 @@ impl Translator {
                         self.code.push('\n');
                     }
                 }
-                
+
                 Elem::Global(global) => {
                     let global: &Global = global;
 

@@ -56,7 +56,7 @@ pub struct Global {
     pub external: bool,
     pub public: bool,
     pub reassignable: bool,
-    
+
     pub typ: Box<Type>,
     pub expr: Option<Box<Expr>>,
 }
