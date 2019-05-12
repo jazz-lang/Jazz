@@ -35,6 +35,7 @@ pub struct VarInfo {
 pub struct GccStruct {
     pub ty: Struct,
     pub fields: HashMap<Name, Field>,
+    pub types: Vec<Type>,
 }
 
 pub struct Codegen<'a> {
@@ -60,6 +61,70 @@ pub struct Codegen<'a> {
 }
 
 impl<'a> Codegen<'a> {
+    pub fn ty_size(&self, ty: &Type) -> usize {
+
+        match ty {
+            Type::Void(_) => 0,
+            Type::Basic(basic) => {
+                let name: &str = &str(basic.name);
+                match name {
+                    "u8" => 1,
+                    "i8" => 1,
+                    "char" => 1,
+                    "i16" => 2,
+                    "u16" => 2,
+                    "i32" => 4,
+                    "u32" => 4,
+                    "i64" => 8,
+                    "u64" => 8,
+                    "f32" => 4,
+                    "f64" => 8,
+                    "bool" => 1,
+                    "usize" => 8,
+                    s => {
+                        let interned = crate::syntax::interner::intern(s);
+                        if self.structures.contains_key(&interned) {
+                            let structure = self.structures.get(&interned).unwrap().clone();
+                            let mut size = 0;
+                            for field in structure.types.iter() {
+                                size += self.ty_size(field)
+                            }
+
+                            return size;
+                        } else {
+                            if let Some(ty) = self
+                                .aliases
+                                .get(&crate::syntax::interner::intern(s))
+                                .clone()
+                            {
+                                return self.ty_size(ty);
+                            }
+                        }
+                        panic!("Type not found");
+                    }
+                }
+            }
+            Type::Ptr(_ptr) => return 8,
+            Type::Func(_tyfunc) => return 8,
+            Type::Struct(structure) => {
+                let structure = self.structures.get(&structure.name).unwrap();
+                let mut size = 0;
+                for field in structure.types.iter() {
+                    size += self.ty_size(field)
+                }
+
+                return size;
+            }
+            Type::Array(array) => {
+                if array.len.is_some() {
+                    return self.ty_size(&array.subtype) * array.len.unwrap() as usize;
+                } else {
+                    return 8; // pointer
+                }
+            }
+        }
+    }
+
     pub fn ty_to_ctype(&self, ty: &Type) -> CType {
         let ctx = self.ctx;
         match ty {
@@ -676,7 +741,10 @@ impl<'a> Codegen<'a> {
                 }
                 tmp.to_rvalue()
             }
-
+            ExprKind::SizeOf(ty) => {
+                let size = self.ty_size(ty);
+                return self.ctx.new_rvalue_from_int(self.ctx.new_type::<usize>(), size as i32);
+            }
             ExprKind::GetFunc(name) => {
                 let val = if self.functions.contains_key(name) {
                     let functions: &Vec<FunctionUnit> = self.functions.get(name).unwrap();
@@ -803,9 +871,11 @@ impl<'a> Codegen<'a> {
                     let s: &crate::syntax::ast::Struct = s;
                     let mut fields = vec![];
                     let mut cfields = HashMap::new();
+                    let mut types = vec![];
                     for field in s.fields.iter() {
                         let field: &StructField = field;
                         let cty = self.ty_to_ctype(&field.data_type).clone();
+                        types.push(field.data_type.clone());
                         let name: &str = &str(field.name).to_string();
                         let cfield = self.ctx.new_field(None, cty, name);
                         cfields.insert(field.name, cfield);
@@ -818,6 +888,7 @@ impl<'a> Codegen<'a> {
                     let cstruct = GccStruct {
                         ty: struct_,
                         fields: cfields,
+                        types: types,
                     };
                     self.structures.insert(s.name, cstruct);
                 }

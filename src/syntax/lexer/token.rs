@@ -38,7 +38,7 @@ pub enum TokenKind {
     Struct,
     Const,
     ConstExpr,
-
+    SizeOf,
     Underscore,
     Defer,
 
@@ -137,6 +137,7 @@ impl TokenKind {
             TokenKind::Alias => "alias",
             TokenKind::Struct => "struct",
             TokenKind::Const => "const",
+            TokenKind::SizeOf => "sizeof",
             TokenKind::ConstExpr => "constexpr",
             TokenKind::Underscore => "_",
             TokenKind::Defer => "defer",

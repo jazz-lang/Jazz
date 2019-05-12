@@ -948,7 +948,13 @@ impl<'a> SemCheck<'a> {
                 } else if array_type.is_ptr() {
                     array_type.to_ptr().unwrap().subtype.clone()
                 } else {
-                    error!(format!("Expected array or pointer,found value with type {}",array_type),expr.pos);
+                    error!(
+                        format!(
+                            "Expected array or pointer,found value with type {}",
+                            array_type
+                        ),
+                        expr.pos
+                    );
                 };
                 let result_type = self.infer_type(&result_type);
                 self.types.insert(expr.id, result_type.clone());

@@ -596,7 +596,7 @@ fn keywords_in_map() -> HashMap<&'static str, TokenKind> {
     keywords.insert("type", TokenKind::Type);
     keywords.insert("alias", TokenKind::Alias);
     keywords.insert("struct", TokenKind::Struct);
-
+    keywords.insert("sizeof", TokenKind::SizeOf);
     keywords.insert("defer", TokenKind::Defer);
 
     keywords.insert("as", TokenKind::As);

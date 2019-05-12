@@ -663,6 +663,27 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn parse_sizeof(&mut self) -> ExprResult {
+        let tok = self.expect_token(TokenKind::SizeOf)?;
+        let expect_rparen = if self.token.is(TokenKind::LParen) {
+            self.advance_token()?;
+            true
+        } else {
+            false
+        };
+        let ty = self.parse_type()?;
+
+        if expect_rparen {
+            self.expect_token(TokenKind::RParen)?;
+        }
+
+        Ok(Box::new(Expr {
+            pos: tok.position,
+            id: self.generate_id(),
+            kind: ExprKind::SizeOf(Box::new(ty)),
+        }))
+    }
+
     fn parse_primary(&mut self, opts: &ExprParsingOpts) -> ExprResult {
         let mut left = self.parse_factor(opts)?;
         loop {
@@ -1093,6 +1114,7 @@ impl<'a> Parser<'a> {
             TokenKind::String(_) => self.parse_string(),
             TokenKind::True | TokenKind::False => self.parse_bool_literal(),
             TokenKind::Null => self.parse_null(),
+            TokenKind::SizeOf => self.parse_sizeof(),
             TokenKind::Identifier(_) => self.parse_identifier_or_call(opts),
             _ => Err(MsgWithPos::new(
                 self.lexer.path().to_string(),
