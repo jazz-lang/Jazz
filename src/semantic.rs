@@ -645,9 +645,13 @@ impl<'a> SemCheck<'a> {
                             }
                             let mut types_good = false;
                             for (i, param) in params.iter().enumerate() {
+                                if (params.len() > sig.params.len() && !sig.variadic) || params.len() < sig.params.len() {
+                                    types_good = false;
+                                    break;
+                                }
                                 if i < sig.params.len() {
-                                    types_good = param == &sig.params[i]
-                                        || (ty_is_any_int(param) && ty_is_any_int(&sig.params[i]));
+                                    types_good = param == &sig.params[i]; 
+                                    //if !types_good {types_good = ty_is_any_int(param) && ty_is_any_int(&sig.params[i]);};
                                 }
                             }
                             this_sig = if sig.variadic {
@@ -672,9 +676,10 @@ impl<'a> SemCheck<'a> {
                         let f = f.unwrap().clone();
                         let mut types_good = false;
                         for (i, p) in params.iter().enumerate() {
+                            
                             if i < f.params.len() {
-                                types_good = p == &self.infer_type(&f.params[i])
-                                    || (ty_is_any_int(p) && ty_is_any_int(&f.params[i]));
+                                types_good = p == &self.infer_type(&f.params[i]);
+                                
                             }
                         }
 
