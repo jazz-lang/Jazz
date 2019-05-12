@@ -1,4 +1,5 @@
-#![allow(unused_must_use)]
+#![warn(unused_must_use)]
+#![warn(rust_2018_idioms)]
 
 #[macro_use]
 pub mod macros;
@@ -81,7 +82,7 @@ impl Context {
             jit: true,
             output: String::new(),
             shared: false,
-            gimple: false
+            gimple: false,
         }
     }
 

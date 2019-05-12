@@ -27,7 +27,7 @@ impl File {
 pub struct NodeId(pub usize);
 
 impl fmt::Display for NodeId {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "#{}", self.0)
     }
 }
@@ -46,7 +46,7 @@ pub enum Elem {
         name: Name,
         expr: Box<Expr>,
     },
-    Alias(Name,Type),
+    Alias(Name, Type),
 }
 #[derive(Clone, Debug)]
 pub struct Global {
@@ -322,7 +322,7 @@ impl fmt::Display for Type {
                 for (i, field) in struc.fields.iter().enumerate() {
                     write!(f, "{}", field.data_type)?;
                     if i != struc.fields.len() - 1 {
-                        write!(f, ",");
+                        write!(f, ",")?;
                     }
                 }
                 write!(f, ")")
@@ -398,7 +398,14 @@ impl Expr {
     pub fn is_deref(&self) -> bool {
         match &self.kind {
             ExprKind::Deref(_) => true,
-            _ => false
+            _ => false,
+        }
+    }
+
+    pub fn is_bool(&self, val: bool) -> bool {
+        match &self.kind {
+            ExprKind::Bool(b) => *b == val,
+            _ => false,
         }
     }
 }
@@ -415,7 +422,7 @@ impl Expr {
                 if e1.is_some() {
                     v.push(f(&e1.clone().unwrap()));
                 }
-                e2.iter().map(|e| v.push(f(e)));
+                let _ = e2.iter().map(|e| v.push(f(e)));
 
                 v
             }

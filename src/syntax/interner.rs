@@ -34,13 +34,13 @@ pub struct Name(pub usize);
 pub struct ArcStr(pub Arc<String>);
 
 impl fmt::Display for ArcStr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(f, "{}", &*self.0)
     }
 }
 
 impl fmt::Debug for ArcStr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(f, "{}", &*self.0)
     }
 }

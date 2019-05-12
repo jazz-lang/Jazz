@@ -1,17 +1,16 @@
 use crate::Context as CContext;
-use gccjit_rs::block::{BinaryOp, Block, Case, ComparisonOp, UnaryOp};
-use gccjit_rs::ctx::{CompileResult, Context, OptimizationLevel, OutputKind};
+use gccjit_rs::block::{BinaryOp, Block, ComparisonOp, UnaryOp};
+use gccjit_rs::ctx::{Context, OutputKind};
 use gccjit_rs::field::Field;
 use gccjit_rs::function::{Function as CFunction, FunctionType};
-use gccjit_rs::lvalue::{LValue, ToLValue};
+use gccjit_rs::lvalue::LValue;
 use gccjit_rs::rvalue::{RValue, ToRValue};
 use gccjit_rs::structs::Struct;
-use gccjit_rs::ty::{Type as CType, Typeable};
+use gccjit_rs::ty::Type as CType;
 
 use crate::str;
 use crate::syntax::ast::{
-    Elem, Expr, ExprKind, Function, NodeId, Stmt, StmtKind, StructArg, StructField, Type, TypeFunc,
-    TypeStruct,
+    Elem, Expr, ExprKind, Function, NodeId, Stmt, StmtKind, StructArg, StructField, Type,
 };
 
 use crate::syntax::interner::Name;
@@ -54,10 +53,10 @@ pub struct Codegen<'a> {
     constants: HashMap<Name, Expr>,
     block_id: usize,
     fun_id: usize,
-    aliases: HashMap<Name,Type>,
+    aliases: HashMap<Name, Type>,
     tmp_id: usize,
     terminated: bool,
-    cur_return: Option<Type>
+    cur_return: Option<Type>,
 }
 
 impl<'a> Codegen<'a> {
@@ -88,11 +87,14 @@ impl<'a> Codegen<'a> {
 
                             return ty;
                         } else {
-                            if let Some(ty) = self.aliases.get(&crate::syntax::interner::intern(s)).clone() {
+                            if let Some(ty) = self
+                                .aliases
+                                .get(&crate::syntax::interner::intern(s))
+                                .clone()
+                            {
                                 return self.ty_to_ctype(&ty);
                             }
 
-                            
                             unreachable!()
                         }
                     }
@@ -127,7 +129,7 @@ impl<'a> Codegen<'a> {
         use gccjit_rs::sys::*;
         unsafe {
             let ptr = gccjit_rs::ctx::context_get_ptr(&ctx);
-            gcc_jit_context_set_bool_allow_unreachable_blocks(ptr,true as _);
+            gcc_jit_context_set_bool_allow_unreachable_blocks(ptr, true as _);
         }
         Codegen {
             ctx,
@@ -147,28 +149,31 @@ impl<'a> Codegen<'a> {
             aliases: HashMap::new(),
             tmp_id: 0,
             terminated: false,
-            cur_return: None
+            cur_return: None,
         }
     }
 
-    pub fn find_struct(&self,ty: &Type) -> Option<GccStruct> {
+    pub fn find_struct(&self, ty: &Type) -> Option<GccStruct> {
         match ty {
-            Type::Basic(basic) => if let Some(s) = self.structures.get(&basic.name) {
-                return Some(s.clone());
-            } else if let Some(ty) = self.aliases.get(&basic.name) {
-                return self.find_struct(ty);
-            } else {
-                return None;
+            Type::Basic(basic) => {
+                if let Some(s) = self.structures.get(&basic.name) {
+                    return Some(s.clone());
+                } else if let Some(ty) = self.aliases.get(&basic.name) {
+                    return self.find_struct(ty);
+                } else {
+                    return None;
+                }
             }
-            Type::Struct(basic) => if let Some(s) = self.structures.get(&basic.name) {
-                return Some(s.clone());
-            } else if let Some(ty) = self.aliases.get(&basic.name) {
-                return self.find_struct(ty);
-            } else {
-                return None;
+            Type::Struct(basic) => {
+                if let Some(s) = self.structures.get(&basic.name) {
+                    return Some(s.clone());
+                } else if let Some(ty) = self.aliases.get(&basic.name) {
+                    return self.find_struct(ty);
+                } else {
+                    return None;
+                }
             }
-            _ => None
-
+            _ => None,
         }
     }
 
@@ -233,9 +238,9 @@ impl<'a> Codegen<'a> {
 
                     let cfield = struct_.fields.get(name).expect("Field not found");
                     let lval = self.expr_to_lvalue(object).expect("LValue expected");
-                    
+
                     return Some(lval.access_field(None, *cfield));
-                } else  {
+                } else {
                     let s = self.find_struct(&ty).expect("Struct not found");
 
                     let cfield = s.fields.get(name).expect("Field not found");
@@ -243,7 +248,6 @@ impl<'a> Codegen<'a> {
 
                     return Some(lval.access_field(None, *cfield));
                 }
-                
             }
             ExprKind::Deref(expr_) => {
                 let val = self.gen_expr(expr_);
@@ -353,20 +357,20 @@ impl<'a> Codegen<'a> {
                 let block = self.cur_block.unwrap();
                 let then_name = self.block_name_new();
                 let else_name = self.block_name_new();
-                
-                let bb_then = func.new_block(&format!("if_true:{}",then_name));
-                let bb_else = func.new_block(&format!("if_false:{}",else_name));
+
+                let bb_then = func.new_block(&format!("if_true:{}", then_name));
+                let bb_else = func.new_block(&format!("if_false:{}", else_name));
                 let bb_merge: Block = if otherwise.is_some() {
                     let merge_name = self.block_name_new();
-                    
-                    func.new_block(&format!("after:{}",merge_name))
+
+                    func.new_block(&format!("after:{}", merge_name))
                 } else {
                     bb_else
                 };
 
                 let expr = self.gen_expr(cond);
 
-                block.end_with_conditional(None, expr, bb_then,bb_else);
+                block.end_with_conditional(None, expr, bb_then, bb_else);
 
                 self.cur_block = Some(bb_then);
                 self.gen_stmt(then, true);
@@ -380,7 +384,7 @@ impl<'a> Codegen<'a> {
                         self.cur_block.unwrap().end_with_jump(None, bb_merge);
                     }
                 }
-                if self.terminated {                 
+                if self.terminated {
                     self.cur_block = Some(bb_merge);
                 }
             }
@@ -396,13 +400,13 @@ impl<'a> Codegen<'a> {
                 block.end_with_jump(None, loop_cond);
                 self.cur_block = Some(loop_cond);
                 let val = self.gen_expr(cond);
-                self.cur_block.unwrap().end_with_conditional(None, val, loop_body, after_loop);
+                self.cur_block
+                    .unwrap()
+                    .end_with_conditional(None, val, loop_body, after_loop);
 
                 self.cur_block = Some(loop_body);
                 self.gen_stmt(block_, true);
                 self.cur_block.unwrap().end_with_jump(None, loop_cond);
-
-                
 
                 self.continue_blocks.pop_back();
                 self.break_blocks.pop_back();
@@ -480,7 +484,7 @@ impl<'a> Codegen<'a> {
                 let rvalue = self.gen_expr(expr);
                 rvalue.dereference(None).to_rvalue()
             }
-            ExprKind::Unary(op,expr) => {
+            ExprKind::Unary(op, expr) => {
                 let op: &str = op;
                 let rval = self.gen_expr(expr);
                 let ty = rval.get_type();
@@ -489,13 +493,15 @@ impl<'a> Codegen<'a> {
                     "!" => {
                         let ast_ty = self.get_id_type(expr.id);
                         if crate::semantic::ty_is_any_int(&ast_ty) {
-                            self.ctx.new_unary_op(None, UnaryOp::BitwiseNegate, ty, rval)
+                            self.ctx
+                                .new_unary_op(None, UnaryOp::BitwiseNegate, ty, rval)
                         } else {
-                            self.ctx.new_unary_op(None, UnaryOp::LogicalNegate,ty,rval)
+                            self.ctx
+                                .new_unary_op(None, UnaryOp::LogicalNegate, ty, rval)
                         }
                     }
                     "+" => rval,
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 }
             }
             ExprKind::Field(expr_, name) => {
@@ -602,15 +608,16 @@ impl<'a> Codegen<'a> {
                     }
                     return self.ctx.new_call(None, lval.unwrap(), &params);
                 } else if self.external_functions.contains_key(&name.name()) {
-                    let unit: &FunctionUnit = &self.external_functions.get(&name.name()).unwrap().clone();
+                    let unit: &FunctionUnit =
+                        &self.external_functions.get(&name.name()).unwrap().clone();
 
                     let mut params = vec![];
-                    for (i,arg) in args.iter().enumerate() {
+                    for (i, arg) in args.iter().enumerate() {
                         let val = self.gen_expr(arg);
                         let val = if i < unit.f.params.len() {
                             let ty: Type = *unit.f.params[i].1.clone();
                             let cty = self.ty_to_ctype(&ty);
-                            self.ctx.new_cast(None, val,cty)
+                            self.ctx.new_cast(None, val, cty)
                         } else {
                             val
                         };
@@ -629,23 +636,53 @@ impl<'a> Codegen<'a> {
                 self.ctx.new_call_through_ptr(None, var, &params)
             }
 
-            ExprKind::Struct(name,args) => {
-
+            ExprKind::Struct(name, args) => {
                 let name = name.name();
 
-                let struct_: GccStruct = self.find_struct(&Type::create_basic(expr.id, expr.pos, name)).expect("Struct not found");
+                let struct_: GccStruct = self
+                    .find_struct(&Type::create_basic(expr.id, expr.pos, name))
+                    .expect("Struct not found");
                 //let rval: RValue = self.ctx.new_rvalue_zero(struct_.ty.as_type());
-                let tmp_ = format!("_____tmp______{}",self.tmp_id);
+                let tmp_ = format!("{}", self.tmp_id);
                 self.tmp_id += 1;
-                let tmp: LValue = self.cur_func.unwrap().new_local(None,struct_.ty.as_type(),&tmp_);
+                let tmp: LValue =
+                    self.cur_func
+                        .unwrap()
+                        .new_local(None, struct_.ty.as_type(), &tmp_);
                 //self.cur_block.unwrap().add_assignment(None, tmp, rval);
                 for arg in args.iter() {
                     let arg: &StructArg = arg;
                     let val = self.gen_expr(&arg.expr);
-                    self.cur_block.unwrap().add_assignment(None, tmp.access_field(None, *struct_.fields.get(&arg.name).unwrap()), val);
+                    self.cur_block.unwrap().add_assignment(
+                        None,
+                        tmp.access_field(None, *struct_.fields.get(&arg.name).unwrap()),
+                        val,
+                    );
                 }
                 tmp.to_rvalue()
-            
+            }
+
+            ExprKind::GetFunc(name) => {
+                let val = if self.functions.contains_key(name) {
+                    let functions: &Vec<FunctionUnit> = self.functions.get(name).unwrap();
+                    let mut v = None;
+                    for unit in functions.iter() {
+                        let unit: &FunctionUnit = unit;
+
+                        if &unit.f.name == name {
+                            v = Some(unit.c.get_address(None));
+                            break;
+                        }
+                    }
+                    v.expect("Function addr")
+                } else if self.external_functions.contains_key(name) {
+                    let func = self.external_functions.get(name).unwrap();
+
+                    func.c.get_address(None)
+                } else {
+                    panic!("Function not found");
+                };
+                val
             }
 
             ExprKind::Binary(op, e1, e2) => {
@@ -775,7 +812,7 @@ impl<'a> Codegen<'a> {
                 Elem::ConstExpr { name, expr, .. } => {
                     self.constants.insert(*name, *expr.clone());
                 }
-                Elem::Alias(name,ty) => {
+                Elem::Alias(name, ty) => {
                     self.aliases.insert(*name, ty.clone());
                 }
                 _ => (),
@@ -963,7 +1000,7 @@ impl<'a> Codegen<'a> {
         if self.context.emit_asm {
             self.ctx.set_dump_code(true);
         }
-        
+
         self.ctx
             .set_opt_level(unsafe { std::mem::transmute(self.context.opt as i32) });
 
@@ -973,16 +1010,20 @@ impl<'a> Codegen<'a> {
 
         if self.context.jit {
             use std::env::args;
-            
+
             let result = self.ctx.compile();
             let args = args();
             let argc = args.len() as i32;
             let argv: Vec<String> = args.collect::<Vec<String>>();
-            let argv_c  = argv.iter().map(|s| std::ffi::CString::new(s.as_bytes()).unwrap().as_ptr()).collect::<Vec<_>>();
+            let argv_c = argv
+                .iter()
+                .map(|s| std::ffi::CString::new(s.as_bytes()).unwrap().as_ptr())
+                .collect::<Vec<_>>();
 
-            let main_fn: fn(i32,*const *const i8) -> i32 = unsafe { std::mem::transmute(result.get_function("main")) };
+            let main_fn: fn(i32, *const *const i8) -> i32 =
+                unsafe { std::mem::transmute(result.get_function("main")) };
 
-            println!("Exit value: {}", main_fn(argc,argv_c.as_ptr()));
+            println!("Exit value: {}", main_fn(argc, argv_c.as_ptr()));
         } else {
             let out_path = if !self.context.output.is_empty() {
                 self.context.output.clone()

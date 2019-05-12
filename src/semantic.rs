@@ -16,7 +16,7 @@ pub struct SemCheck<'a> {
     constexprs: HashMap<Name, Box<Expr>>,
     ret: Type,
     types: HashMap<NodeId, Type>,
-    aliases: HashMap<Name,Type>,
+    aliases: HashMap<Name, Type>,
 }
 
 pub fn ty_is_any_int(ty: &Type) -> bool {
@@ -166,7 +166,7 @@ impl<'a> SemCheck<'a> {
                         let path = std::path::Path::new(&self.ctx.file.root).parent().unwrap();
                         format!("{}/{}", path.display(), import)
                     };
-                    
+
                     let mut file = File {
                         elems: vec![],
                         src: String::new(),
@@ -184,8 +184,11 @@ impl<'a> SemCheck<'a> {
 
                     let mut sem = SemCheck::new(&mut ctx);
                     sem.imports();
-                    sem.declare().unwrap();
-
+                    let maybe_err = sem.declare();
+                    if maybe_err.is_err() {
+                        eprintln!("{}", maybe_err.err().unwrap());
+                        std::process::exit(-1);
+                    }
                     for elem in ctx.file.elems.iter() {
                         match elem {
                             Elem::Func(f) => {
@@ -206,11 +209,21 @@ impl<'a> SemCheck<'a> {
                                     self.ctx.file.elems.push(Elem::Struct(s.clone()));
                                 }
                             }
-                            Elem::ConstExpr{name,expr,id,pos} => {
-                                self.ctx.file.elems.push(Elem::ConstExpr{name: *name,expr: expr.clone(),id: *id,pos: pos.clone()});
+                            Elem::ConstExpr {
+                                name,
+                                expr,
+                                id,
+                                pos,
+                            } => {
+                                self.ctx.file.elems.push(Elem::ConstExpr {
+                                    name: *name,
+                                    expr: expr.clone(),
+                                    id: *id,
+                                    pos: pos.clone(),
+                                });
                             }
-                            Elem::Alias(name,ty) => {
-                                self.ctx.file.elems.push(Elem::Alias(*name,ty.clone()));
+                            Elem::Alias(name, ty) => {
+                                self.ctx.file.elems.push(Elem::Alias(*name, ty.clone()));
                             }
                             _ => (),
                         }
@@ -250,8 +263,8 @@ impl<'a> SemCheck<'a> {
                 Elem::ConstExpr { name, expr, .. } => {
                     self.constexprs.insert(*name, expr.clone());
                 }
-                Elem::Alias(name,ty) => {
-                    self.aliases.insert(*name,ty.clone());
+                Elem::Alias(name, ty) => {
+                    self.aliases.insert(*name, ty.clone());
                 }
                 Elem::Const(c) => {
                     if self.constants.contains_key(&c.name) {
@@ -459,6 +472,9 @@ impl<'a> SemCheck<'a> {
                 assert!(self.ret.is_void());
             }
             StmtKind::While(e, s) => {
+                if e.is_bool(true) {
+                    warn!("Consider using loop instead of `while true`", stmt.pos);
+                }
                 self.tc_expr(e);
                 self.tc_stmt(s);
             }
@@ -793,10 +809,9 @@ impl<'a> SemCheck<'a> {
             }
 
             ExprKind::Assign(to, from) => {
-                
                 let mut to = self.tc_expr(to);
                 to = self.infer_type(&to);
-                
+
                 let mut from = self.tc_expr(from);
                 from = self.infer_type(&from);
 

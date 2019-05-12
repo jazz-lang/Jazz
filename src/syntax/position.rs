@@ -23,7 +23,7 @@ impl Position {
 }
 
 impl Display for Position {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         write!(f, "{}|{}:{}", str(self.file), self.line, self.column)
     }
 }

@@ -1,4 +1,4 @@
-use crate::{intern, str, Context};
+use crate::{str, Context};
 
 pub struct Translator {
     ctx: Context,
@@ -371,7 +371,7 @@ impl Translator {
             .create(true)
             .open(file)
             .unwrap();
-        f.write_all(self.code.as_bytes());
+        f.write_all(self.code.as_bytes()).unwrap();
 
         std::process::Command::new("c++")
             .arg("-lc")

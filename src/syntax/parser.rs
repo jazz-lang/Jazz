@@ -147,9 +147,9 @@ impl<'a> Parser<'a> {
             TokenKind::Alias => {
                 self.advance_token()?;
                 let name = self.expect_identifier()?;
-                self.expect_token(TokenKind::Eq);
+                self.expect_token(TokenKind::Eq)?;
                 let ty = self.parse_type()?;
-                elements.push(Elem::Alias(name,ty));
+                elements.push(Elem::Alias(name, ty));
             }
             TokenKind::Import => {
                 self.advance_token()?;
@@ -180,7 +180,7 @@ impl<'a> Parser<'a> {
             TokenKind::ConstExpr => {
                 let pos = self.advance_token()?.position;
                 let name = self.expect_identifier()?;
-                self.expect_token(TokenKind::Eq);
+                self.expect_token(TokenKind::Eq)?;
                 let expr = self.parse_expression()?;
                 elements.push(Elem::ConstExpr {
                     id: self.generate_id(),
@@ -877,7 +877,7 @@ impl<'a> Parser<'a> {
         mut parse: F,
     ) -> Result<Vec<R>, MsgWithPos>
     where
-        F: FnMut(&mut Parser) -> Result<R, MsgWithPos>,
+        F: FnMut(&mut Parser<'_>) -> Result<R, MsgWithPos>,
     {
         let mut data = vec![];
         let mut comma = true;
@@ -976,15 +976,11 @@ impl<'a> Parser<'a> {
                 let pos = self.advance_token()?.position;
                 let expr = self.parse_primary(opts)?;
 
-                Ok(
-                    Box::new(
-                        Expr {
-                            pos: pos,
-                            id: self.generate_id(),
-                            kind: ExprKind::Deref(expr)
-                        }
-                    )
-                )
+                Ok(Box::new(Expr {
+                    pos: pos,
+                    id: self.generate_id(),
+                    kind: ExprKind::Deref(expr),
+                }))
             }
             _ => self.parse_primary(opts),
         }

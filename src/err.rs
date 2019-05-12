@@ -243,9 +243,10 @@ impl Msg {
             ExpectedType(ref got) => format!("type expected but got {}.", got),
             ExpectedIdentifier(ref tok) => format!("identifier expected but got {}.", tok),
             MisplacedModifier(ref modifier) => format!("misplaced modifier `{}`.", modifier),
-            ExpectedTopLevelElement(ref token) => {
-                format!("expected function,structure,global variable or constexpr but got {}.", token)
-            }
+            ExpectedTopLevelElement(ref token) => format!(
+                "expected function,structure,global variable or constexpr but got {}.",
+                token
+            ),
             ExpectedClassElement(ref token) => {
                 format!("field or method expected but got {}.", token)
             }
@@ -403,7 +404,7 @@ impl MsgWithPos {
 }
 
 impl fmt::Display for MsgWithPos {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(f, "{}", self.message())
     }
 }
