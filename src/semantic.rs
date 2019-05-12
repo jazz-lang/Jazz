@@ -163,8 +163,10 @@ impl<'a> SemCheck<'a> {
                     let import = if self.ctx.file.root.is_empty() {
                         import.to_owned()
                     } else {
-                        format!("{}/{}", self.ctx.file.root, import)
+                        let path = std::path::Path::new(&self.ctx.file.root).parent().unwrap();
+                        format!("{}/{}", path.display(), import)
                     };
+                    println!("Import path: {}",import);
                     let mut file = File {
                         elems: vec![],
                         src: String::new(),
