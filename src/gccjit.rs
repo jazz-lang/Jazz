@@ -1185,6 +1185,8 @@ impl<'a> Codegen<'a> {
 
             println!("Exit value: {}", main_fn(argc, argv_c.as_ptr()));
         } else {
+            self.ctx.add_driver_option("-lc"); // link libc
+            self.ctx.add_driver_option("-lm"); // link libm
             let out_path = if !self.context.output.is_empty() {
                 self.context.output.clone()
             } else {
