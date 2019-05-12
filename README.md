@@ -5,10 +5,7 @@ Jazz - JIT/AOT compiled programming language that uses gccjit for emitting machi
 
 # TODO
 - Jazz2C++ Translator
-- Struct initialization:
-```go
-var p = Point {x: 0,y: 0};
-```
+- ~~Struct initialization:~~ DONE!
 
 # Example code
 

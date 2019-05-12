@@ -1,0 +1,10 @@
+struct Point {
+	x: i32,
+	y: i32
+}
+
+pub func main() i32 {
+	var p: Point = Point {x: 0,y: 27};
+	p.x = 25;
+	return p.y;
+}

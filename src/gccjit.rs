@@ -55,6 +55,7 @@ pub struct Codegen<'a> {
     block_id: usize,
     fun_id: usize,
     aliases: HashMap<Name,Type>,
+    tmp_id: usize,
 }
 
 impl<'a> Codegen<'a> {
@@ -137,6 +138,28 @@ impl<'a> Codegen<'a> {
             block_id: 0,
             fun_id: 0,
             aliases: HashMap::new(),
+            tmp_id: 0
+        }
+    }
+
+    pub fn find_struct(&self,ty: &Type) -> Option<GccStruct> {
+        match ty {
+            Type::Basic(basic) => if let Some(s) = self.structures.get(&basic.name) {
+                return Some(s.clone());
+            } else if let Some(ty) = self.aliases.get(&basic.name) {
+                return self.find_struct(ty);
+            } else {
+                return None;
+            }
+            Type::Struct(basic) => if let Some(s) = self.structures.get(&basic.name) {
+                return Some(s.clone());
+            } else if let Some(ty) = self.aliases.get(&basic.name) {
+                return self.find_struct(ty);
+            } else {
+                return None;
+            }
+            _ => None
+
         }
     }
 
@@ -201,6 +224,14 @@ impl<'a> Codegen<'a> {
 
                     let cfield = struct_.fields.get(name).expect("Field not found");
                     let lval = self.expr_to_lvalue(object).expect("LValue expected");
+                    
+                    return Some(lval.access_field(None, *cfield));
+                } else  {
+                    let s = self.find_struct(&ty).expect("Struct not found");
+
+                    let cfield = s.fields.get(name).expect("Field not found");
+                    let lval = self.expr_to_lvalue(object).expect("LValue expected");
+
                     return Some(lval.access_field(None, *cfield));
                 }
                 return None;
@@ -559,6 +590,25 @@ impl<'a> Codegen<'a> {
                 }
 
                 self.ctx.new_call_through_ptr(None, var, &params)
+            }
+
+            ExprKind::Struct(name,args) => {
+
+                let name = name.name();
+
+                let struct_: GccStruct = self.find_struct(&Type::create_basic(expr.id, expr.pos, name)).expect("Struct not found");
+                //let rval: RValue = self.ctx.new_rvalue_zero(struct_.ty.as_type());
+                let tmp_ = format!("_____tmp______{}",self.tmp_id);
+                self.tmp_id += 1;
+                let tmp: LValue = self.cur_func.unwrap().new_local(None,struct_.ty.as_type(),&tmp_);
+                //self.cur_block.unwrap().add_assignment(None, tmp, rval);
+                for arg in args.iter() {
+                    let arg: &StructArg = arg;
+                    let val = self.gen_expr(&arg.expr);
+                    self.cur_block.unwrap().add_assignment(None, tmp.access_field(None, *struct_.fields.get(&arg.name).unwrap()), val);
+                }
+                tmp.to_rvalue()
+            
             }
 
             ExprKind::Binary(op, e1, e2) => {
