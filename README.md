@@ -26,3 +26,17 @@ pub func main() i32 {
     return 0;
 } 
 ```
+
+# Building
+
+1. Install libgccjit with version >= 9: 
+    Fedora Linux
+    ```
+    sudo dnf install libgccjit-devel
+    ```
+    Ubuntu Linux
+    ```
+    sudo apt install libgccjit-9-dev
+    ```
+2. Run `cargo build --release`
+3. Run `cargo install --path .`
