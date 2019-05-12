@@ -868,7 +868,9 @@ impl<'a> SemCheck<'a> {
                     let expr_ = self.globals.get(name).unwrap().expr.clone();
                     self.vars.push(HashMap::new());
                     if expr_.is_some() {
-                        self.tc_expr(expr_.as_ref().unwrap());
+                        let ty = self.tc_expr(expr_.as_ref().unwrap());
+                        let ty = self.infer_type(&ty);
+                        self.types.insert(expr_.as_ref().unwrap().id,ty);
                     }
                     self.vars.pop();
                     let ty = *self.globals.get(name).unwrap().typ.clone();

@@ -99,7 +99,7 @@ impl<'a> Codegen<'a> {
                                 return self.ty_size(ty);
                             }
                         }
-                        panic!("Type not found");
+                        panic!("Type {} not found",s);
                     }
                 }
             }
@@ -434,21 +434,25 @@ impl<'a> Codegen<'a> {
 
                 let expr = self.gen_expr(cond);
 
-                block.end_with_conditional(None, expr, bb_then, bb_else);
-
+                self.cur_block.unwrap().end_with_conditional(None, expr, bb_then, bb_else);
+                self.terminated.push(false);
                 self.cur_block = Some(bb_then);
                 self.gen_stmt(then, true);
-                if !*self.terminated.last().unwrap_or(&true) {
+
+                if !*self.terminated.last().unwrap() {
                     self.cur_block.unwrap().end_with_jump(None, bb_merge);
+                    self.cur_block = Some(bb_merge);
                 }
+                self.terminated.pop();
+                self.terminated.push(false);
                 if let Some(else_branch) = otherwise {
                     self.cur_block = Some(bb_else);
                     self.gen_stmt(else_branch, true);
-                    if !self.terminated.last().unwrap_or(&false) {
+                    if !*self.terminated.last().unwrap() {
                         self.cur_block.unwrap().end_with_jump(None, bb_merge);
                     }
                 }
-
+                self.terminated.pop();
                 self.cur_block = Some(bb_merge);
             }
             StmtKind::While(cond, block_) => {
@@ -650,7 +654,7 @@ impl<'a> Codegen<'a> {
 
                 let param_types = args
                     .iter()
-                    .map(|expr| self.get_id_type(expr.id).clone())
+                    .map(|expr| {self.get_id_type(expr.id).clone()})
                     .collect::<Vec<_>>();
 
                 let var = if let Some(var) = self.variables.get(&name.name()) {
