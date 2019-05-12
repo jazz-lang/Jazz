@@ -147,19 +147,7 @@ impl Translator {
             ExprKind::Float(f, _) => self.code.push_str(&f.to_string()),
             ExprKind::Char(c) => self.code.push_str(&format!("'{}'", c)),
             ExprKind::Str(s) => {
-                let mut bytes = vec![];
-                self.code.push('"');
-                for byte in s.as_bytes().iter() {
-                    if *byte == 10 {
-                        bytes.push(92);
-                        byte.push(110);
-                        continue;
-                    }
-                    bytes.push(*byte);
-                }
-                
-                self.code.push_str(std::str::from_utf8(&bytes).unwrap());
-                self.code.push('"');
+                self.code.push_str(&format!("{:?}",s));
             },
             ExprKind::Binary(op, lhs, rhs) => {
                 self.gen_expr(lhs);
@@ -313,7 +301,25 @@ impl Translator {
                 _ => {}
             }
         }
+        for elem in elems.iter() {
+            match elem 
+            {
+                Elem::Struct(s) => {
+                    self.code
+                        .push_str(&format!("struct {} {{\n", str(s.name).to_string()));
+                    let s: &Struct = s;
+                    for field in s.fields.iter() {
+                        let f: &StructField = field;
 
+                        self.type_to_c(&f.data_type);
+                        self.code
+                            .push_str(&format!(" {};\n", str(f.name).to_string()));
+                    }
+                    self.code.push_str("};\n");
+                }
+                _ => {},
+            }
+        }
         for elem in elems.iter() {
             match elem {
                 Elem::Const(c) => {
@@ -359,19 +365,7 @@ impl Translator {
                         self.code.push('\n');
                     }
                 }
-                Elem::Struct(s) => {
-                    self.code
-                        .push_str(&format!("struct {} {{\n", str(s.name).to_string()));
-                    let s: &Struct = s;
-                    for field in s.fields.iter() {
-                        let f: &StructField = field;
-
-                        self.type_to_c(&f.data_type);
-                        self.code
-                            .push_str(&format!(" {};\n", str(f.name).to_string()));
-                    }
-                    self.code.push_str("};\n");
-                }
+                
                 Elem::Global(global) => {
                     let global: &Global = global;
 
