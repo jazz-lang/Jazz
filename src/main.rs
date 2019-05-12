@@ -102,7 +102,7 @@ fn main() -> Result<(), MsgWithPos> {
     let mut file = File {
         root: String::new(),
         src: String::new(),
-        path: opts.file.file_stem().unwrap().to_str().unwrap().to_owned(),
+        path: opts.file.parent().unwrap_or(&std::path::PathBuf::from("")).to_str().unwrap().to_owned(),
         elems: vec![],
     };
 
