@@ -9,6 +9,15 @@ Jazz - JIT/AOT compiled programming language that uses gccjit for emitting machi
 - Jazz2C++ Translator
 - ~~Struct initialization:~~ DONE!
 
+# Building book
+```
+$ cd book
+$ mdbook build
+$ mdbook serve
+```
+
+Now you can open `http://localhost:3000/` in your browser.
+
 # Example code
 
 Factorial: 
