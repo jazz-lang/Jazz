@@ -802,8 +802,7 @@ impl<'a> Codegen<'a>
                 let val = self.expr_to_lvalue(expr_);
                 if val.is_none() {
                     let rval = self.gen_expr(expr_);
-                    let tmp = self.cur_func.unwrap().new_local(None,rval.get_type(),&format!("{}",self.tmp_id));
-                    self.tmp_id += 1;
+                    let tmp = self.ctx.new_global(None,GlobalKind::Internal, rval.get_type(), &self.tmp_id.to_string());
                     self.cur_block.unwrap().add_assignment(None,tmp, rval);
 
                     tmp.get_address(None)
