@@ -1,0 +1,5 @@
+[book]
+authors = ["playXE"]
+multilingual = false
+src = "src"
+title = "Jazz language tutorial"

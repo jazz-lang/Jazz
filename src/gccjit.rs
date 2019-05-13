@@ -1277,7 +1277,7 @@ impl<'a> Codegen<'a>
                             {
                                 if &fun.f == func
                                 {
-                                    panic!("function exists");
+                                    continue;
                                 }
                             }
                             let mut func = func.clone();

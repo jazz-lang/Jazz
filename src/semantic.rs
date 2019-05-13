@@ -4,6 +4,7 @@ use super::Context;
 use super::*;
 use crate::ast::*;
 use colored::Colorize;
+use std::collections::HashSet;
 
 pub struct SemCheck<'a>
 {
@@ -18,7 +19,10 @@ pub struct SemCheck<'a>
     ret: Type,
     types: HashMap<NodeId, Type>,
     aliases: HashMap<Name, Type>,
+    imported: HashMap<Name,Elem>,
+    imported_funs: HashMap<Name,Vec<Function>>
 }
+
 
 pub fn ty_is_any_int(ty: &Type) -> bool
 {
@@ -138,6 +142,9 @@ impl<'a> SemCheck<'a>
             types: HashMap::new(),
             constexprs: HashMap::new(),
             aliases: HashMap::new(),
+            imported: HashMap::new(),
+            imported_funs: HashMap::new(),
+            
         }
     }
 
@@ -232,9 +239,37 @@ impl<'a> SemCheck<'a>
                     {
                         Elem::Func(f) =>
                         {
+                            
                             if f.public && !f.static_
                             {
-                                self.ctx.file.elems.push(Elem::Func(f.clone()));
+                                let funs = self.imported_funs.get(&f.name).clone();
+                                if funs.is_none() {
+                                    let funs = vec![f.clone()];
+                                    self.imported_funs.insert(f.name, funs);
+                                    self.ctx.file.elems.push(Elem::Func(f.clone()));
+                                } else {
+                                    let funs = funs.unwrap();
+                                    let mut f_found = false;
+                                    for fun in funs.iter() {
+                                        let mut params = vec![];
+                                        for p in f.params.iter() {
+                                            params.push((p.0,Box::new(self.infer_type(&p.1))));
+                                        }
+                                        if params == fun.params {
+                                            f_found = true;
+                                            break;
+                                        }
+                                    }
+
+                                    if !f_found {
+                                        let funs = self.imported_funs.get_mut(&f.name).unwrap();
+                                        self.ctx.file.elems.push(Elem::Func(f.clone()));
+                                        funs.push(f.clone());
+                                    }
+
+
+                                }
+                                
                             }
                         }
                         Elem::Link(name) =>
@@ -243,23 +278,33 @@ impl<'a> SemCheck<'a>
                         }
                         Elem::Const(c) =>
                         {
-                            if c.public
-                            {
-                                self.ctx.file.elems.push(Elem::Const(c.clone()));
+                            if !self.imported.contains_key(&c.name) {
+                                if c.public
+                                {
+                                    self.imported.insert(c.name,Elem::Const(c.clone()));
+                                    self.ctx.file.elems.push(Elem::Const(c.clone()));
+                                }
                             }
+                            
                         }
                         Elem::Struct(s) =>
-                        {
-                            if s.public
-                            {
-                                self.ctx.file.elems.push(Elem::Struct(s.clone()));
+                        {   
+                            if !self.imported.contains_key(&s.name) {
+                                if s.public
+                                {
+                                    self.imported.insert(s.name, Elem::Struct(s.clone()));
+                                    self.ctx.file.elems.push(Elem::Struct(s.clone()));
+                                }
                             }
                         }
                         Elem::Global(glob) =>
                         {
-                            if glob.public
-                            {
-                                self.ctx.file.elems.push(Elem::Global(glob.clone()));
+                            if !self.imported.contains_key(&glob.name) {
+                                if glob.public
+                                {
+                                    self.imported.insert(glob.name, Elem::Global(glob.clone()));
+                                    self.ctx.file.elems.push(Elem::Global(glob.clone()));
+                                }
                             }
                         }
                         Elem::ConstExpr {
@@ -269,16 +314,28 @@ impl<'a> SemCheck<'a>
                             pos,
                         } =>
                         {
-                            self.ctx.file.elems.push(Elem::ConstExpr {
-                                name: *name,
-                                expr: expr.clone(),
-                                id: *id,
-                                pos: *pos,
-                            });
+                            if !self.imported.contains_key(name) {
+                                let elem = Elem::ConstExpr {
+                                    name: *name,
+                                    expr: expr.clone(),
+                                    id: *id,
+                                    pos: *pos,
+                                };
+
+                                self.imported.insert(*name, elem.clone());
+                                self.ctx.file.elems.push(elem);
+
+                            }
                         }
                         Elem::Alias(name, ty) =>
                         {
-                            self.ctx.file.elems.push(Elem::Alias(*name, ty.clone()));
+                            if !self.imported.contains_key(name) {
+                                let elem = Elem::Alias(*name,ty.clone());
+                                self.imported.insert(*name,elem.clone());
+                                self.ctx.file.elems.push(elem);
+
+                            }
+                            
                         }
                         _ => (),
                     }
@@ -860,6 +917,15 @@ impl<'a> SemCheck<'a>
                 );
                 if objty.is_none()
                 {
+                    for (sig,f) in self.functions.iter() {
+                        if f.name == path.name() {
+                        
+                        for param in sig.params.iter() {
+                            print!("{}",param);
+                        }
+                        }
+                        
+                    }
                     error!(
                         format!("Function {}{} not found", str(path.name()), fun_ty),
                         expr.pos
@@ -867,6 +933,7 @@ impl<'a> SemCheck<'a>
                 }
                 else
                 {
+                    
                     error!(
                         format!(
                             "Function ({}) {}{} not found",
