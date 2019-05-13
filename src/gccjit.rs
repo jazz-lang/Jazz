@@ -799,9 +799,17 @@ impl<'a> Codegen<'a>
                 .new_rvalue_from_int(self.ctx.new_type::<bool>(), *b as i32),
             ExprKind::AddressOf(expr_) =>
             {
-                let val = self.expr_to_lvalue(expr_).expect("lvalue expected");
+                let val = self.expr_to_lvalue(expr_);
+                if val.is_none() {
+                    let rval = self.gen_expr(expr_);
+                    let tmp = self.cur_func.unwrap().new_local(None,rval.get_type(),&format!("{}",self.tmp_id));
+                    self.tmp_id += 1;
+                    self.cur_block.unwrap().add_assignment(None,tmp, rval);
 
-                val.get_address(None)
+                    tmp.get_address(None)
+                } else {
+                    val.unwrap().get_address(None)
+                }
             }
             ExprKind::Conv(val, to) =>
             {
