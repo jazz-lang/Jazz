@@ -4,7 +4,7 @@ use super::Context;
 use super::*;
 use crate::ast::*;
 use colored::Colorize;
-use std::collections::HashSet;
+
 
 pub struct SemCheck<'a>
 {
@@ -20,7 +20,8 @@ pub struct SemCheck<'a>
     types: HashMap<NodeId, Type>,
     aliases: HashMap<Name, Type>,
     imported: HashMap<Name,Elem>,
-    imported_funs: HashMap<Name,Vec<Function>>
+    imported_funs: HashMap<Name,Vec<Function>>,
+    
 }
 
 
@@ -206,8 +207,8 @@ impl<'a> SemCheck<'a>
                 }
                 else
                 {
-                    
-                    format!("{}/{}", self.ctx.file.root, import)
+                    let path = std::path::Path::new(&self.ctx.file.root);
+                    format!("{}/{}", path.parent().unwrap().display(), import)
                 };
                 
                 let mut file = File {
@@ -241,7 +242,7 @@ impl<'a> SemCheck<'a>
                         Elem::Func(f) =>
                         {
                             
-                            if f.public && !f.static_
+                            
                             {
                                 let funs = self.imported_funs.get(&f.name).clone();
                                 if funs.is_none() {

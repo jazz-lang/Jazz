@@ -788,7 +788,8 @@ impl<'a> Codegen<'a>
             {
                 let lval = self.expr_to_lvalue(lval).unwrap();
                 let rval = self.gen_expr(rval);
-                self.cur_block.unwrap().add_assignment(None, lval, rval);
+                let casted_val = self.ctx.new_cast(None, rval, lval.to_rvalue().get_type());
+                self.cur_block.unwrap().add_assignment(None, lval, casted_val);
 
                 self.ctx.new_rvalue_zero(self.ctx.new_type::<i32>()) // todo: something better than this?
             }
