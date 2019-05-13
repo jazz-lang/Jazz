@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::fmt;
 
-pub struct Macro {
+pub struct Macro
+{
     pub name: String,
     pub public: bool,
     pub tokens: Vec<Token>,
@@ -9,7 +10,8 @@ pub struct Macro {
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub enum TokenKind {
+pub enum TokenKind
+{
     MacroCall(Box<Token>, Vec<Vec<Token>>),
     At,
     String(String),
@@ -96,12 +98,16 @@ pub enum TokenKind {
     LtLt,
 }
 
-impl TokenKind {
-    pub fn name(&self) -> &str {
-        match *self {
+impl TokenKind
+{
+    pub fn name(&self) -> &str
+    {
+        match *self
+        {
             TokenKind::MacroCall(_, _) => "macro call",
             TokenKind::String(_) => "string",
-            TokenKind::LitInt(_, _, suffix) => match suffix {
+            TokenKind::LitInt(_, _, suffix) => match suffix
+            {
                 IntSuffix::Byte => "byte number",
                 IntSuffix::Int => "int number",
                 IntSuffix::Long => "long number",
@@ -113,7 +119,8 @@ impl TokenKind {
 
             TokenKind::LitChar(_) => "char",
 
-            TokenKind::LitFloat(_, suffix) => match suffix {
+            TokenKind::LitFloat(_, suffix) => match suffix
+            {
                 FloatSuffix::Float => "float number",
                 FloatSuffix::Double => "double number",
             },
@@ -204,31 +211,34 @@ impl TokenKind {
 use crate::syntax::position::Position;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Token {
+pub struct Token
+{
     pub kind: TokenKind,
     pub position: Position,
 }
 
-impl Token {
-    pub fn new(tok: TokenKind, pos: Position) -> Token {
+impl Token
+{
+    pub fn new(tok: TokenKind, pos: Position) -> Token
+    {
         Token {
             kind: tok,
             position: pos,
         }
     }
 
-    pub fn is_eof(&self) -> bool {
-        self.kind == TokenKind::End
-    }
+    pub fn is_eof(&self) -> bool { self.kind == TokenKind::End }
 
-    pub fn is(&self, kind: TokenKind) -> bool {
-        self.kind == kind
-    }
+    pub fn is(&self, kind: TokenKind) -> bool { self.kind == kind }
 
-    pub fn name(&self) -> String {
-        match self.kind {
-            TokenKind::LitInt(ref val, _, suffix) => {
-                let suffix = match suffix {
+    pub fn name(&self) -> String
+    {
+        match self.kind
+        {
+            TokenKind::LitInt(ref val, _, suffix) =>
+            {
+                let suffix = match suffix
+                {
                     IntSuffix::Byte => "B",
                     IntSuffix::Int => "",
                     IntSuffix::Long => "L",
@@ -248,22 +258,28 @@ impl Token {
     }
 }
 
-impl fmt::Display for Token {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+impl fmt::Display for Token
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error>
+    {
         write!(f, "{}", self.name())
     }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum IntBase {
+pub enum IntBase
+{
     Bin,
     Dec,
     Hex,
 }
 
-impl IntBase {
-    pub fn num(self) -> u32 {
-        match self {
+impl IntBase
+{
+    pub fn num(self) -> u32
+    {
+        match self
+        {
             IntBase::Bin => 2,
             IntBase::Dec => 10,
             IntBase::Hex => 16,
@@ -272,7 +288,8 @@ impl IntBase {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum IntSuffix {
+pub enum IntSuffix
+{
     Int,
     Long,
     Byte,
@@ -282,7 +299,8 @@ pub enum IntSuffix {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum FloatSuffix {
+pub enum FloatSuffix
+{
     Float,
     Double,
 }

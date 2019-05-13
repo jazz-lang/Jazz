@@ -11,7 +11,8 @@ lazy_static::lazy_static! {
 }
 
 #[inline]
-pub fn intern(name: &str) -> Name {
+pub fn intern(name: &str) -> Name
+{
     let lock = INTERNER.lock();
     let write = lock.write();
 
@@ -19,7 +20,8 @@ pub fn intern(name: &str) -> Name {
 }
 
 #[inline]
-pub fn str(name: Name) -> ArcStr {
+pub fn str(name: Name) -> ArcStr
+{
     let lock = INTERNER.lock();
     let read = lock.read();
 
@@ -33,49 +35,59 @@ pub struct Name(pub usize);
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct ArcStr(pub Arc<String>);
 
-impl fmt::Display for ArcStr {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+impl fmt::Display for ArcStr
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error>
+    {
         write!(f, "{}", &*self.0)
     }
 }
 
-impl fmt::Debug for ArcStr {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+impl fmt::Debug for ArcStr
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error>
+    {
         write!(f, "{}", &*self.0)
     }
 }
 
-impl ArcStr {
-    fn new(value: String) -> ArcStr {
-        ArcStr(Arc::new(value))
-    }
+impl ArcStr
+{
+    fn new(value: String) -> ArcStr { ArcStr(Arc::new(value)) }
 }
 
-impl Borrow<str> for ArcStr {
-    fn borrow(&self) -> &str {
-        &self.0[..]
-    }
+impl Borrow<str> for ArcStr
+{
+    fn borrow(&self) -> &str { &self.0[..] }
 }
 
-impl Deref for ArcStr {
+impl Deref for ArcStr
+{
     type Target = String;
 
-    fn deref<'a>(&'a self) -> &'a String {
-        &self.0
-    }
+    fn deref(&self) -> &String { &self.0 }
 }
 
-pub struct Interner {
+pub struct Interner
+{
     data: Mutex<Internal>,
 }
 
-struct Internal {
+impl Default for Interner
+{
+    fn default() -> Self { Self::new() }
+}
+
+struct Internal
+{
     map: HashMap<ArcStr, Name>,
     vec: Vec<ArcStr>,
 }
 
-impl Interner {
-    pub fn new() -> Interner {
+impl Interner
+{
+    pub fn new() -> Interner
+    {
         Interner {
             data: Mutex::new(Internal {
                 map: HashMap::new(),
@@ -84,10 +96,12 @@ impl Interner {
         }
     }
 
-    pub fn intern(&self, name: &str) -> Name {
+    pub fn intern(&self, name: &str) -> Name
+    {
         let mut data = self.data.lock();
 
-        if let Some(&val) = data.map.get(name) {
+        if let Some(&val) = data.map.get(name)
+        {
             return val;
         }
 
@@ -100,7 +114,8 @@ impl Interner {
         value
     }
 
-    pub fn str(&self, name: Name) -> ArcStr {
+    pub fn str(&self, name: Name) -> ArcStr
+    {
         let data = self.data.lock();
         data.vec[name.0].clone()
     }

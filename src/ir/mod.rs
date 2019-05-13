@@ -1,14 +1,17 @@
 use crate::{intern, Position};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct IRValue {
+pub struct IRValue
+{
     pub ty: Box<IRType>,
     pub data: ValueData,
     pub id: usize,
 }
 
-impl IRValue {
-    pub fn empty() -> IRValue {
+impl IRValue
+{
+    pub fn empty() -> IRValue
+    {
         IRValue {
             ty: Box::new(IRType {
                 kind: IRTypeKind::None,
@@ -18,13 +21,15 @@ impl IRValue {
         }
     }
 
-    pub fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool
+    {
         self.ty.kind == IRTypeKind::None && self.data == ValueData::Null
     }
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum ValueData {
+pub enum ValueData
+{
     Null,
     Result(usize, usize),
     Array(Vec<Box<IRValue>>, usize),
@@ -39,14 +44,17 @@ pub enum ValueData {
 use crate::syntax::interner::Name;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct IRInstr {
+pub struct IRInstr
+{
     pub id: NodeId,
     pub result_ty: Box<IRType>,
     pub op: IROp,
 }
 
-impl IRInstr {
-    pub fn new() -> IRInstr {
+impl IRInstr
+{
+    pub fn new() -> IRInstr
+    {
         IRInstr {
             id: ir_gen_id(),
             result_ty: Box::new(IRType {
@@ -57,7 +65,8 @@ impl IRInstr {
     }
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum CastType {
+pub enum CastType
+{
     FuncAddr,
     BitCast,
     Zext,
@@ -74,7 +83,8 @@ pub enum CastType {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum IROp {
+pub enum IROp
+{
     Nop,
     Math(String, Box<IRValue>, Box<IRValue>),
     Unary(String, Box<IRValue>),
@@ -101,11 +111,13 @@ pub enum IROp {
     Cond(Box<IRValue>, usize, usize),
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct BasicBlock {
+pub struct BasicBlock
+{
     pub instructions: Vec<IRInstr>,
 }
 
-pub struct IrFunc {
+pub struct IrFunc
+{
     pub static_: bool,
     pub inline: bool,
     pub external: bool,
@@ -121,7 +133,8 @@ lazy_static::lazy_static! {
     pub static ref IR_IDGEN: Mutex<RwLock< NodeIdGenerator>> = Mutex::new(RwLock::new(NodeIdGenerator::new()));
 }
 
-pub fn ir_gen_id() -> NodeId {
+pub fn ir_gen_id() -> NodeId
+{
     let lock = IR_IDGEN.lock();
     let read = lock.read();
     read.next()
@@ -130,70 +143,96 @@ pub fn ir_gen_id() -> NodeId {
 use crate::NodeId;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct IRType {
+pub struct IRType
+{
     pub kind: IRTypeKind,
 }
 
-impl IRType {
-    pub fn dereference<'a>(&'a self) -> Option<&'a IRType> {
-        if let IRTypeKind::Ptr(subty) = &self.kind {
+impl IRType
+{
+    pub fn dereference(&self) -> Option<&IRType>
+    {
+        if let IRTypeKind::Ptr(subty) = &self.kind
+        {
             return Some(subty);
-        } else {
+        }
+        else
+        {
             None
         }
     }
 
-    pub const fn pointer_to(ty: Box<IRType>) -> IRType {
+    pub const fn pointer_to(ty: Box<IRType>) -> IRType
+    {
         IRType {
             kind: IRTypeKind::Ptr(ty),
         }
     }
 
-    pub fn is_ptr(&self) -> bool {
-        match self.kind {
+    pub fn is_ptr(&self) -> bool
+    {
+        match self.kind
+        {
             IRTypeKind::Ptr(_) => true,
             _ => false,
         }
     }
 
-    pub fn is_struct(&self) -> bool {
-        match self.kind {
+    pub fn is_struct(&self) -> bool
+    {
+        match self.kind
+        {
             IRTypeKind::Structure(_) => true,
             _ => false,
         }
     }
 
-    pub fn identical(&self, b: &Box<IRType>) -> bool {
-        if self != &**b {
+    pub fn identical(&self, b: &IRType) -> bool
+    {
+        if self != b
+        {
             return false;
         }
-        if self.is_ptr() {
+        if self.is_ptr()
+        {
             return self
                 .dereference()
                 .unwrap()
                 .identical(&Box::new(b.dereference().unwrap().clone()));
-        } else if self.is_struct() {
-            let struct_ = if let IRTypeKind::Structure(fields) = &self.kind {
+        }
+        else if self.is_struct()
+        {
+            let struct_ = if let IRTypeKind::Structure(fields) = &self.kind
+            {
                 fields.clone()
-            } else {
+            }
+            else
+            {
                 panic!()
             };
-            let struct2_ = if let IRTypeKind::Structure(fields) = &b.kind {
+            let struct2_ = if let IRTypeKind::Structure(fields) = &b.kind
+            {
                 fields.clone()
-            } else {
+            }
+            else
+            {
                 panic!()
             };
 
-            if struct_.len() != struct2_.len() {
+            if struct_.len() != struct2_.len()
+            {
                 return false;
             }
-
-            for (s1, s2) in struct_.iter().zip(&struct2_) {
-                if !s1.identical(s2) {
+            let mut matches = false;
+            for (s1, s2) in struct_.iter().zip(&struct2_)
+            {
+                if !s1.identical(s2)
+                {
                     return false;
                 }
-                return true;
+                matches = true;
             }
+            return matches;
         }
 
         true
@@ -201,7 +240,8 @@ impl IRType {
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum IRTypeKind {
+pub enum IRTypeKind
+{
     S8,
     S16,
     S32,
@@ -225,15 +265,18 @@ pub enum IRTypeKind {
 use crate::syntax::ast::Type;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct BridgeVar {
+pub struct BridgeVar
+{
     pub name: Name,
     pub ast_type: Box<Type>,
     pub ir_type: Box<IRType>,
     pub id: usize,
 }
 
-impl BridgeVar {
-    pub fn new() -> BridgeVar {
+impl BridgeVar
+{
+    pub fn new() -> BridgeVar
+    {
         BridgeVar {
             name: intern(""),
             ast_type: Box::new(Type::Void(Position::new(intern(""), 0, 0))),
@@ -246,8 +289,14 @@ impl BridgeVar {
     }
 }
 
+impl Default for BridgeVar
+{
+    fn default() -> Self { Self::new() }
+}
+
 use std::cell::RefCell;
-pub struct IrBuilder {
+pub struct IrBuilder
+{
     pub basickblocks: Vec<RefCell<BasicBlock>>,
     pub current: RefCell<BasicBlock>,
     pub current_id: usize,
@@ -256,13 +305,16 @@ pub struct IrBuilder {
     pub stack_labels: Vec<String>,
 }
 
-impl IrBuilder {
-    pub fn build_using_bb(&mut self, id: usize) {
+impl IrBuilder
+{
+    pub fn build_using_bb(&mut self, id: usize)
+    {
         self.current = self.basickblocks[id].clone();
         self.current_id = id;
     }
 
-    pub fn build_value_from_prev_ins(&mut self) -> Box<IRValue> {
+    pub fn build_value_from_prev_ins(&mut self) -> Box<IRValue>
+    {
         let block_id = self.current_id;
         let ins_id = self.current.borrow().instructions.len() - 1;
 
@@ -275,11 +327,13 @@ impl IrBuilder {
         Box::new(value)
     }
 
-    pub fn load(&mut self, value: Box<IRValue>) -> Box<IRValue> {
+    pub fn load(&mut self, value: Box<IRValue>) -> Box<IRValue>
+    {
         let ty = value.ty.dereference();
 
-        if ty.is_none() {
-            return unsafe { Box::from_raw(0 as *mut _) };
+        if ty.is_none()
+        {
+            return unsafe { Box::from_raw(std::ptr::null_mut()) };
         }
         let load = IRInstr {
             id: ir_gen_id(),
@@ -292,7 +346,8 @@ impl IrBuilder {
         self.build_value_from_prev_ins()
     }
 
-    pub fn store(&mut self, value: Box<IRValue>, dest: Box<IRValue>) {
+    pub fn store(&mut self, value: Box<IRValue>, dest: Box<IRValue>)
+    {
         let store = IRInstr {
             id: ir_gen_id(),
             op: IROp::Store(value, dest),
@@ -303,15 +358,18 @@ impl IrBuilder {
         self.current.borrow_mut().instructions.push(store);
     }
 
-    pub fn bool_type(&self) -> Box<IRType> {
+    pub fn bool_type(&self) -> Box<IRType>
+    {
         Box::new(IRType {
             kind: IRTypeKind::Bool,
         })
     }
 
-    pub fn int_type(&self, size: usize) -> Box<IRType> {
+    pub fn int_type(&self, size: usize) -> Box<IRType>
+    {
         Box::new(IRType {
-            kind: match size {
+            kind: match size
+            {
                 size if size <= 8 => IRTypeKind::S8,
                 size if size <= 16 => IRTypeKind::S16,
                 size if size <= 32 => IRTypeKind::S32,
@@ -321,9 +379,11 @@ impl IrBuilder {
         })
     }
 
-    pub fn uint_type(&self, size: usize) -> Box<IRType> {
+    pub fn uint_type(&self, size: usize) -> Box<IRType>
+    {
         Box::new(IRType {
-            kind: match size {
+            kind: match size
+            {
                 size if size <= 8 => IRTypeKind::U8,
                 size if size <= 16 => IRTypeKind::U16,
                 size if size <= 32 => IRTypeKind::U32,
@@ -333,17 +393,20 @@ impl IrBuilder {
         })
     }
 
-    pub fn float_type(&self) -> Box<IRType> {
+    pub fn float_type(&self) -> Box<IRType>
+    {
         Box::new(IRType {
             kind: IRTypeKind::Float,
         })
     }
-    pub fn double_type(&self) -> Box<IRType> {
+    pub fn double_type(&self) -> Box<IRType>
+    {
         Box::new(IRType {
             kind: IRTypeKind::Double,
         })
     }
-    pub fn build_break(&mut self, bb: usize) {
+    pub fn build_break(&mut self, bb: usize)
+    {
         let instr = IRInstr {
             id: ir_gen_id(),
             op: IROp::Break(bb),
@@ -353,7 +416,8 @@ impl IrBuilder {
         };
         self.current.borrow_mut().instructions.push(instr);
     }
-    pub fn eq(&mut self, a: Box<IRValue>, b: Box<IRValue>) -> Box<IRValue> {
+    pub fn eq(&mut self, a: Box<IRValue>, b: Box<IRValue>) -> Box<IRValue>
+    {
         let math = IRInstr {
             id: ir_gen_id(),
             op: IROp::Math("==".into(), a, b),
@@ -369,7 +433,8 @@ impl IrBuilder {
         &mut self,
         ty: Box<IRType>,
         values: Vec<Box<IRValue>>,
-    ) -> Box<IRValue> {
+    ) -> Box<IRValue>
+    {
         let mut value = IRValue::empty();
 
         value.data = ValueData::StructConstruction(values);
@@ -378,13 +443,15 @@ impl IrBuilder {
         Box::new(value)
     }
 
-    pub fn func_ptr(&self) -> Box<IRType> {
-        return Box::new(IRType {
+    pub fn func_ptr(&self) -> Box<IRType>
+    {
+        Box::new(IRType {
             kind: IRTypeKind::FuncPtr,
-        });
+        })
     }
 
-    pub fn build_int(&mut self, value_: i64) -> Box<IRValue> {
+    pub fn build_int(&mut self, value_: i64) -> Box<IRValue>
+    {
         let mut value = IRValue::empty();
         value.data = ValueData::Int(value_);
         value.ty = self.int_type(32);
@@ -392,7 +459,8 @@ impl IrBuilder {
         Box::new(value)
     }
 
-    pub fn build_usize(&mut self, value_: usize) -> Box<IRValue> {
+    pub fn build_usize(&mut self, value_: usize) -> Box<IRValue>
+    {
         let mut value = IRValue::empty();
         value.data = ValueData::Int(value_ as i64);
         value.ty = self.uint_type(64);
@@ -400,7 +468,8 @@ impl IrBuilder {
         Box::new(value)
     }
 
-    pub fn build_str(&mut self, value_: String) -> Box<IRValue> {
+    pub fn build_str(&mut self, value_: String) -> Box<IRValue>
+    {
         let mut value = IRValue::empty();
         value.data = ValueData::String(value_);
         value.ty = Box::new(IRType::pointer_to(self.uint_type(8)));
@@ -408,7 +477,8 @@ impl IrBuilder {
         Box::new(value)
     }
 
-    pub fn bitcast(&mut self, from: Box<IRValue>, to: Box<IRType>) -> Box<IRValue> {
+    pub fn bitcast(&mut self, from: Box<IRValue>, to: Box<IRType>) -> Box<IRValue>
+    {
         let mut instr = IRInstr::new();
         instr.result_ty = to;
         instr.op = IROp::BitCast(from);
@@ -416,7 +486,8 @@ impl IrBuilder {
         self.build_value_from_prev_ins()
     }
 
-    pub fn zext(&mut self, from: Box<IRValue>, to: Box<IRType>) -> Box<IRValue> {
+    pub fn zext(&mut self, from: Box<IRValue>, to: Box<IRType>) -> Box<IRValue>
+    {
         let mut instr = IRInstr::new();
 
         instr.result_ty = to;
@@ -426,7 +497,8 @@ impl IrBuilder {
         self.build_value_from_prev_ins()
     }
 
-    pub fn trunc(&mut self, from: Box<IRValue>, to: Box<IRType>) -> Box<IRValue> {
+    pub fn trunc(&mut self, from: Box<IRValue>, to: Box<IRType>) -> Box<IRValue>
+    {
         let mut instr = IRInstr::new();
 
         instr.result_ty = to;
@@ -436,7 +508,8 @@ impl IrBuilder {
         self.build_value_from_prev_ins()
     }
 
-    pub fn fext(&mut self, from: Box<IRValue>, to: Box<IRType>) -> Box<IRValue> {
+    pub fn fext(&mut self, from: Box<IRValue>, to: Box<IRType>) -> Box<IRValue>
+    {
         let mut instr = IRInstr::new();
 
         instr.result_ty = to;
@@ -446,7 +519,8 @@ impl IrBuilder {
         self.build_value_from_prev_ins()
     }
 
-    pub fn int_to_ptr(&mut self, from: Box<IRValue>, to: Box<IRType>) -> Box<IRValue> {
+    pub fn int_to_ptr(&mut self, from: Box<IRValue>, to: Box<IRType>) -> Box<IRValue>
+    {
         let mut instr = IRInstr::new();
 
         instr.result_ty = to;
@@ -456,7 +530,8 @@ impl IrBuilder {
         self.build_value_from_prev_ins()
     }
 
-    pub fn ptr_to_int(&mut self, from: Box<IRValue>, to: Box<IRType>) -> Box<IRValue> {
+    pub fn ptr_to_int(&mut self, from: Box<IRValue>, to: Box<IRType>) -> Box<IRValue>
+    {
         let mut instr = IRInstr::new();
 
         instr.result_ty = to;

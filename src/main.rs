@@ -13,7 +13,8 @@ use structopt::StructOpt;
 use std::path::PathBuf;
 
 #[derive(Debug, StructOpt)]
-pub enum Backend {
+pub enum Backend
+{
     #[structopt(help = "Default backend, allows JIT and AOT compilation")]
     GccJIT,
     #[structopt(help = "C++ backend,still W.I.P")]
@@ -22,27 +23,25 @@ pub enum Backend {
     CraneLift,
 }
 
-impl Backend {
-    pub const fn gccjit() -> &'static str {
-        "gccjit"
-    }
+impl Backend
+{
+    pub const fn gccjit() -> &'static str { "gccjit" }
 
-    pub const fn cpp() -> &'static str {
-        "cpp"
-    }
+    pub const fn cpp() -> &'static str { "cpp" }
 
-    pub const fn cranelift() -> &'static str {
-        "cranelift"
-    }
+    pub const fn cranelift() -> &'static str { "cranelift" }
 }
 
 use std::str::FromStr;
 
-impl FromStr for Backend {
+impl FromStr for Backend
+{
     type Err = &'static str;
-    fn from_str(s: &str) -> Result<Backend, &'static str> {
+    fn from_str(s: &str) -> Result<Backend, &'static str>
+    {
         let s: &str = &s.to_lowercase();
-        match s {
+        match s
+        {
             "gccjit" => Ok(Backend::GccJIT),
             "cranelift" => Ok(Backend::CraneLift),
             "cpp" | "c++" => Ok(Backend::CPP),
@@ -53,7 +52,8 @@ impl FromStr for Backend {
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "jazz", about = "Jazz language compiler")]
-pub struct Options {
+pub struct Options
+{
     #[structopt(parse(from_os_str))]
     pub file: PathBuf,
     #[structopt(
@@ -95,7 +95,8 @@ pub struct Options {
     pub backend: Backend,
 }
 
-fn main() -> Result<(), MsgWithPos> {
+fn main() -> Result<(), MsgWithPos>
+{
     let opts: Options = Options::from_args();
     let mut file = File {
         root: opts
@@ -115,7 +116,8 @@ fn main() -> Result<(), MsgWithPos> {
     let mut parser = Parser::new(reader, &mut file);
 
     let err = parser.parse();
-    if err.is_err() {
+    if err.is_err()
+    {
         eprintln!("{}", err.clone().err().unwrap());
         std::process::exit(-1);
     }
@@ -133,17 +135,21 @@ fn main() -> Result<(), MsgWithPos> {
     let mut semantic = SemCheck::new(&mut ctx);
 
     semantic.run();
-    match opts.backend {
-        Backend::CPP => {
+    match opts.backend
+    {
+        Backend::CPP =>
+        {
             use jazz::ast2cpp::Translator;
             let mut translator = Translator::new(ctx);
             translator.run();
         }
-        Backend::GccJIT => {
-            let mut cgen = Codegen::new(&ctx, "JazzModule");
+        Backend::GccJIT =>
+        {
+            let mut cgen = Codegen::new(&mut ctx, "JazzModule");
             cgen.compile();
         }
-        Backend::CraneLift => {
+        Backend::CraneLift =>
+        {
             eprintln!("Cranelift backend still unimplemented");
         }
     }

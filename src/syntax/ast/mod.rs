@@ -3,18 +3,23 @@ use std::ops::Index;
 
 use super::lexer::token::{FloatSuffix, IntBase, IntSuffix};
 
-pub struct File {
+pub struct File
+{
     pub root: String,
     pub src: String,
     pub path: String,
     pub elems: Vec<Elem>,
 }
 
-impl File {
-    pub fn functions(&self) -> Vec<&Function> {
+impl File
+{
+    pub fn functions(&self) -> Vec<&Function>
+    {
         let mut funs = vec![];
-        for elem in self.elems.iter() {
-            if let Elem::Func(f) = elem {
+        for elem in self.elems.iter()
+        {
+            if let Elem::Func(f) = elem
+            {
                 funs.push(f);
             }
         }
@@ -26,13 +31,13 @@ impl File {
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub struct NodeId(pub usize);
 
-impl fmt::Display for NodeId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "#{}", self.0)
-    }
+impl fmt::Display for NodeId
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "#{}", self.0) }
 }
 #[derive(Clone, Debug)]
-pub enum Elem {
+pub enum Elem
+{
     Func(Function),
     Struct(Struct),
     Const(Const),
@@ -40,7 +45,8 @@ pub enum Elem {
     Global(Global),
     Link(Name),
     Import(String),
-    ConstExpr {
+    ConstExpr
+    {
         id: NodeId,
         pos: Position,
         name: Name,
@@ -49,7 +55,8 @@ pub enum Elem {
     Alias(Name, Type),
 }
 #[derive(Clone, Debug)]
-pub struct Global {
+pub struct Global
+{
     pub id: NodeId,
     pub pos: Position,
     pub name: Name,
@@ -62,7 +69,8 @@ pub struct Global {
 }
 
 #[derive(Clone, Debug)]
-pub struct Const {
+pub struct Const
+{
     pub id: NodeId,
     pub pos: Position,
     pub public: bool,
@@ -72,7 +80,8 @@ pub struct Const {
 }
 
 #[derive(Clone, Debug)]
-pub struct Struct {
+pub struct Struct
+{
     pub id: NodeId,
     pub pos: Position,
     pub name: Name,
@@ -81,7 +90,8 @@ pub struct Struct {
 }
 
 #[derive(Clone, Debug, Hash)]
-pub struct StructField {
+pub struct StructField
+{
     pub id: NodeId,
     pub name: Name,
     pub pos: Position,
@@ -89,14 +99,17 @@ pub struct StructField {
 }
 impl Eq for StructField {}
 
-impl PartialEq for StructField {
-    fn eq(&self, other: &Self) -> bool {
+impl PartialEq for StructField
+{
+    fn eq(&self, other: &Self) -> bool
+    {
         (self.name == other.name) && (self.data_type == other.data_type)
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct StructArg {
+pub struct StructArg
+{
     pub id: NodeId,
     pub name: Name,
     pub pos: Position,
@@ -107,7 +120,8 @@ use super::interner::*;
 use crate::syntax::position::Position;
 
 #[derive(Clone, Debug, Hash)]
-pub enum Type {
+pub enum Type
+{
     Basic(TypeBasic),
     Ptr(TypePtr),
     Array(TypeArray),
@@ -118,9 +132,12 @@ pub enum Type {
 
 use std::cmp::{Eq, PartialEq};
 impl Eq for Type {}
-impl PartialEq for Type {
-    fn eq(&self, other: &Type) -> bool {
-        match (self, other) {
+impl PartialEq for Type
+{
+    fn eq(&self, other: &Type) -> bool
+    {
+        match (self, other)
+        {
             (Type::Basic(basic), Type::Basic(basic2)) => basic.name == basic2.name,
             (Type::Array(a1), Type::Array(a2)) => (a1.subtype == a2.subtype) && (a1.len == a2.len),
             (Type::Ptr(ptr), Type::Ptr(ptr2)) => ptr.subtype == ptr2.subtype,
@@ -135,27 +152,31 @@ impl PartialEq for Type {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct TypePtr {
+pub struct TypePtr
+{
     pub id: NodeId,
     pub pos: Position,
     pub subtype: Box<Type>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct TypeBasic {
+pub struct TypeBasic
+{
     pub id: NodeId,
     pub pos: Position,
     pub name: Name,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct TypeArray {
+pub struct TypeArray
+{
     pub id: NodeId,
     pub pos: Position,
     pub subtype: Box<Type>,
     pub len: Option<usize>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct TypeStruct {
+pub struct TypeStruct
+{
     pub id: NodeId,
     pub pos: Position,
     pub name: Name,
@@ -163,15 +184,18 @@ pub struct TypeStruct {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct TypeFunc {
+pub struct TypeFunc
+{
     pub id: NodeId,
     pub pos: Position,
     pub params: Vec<Box<Type>>,
     pub ret: Box<Type>,
 }
 
-impl Type {
-    pub const fn create_basic(id: NodeId, pos: Position, name: Name) -> Type {
+impl Type
+{
+    pub const fn create_basic(id: NodeId, pos: Position, name: Name) -> Type
+    {
         Type::Basic(TypeBasic { id, pos, name })
     }
 
@@ -180,7 +204,8 @@ impl Type {
         pos: Position,
         name: Name,
         fields: Vec<StructField>,
-    ) -> Type {
+    ) -> Type
+    {
         Type::Struct(TypeStruct {
             id,
             pos,
@@ -189,19 +214,17 @@ impl Type {
         })
     }
 
-    pub const fn create_ptr(id: NodeId, pos: Position, sub: Box<Type>) -> Type {
+    pub const fn create_ptr(id: NodeId, pos: Position, sub: Box<Type>) -> Type
+    {
         Type::Ptr(TypePtr {
             id,
             pos,
             subtype: sub,
         })
     }
-    pub const fn create_array(
-        id: NodeId,
-        pos: Position,
-        ty: Box<Type>,
-        len: Option<usize>,
-    ) -> Type {
+    pub const fn create_array(id: NodeId, pos: Position, ty: Box<Type>, len: Option<usize>)
+        -> Type
+    {
         Type::Array(TypeArray {
             id,
             pos,
@@ -215,7 +238,8 @@ impl Type {
         pos: Position,
         params: Vec<Box<Type>>,
         ret: Box<Type>,
-    ) -> Type {
+    ) -> Type
+    {
         Type::Func(TypeFunc {
             id,
             pos,
@@ -224,79 +248,101 @@ impl Type {
         })
     }
 
-    pub fn to_basic(&self) -> Option<&TypeBasic> {
-        match self {
+    pub fn to_basic(&self) -> Option<&TypeBasic>
+    {
+        match self
+        {
             Type::Basic(b) => Some(b),
             _ => None,
         }
     }
 
-    pub fn is_ptr(&self) -> bool {
-        match self {
+    pub fn is_ptr(&self) -> bool
+    {
+        match self
+        {
             Type::Ptr(_) => true,
             _ => false,
         }
     }
 
-    pub fn to_ptr(&self) -> Option<&TypePtr> {
-        match self {
+    pub fn to_ptr(&self) -> Option<&TypePtr>
+    {
+        match self
+        {
             Type::Ptr(p) => Some(p),
             _ => None,
         }
     }
-    pub fn to_func(&self) -> Option<&TypeFunc> {
-        match self {
+    pub fn to_func(&self) -> Option<&TypeFunc>
+    {
+        match self
+        {
             Type::Func(f) => Some(f),
             _ => None,
         }
     }
 
-    pub fn to_struct(&self) -> Option<&TypeStruct> {
-        match self {
+    pub fn to_struct(&self) -> Option<&TypeStruct>
+    {
+        match self
+        {
             Type::Struct(s) => Some(s),
             Type::Ptr(s) => s.subtype.to_struct(),
             _ => None,
         }
     }
 
-    pub fn is_struct(&self) -> bool {
-        match self {
+    pub fn is_struct(&self) -> bool
+    {
+        match self
+        {
             Type::Struct(_) => true,
             Type::Ptr(ptr) => ptr.subtype.is_struct(),
             _ => false,
         }
     }
 
-    pub fn to_array(&self) -> Option<&TypeArray> {
-        match self {
+    pub fn to_array(&self) -> Option<&TypeArray>
+    {
+        match self
+        {
             Type::Array(arr) => Some(arr),
             _ => None,
         }
     }
 
-    pub fn is_void(&self) -> bool {
-        match self {
+    pub fn is_void(&self) -> bool
+    {
+        match self
+        {
             Type::Void(_) => true,
             _ => false,
         }
     }
 
-    pub fn is_array(&self) -> bool {
-        match self {
+    pub fn is_array(&self) -> bool
+    {
+        match self
+        {
             Type::Array(_) => true,
             _ => false,
         }
     }
 
-    pub fn is_basic(&self) -> bool {
-        match self {
+    pub fn is_basic(&self) -> bool
+    {
+        match self
+        {
             Type::Basic(_) => true,
             _ => false,
         }
     }
 
-    pub fn pos(&self) -> Position {
-        match self {
+    pub fn pos(&self) -> Position
+    {
+        match self
+        {
             Type::Array(arr) => arr.pos,
             Type::Basic(b) => b.pos,
             Type::Ptr(p) => p.pos,
@@ -306,8 +352,10 @@ impl Type {
         }
     }
 
-    pub fn id(&self) -> NodeId {
-        match self {
+    pub fn id(&self) -> NodeId
+    {
+        match self
+        {
             Type::Array(arr) => arr.id,
             Type::Basic(b) => b.id,
             Type::Ptr(p) => p.id,
@@ -318,37 +366,49 @@ impl Type {
     }
 }
 
-impl fmt::Display for Type {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
+impl fmt::Display for Type
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
+    {
+        match self
+        {
             Type::Void(_) => write!(f, "void"),
             Type::Ptr(ptr) => write!(f, "*{}", ptr.subtype),
             Type::Array(arr) => write!(
                 f,
                 "{}[{}]",
                 arr.subtype,
-                if arr.len.is_some() {
+                if arr.len.is_some()
+                {
                     arr.len.unwrap().to_string()
-                } else {
+                }
+                else
+                {
                     "".to_owned()
                 }
             ),
             Type::Basic(basic) => write!(f, "{}", str(basic.name)),
-            Type::Struct(struc) => {
+            Type::Struct(struc) =>
+            {
                 write!(f, "{}(", str(struc.name))?;
-                for (i, field) in struc.fields.iter().enumerate() {
+                for (i, field) in struc.fields.iter().enumerate()
+                {
                     write!(f, "{}", field.data_type)?;
-                    if i != struc.fields.len() - 1 {
+                    if i != struc.fields.len() - 1
+                    {
                         write!(f, ",")?;
                     }
                 }
                 write!(f, ")")
             }
-            Type::Func(fun) => {
+            Type::Func(fun) =>
+            {
                 write!(f, "(")?;
-                for (i, p) in fun.params.iter().enumerate() {
+                for (i, p) in fun.params.iter().enumerate()
+                {
                     write!(f, "{}", p)?;
-                    if i != fun.params.len() - 1 {
+                    if i != fun.params.len() - 1
+                    {
                         write!(f, ",")?;
                     }
                 }
@@ -370,7 +430,8 @@ impl fmt::Display for Type {
 /// ```
 
 #[derive(Clone, Debug)]
-pub struct Function {
+pub struct Function
+{
     pub id: NodeId,
     pub pos: Position,
     pub name: Name,
@@ -389,11 +450,14 @@ pub struct Function {
     pub ir_temp_id: usize,
 }
 
-impl PartialEq for Function {
-    fn eq(&self, other: &Self) -> bool {
+impl PartialEq for Function
+{
+    fn eq(&self, other: &Self) -> bool
+    {
         let mut params_match = false;
-        for (p1, p2) in self.params.iter().zip(&other.params) {
-            params_match = if p1.1 == p2.1 { true } else { false };
+        for (p1, p2) in self.params.iter().zip(&other.params)
+        {
+            params_match = p1.1 == p2.1;
         }
 
         self.name == other.name
@@ -405,38 +469,49 @@ impl PartialEq for Function {
 }
 
 #[derive(Clone, Debug)]
-pub struct Expr {
+pub struct Expr
+{
     pub id: NodeId,
     pub pos: Position,
     pub kind: ExprKind,
 }
 
-impl Expr {
-    pub fn is_deref(&self) -> bool {
-        match &self.kind {
+impl Expr
+{
+    pub fn is_deref(&self) -> bool
+    {
+        match &self.kind
+        {
             ExprKind::Deref(_) => true,
             _ => false,
         }
     }
 
-    pub fn is_bool(&self, val: bool) -> bool {
-        match &self.kind {
+    pub fn is_bool(&self, val: bool) -> bool
+    {
+        match &self.kind
+        {
             ExprKind::Bool(b) => *b == val,
             _ => false,
         }
     }
 }
 
-impl Expr {
-    pub fn map<U>(&self, mut f: impl FnMut(&Self) -> U, or_: U) -> Vec<U> {
-        match &self.kind {
+impl Expr
+{
+    pub fn map<U>(&self, mut f: impl FnMut(&Self) -> U, or_: U) -> Vec<U>
+    {
+        match &self.kind
+        {
             ExprKind::Unary(_, expr) => return vec![f(expr)],
             ExprKind::Binary(_, e1, e2) => return vec![f(e1), f(e2)],
             ExprKind::ArrayIdx(e1, e2) => return vec![f(e1), f(e2)],
             ExprKind::Array(_, exprs) => exprs.iter().map(|e| f(e)).collect(),
-            ExprKind::Call(_, e1, e2) => {
+            ExprKind::Call(_, e1, e2) =>
+            {
                 let mut v = vec![];
-                if e1.is_some() {
+                if e1.is_some()
+                {
                     v.push(f(&e1.clone().unwrap()));
                 }
                 let _ = e2.iter().map(|e| v.push(f(e)));
@@ -453,7 +528,8 @@ impl Expr {
 }
 
 #[derive(Clone, Debug)]
-pub enum ExprKind {
+pub enum ExprKind
+{
     Unary(String, Box<Expr>),
     Binary(String, Box<Expr>, Box<Expr>),
     Char(char),
@@ -476,19 +552,20 @@ pub enum ExprKind {
     SizeOf(Box<Type>),
 }
 #[derive(Clone, Debug)]
-pub struct Stmt {
+pub struct Stmt
+{
     pub id: NodeId,
     pub pos: Position,
     pub kind: StmtKind,
 }
-impl Stmt {
-    pub fn is_if(&self) -> bool {
-        self.kind.is_if()
-    }
+impl Stmt
+{
+    pub fn is_if(&self) -> bool { self.kind.is_if() }
 }
 
 #[derive(Clone, Debug)]
-pub enum StmtKind {
+pub enum StmtKind
+{
     Return(Option<Box<Expr>>),
     Block(Vec<Box<Stmt>>),
     Expr(Box<Expr>),
@@ -500,9 +577,12 @@ pub enum StmtKind {
     Break,
 }
 
-impl StmtKind {
-    pub fn is_if(&self) -> bool {
-        match self {
+impl StmtKind
+{
+    pub fn is_if(&self) -> bool
+    {
+        match self
+        {
             StmtKind::If(_, _, _) => true,
             _ => false,
         }
@@ -510,30 +590,30 @@ impl StmtKind {
 }
 
 #[derive(Clone, Debug)]
-pub struct Path {
+pub struct Path
+{
     pub path: Vec<Name>,
 }
 
-impl Path {
-    pub fn new(name: Name) -> Path {
-        Path { path: vec![name] }
-    }
+impl Path
+{
+    pub fn new(name: Name) -> Path { Path { path: vec![name] } }
 
-    pub fn name(&self) -> Name {
+    pub fn name(&self) -> Name
+    {
         assert_eq!(1, self.path.len());
 
         self.path[0]
     }
 
-    pub fn len(&self) -> usize {
-        self.path.len()
-    }
+    pub fn len(&self) -> usize { self.path.len() }
+
+    pub fn is_empty(&self) -> bool { self.len() == 0 }
 }
 
-impl Index<usize> for Path {
+impl Index<usize> for Path
+{
     type Output = Name;
 
-    fn index(&self, idx: usize) -> &Name {
-        &self.path[idx]
-    }
+    fn index(&self, idx: usize) -> &Name { &self.path[idx] }
 }
