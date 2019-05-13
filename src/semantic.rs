@@ -200,16 +200,16 @@ impl<'a> SemCheck<'a>
         {
             if let Elem::Import(import) = elem
             {
-                let import = if self.ctx.file.root.is_empty()
+                let import = if self.ctx.file.root.len() == 0
                 {
                     import.to_owned()
                 }
                 else
                 {
-                    let path = std::path::Path::new(&self.ctx.file.root).parent().unwrap();
-                    format!("{}/{}", path.display(), import)
+                    
+                    format!("{}/{}", self.ctx.file.root, import)
                 };
-
+                
                 let mut file = File {
                     elems: vec![],
                     src: String::new(),
@@ -219,7 +219,8 @@ impl<'a> SemCheck<'a>
                 use crate::syntax::lexer;
                 use crate::syntax::parser::Parser;
                 use lexer::reader::Reader;
-                let reader = Reader::from_file(&import).expect("File not found");
+                
+                let reader = Reader::from_file(&import).expect(&format!("File {} not found",import));
                 let mut parser = Parser::new(reader, &mut file);
                 parser.parse().expect("Error");
 

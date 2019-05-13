@@ -102,14 +102,15 @@ fn main() -> Result<(), MsgWithPos>
         root: opts
             .file
             .parent()
-            .unwrap_or(&std::path::PathBuf::from(""))
+            .unwrap_or(&std::path::Path::new(""))
             .to_str()
             .unwrap()
             .to_owned(),
         src: String::new(),
-        path: opts.file.file_stem().unwrap().to_str().unwrap().to_owned(),
+        path: opts.file.to_str().unwrap().to_owned(),
         elems: vec![],
     };
+
 
     let reader = Reader::from_file(opts.file.to_str().unwrap()).unwrap();
 
