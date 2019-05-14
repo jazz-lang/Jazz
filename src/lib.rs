@@ -2,6 +2,9 @@
 #![warn(rust_2018_idioms)]
 #![allow(clippy::redundant_closure)]
 #![allow(clippy::vec_box)]
+#![feature(const_fn)]
+#![feature(box_syntax)]
+
 #[macro_use]
 pub mod macros;
 pub mod ast2cpp;

@@ -1,5 +1,34 @@
+#![feature(box_syntax)]
+
 extern crate jazz;
 extern crate structopt;
+/*
+use jazz::ir::Function;
+use jazz::ir::IrType;
+use jazz::ir::FuncionId;
+use jazz::ir::builder::FunctionBuilder;
+
+fn main() {
+    let mut f = Function::new(FuncionId(0), "main");
+
+    let mut builder = FunctionBuilder::new(&mut f);
+
+    {
+        let entry = builder.new_block();
+        builder.switch_to_block(entry);
+        let int = IrType::Int(32);
+        let v0 = builder.stack_alloc(8);
+        builder.declare_variable(IrType::Ptr(box IrType::UInt(8)), 0);
+        builder.def_var(0, v0);
+
+        let val = builder.iconst(int.clone(), 42);
+
+        let var = builder.use_var(0);
+        builder.store(var, val);
+    }
+
+    println!("{}",f);
+}*/
 
 use jazz::err::MsgWithPos;
 use jazz::gccjit::Codegen;
@@ -53,7 +82,10 @@ impl FromStr for Backend
 #[derive(StructOpt, Debug)]
 #[structopt(name = "jazz", about = "Jazz language compiler")]
 pub struct Options
-{
+{   
+    #[structopt(short = "l",long = "link")]
+    pub libraries_link: Vec<String>,
+
     #[structopt(parse(from_os_str))]
     pub file: PathBuf,
     #[structopt(
@@ -111,7 +143,6 @@ fn main() -> Result<(), MsgWithPos>
         elems: vec![],
     };
 
-
     let reader = Reader::from_file(opts.file.to_str().unwrap()).unwrap();
 
     let mut parser = Parser::new(reader, &mut file);
@@ -133,6 +164,7 @@ fn main() -> Result<(), MsgWithPos>
         .map_or(String::new(), |e: PathBuf| e.to_str().unwrap().to_owned());
     ctx.opt = opts.opt_level;
     ctx.gimple = opts.emit_gimple;
+    ctx.file.elems.extend(opts.libraries_link.iter().map(|name| jazz::ast::Elem::Link(jazz::intern(name))));
     let mut semantic = SemCheck::new(&mut ctx);
 
     semantic.run();
@@ -154,7 +186,6 @@ fn main() -> Result<(), MsgWithPos>
             eprintln!("Cranelift backend still unimplemented");
         }
     }
-    /*let mut cgen = Codegen::new(&ctx, "module");
-    cgen.compile();*/
+
     Ok(())
 }
