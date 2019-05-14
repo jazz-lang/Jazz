@@ -12,3 +12,4 @@ colored = "1.8"
 structopt = "0.2"
 gccjit-rs = {git = "https://github.com/playXE/gccjit-rs"}
 clap = "2.33"
+linked-hash-map = "0.5"
