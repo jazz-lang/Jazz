@@ -215,6 +215,64 @@ impl<'a> Codegen<'a>
             }
         }
     }
+    fn search_for_func(&self, params: &[Type], functions: &[FunctionUnit]) -> Option<CFunction>
+    {
+        let val = None;
+        for function in functions.iter()
+        {
+            let function: &FunctionUnit = function;
+
+            let mut params_okay = false;
+            let mut not_found = false;
+            if function.f.params.len() > params.len()
+            {
+                continue;
+            }
+            for (index, param) in params.iter().enumerate()
+            {
+                if index < function.f.params.len()
+                {
+                    params_okay = param == &*function.f.params[index].1;
+                }
+                else
+                {
+                    if function.f.variadic && params_okay
+                    {
+                        not_found = false;
+                        break;
+                    }
+                    else
+                    {
+                        params_okay = false;
+                        not_found = true;
+                        break;
+                    }
+                }
+
+                if !params_okay
+                {
+                    not_found = true;
+                    break;
+                }
+            }
+
+            if not_found
+            {
+                continue;
+            }
+
+            if params_okay
+            {
+                return Some(function.c);
+            }
+            else
+            {
+                continue;
+            }
+        }
+        val
+    }
+
     pub fn new(context: &'a mut CContext, name: &str) -> Codegen<'a>
     {
         let ctx = Context::default();
@@ -789,7 +847,9 @@ impl<'a> Codegen<'a>
                 let lval = self.expr_to_lvalue(lval).unwrap();
                 let rval = self.gen_expr(rval);
                 let casted_val = self.ctx.new_cast(None, rval, lval.to_rvalue().get_type());
-                self.cur_block.unwrap().add_assignment(None, lval, casted_val);
+                self.cur_block
+                    .unwrap()
+                    .add_assignment(None, lval, casted_val);
 
                 self.ctx.new_rvalue_zero(self.ctx.new_type::<i32>()) // todo: something better than this?
             }
@@ -800,13 +860,21 @@ impl<'a> Codegen<'a>
             ExprKind::AddressOf(expr_) =>
             {
                 let val = self.expr_to_lvalue(expr_);
-                if val.is_none() {
+                if val.is_none()
+                {
                     let rval = self.gen_expr(expr_);
-                    let tmp = self.ctx.new_global(None,GlobalKind::Internal, rval.get_type(), &self.tmp_id.to_string());
-                    self.cur_block.unwrap().add_assignment(None,tmp, rval);
+                    let tmp = self.ctx.new_global(
+                        None,
+                        GlobalKind::Internal,
+                        rval.get_type(),
+                        &self.tmp_id.to_string(),
+                    );
+                    self.cur_block.unwrap().add_assignment(None, tmp, rval);
 
                     tmp.get_address(None)
-                } else {
+                }
+                else
+                {
                     val.unwrap().get_address(None)
                 }
             }
@@ -839,41 +907,23 @@ impl<'a> Codegen<'a>
                 }
                 else if let Some(functions) = self.functions.get(&name.name())
                 {
-                    let mut lval = None;
-                    let mut params_match = false;
-                    let mut not_found = true;
-                    for unit in functions.iter()
-                    {
-                        let unit: &FunctionUnit = unit;
-                        for ((i, (_name, param_ty)), arg_ty) in
-                            unit.f.params.iter().enumerate().zip(&param_types)
-                        {
-                            params_match = (*param_ty.clone() == arg_ty.clone()
-                                && i < unit.f.params.len())
-                                || i > unit.f.params.len();
-                        }
-                        if params_match
-                        {
-                            lval = Some(unit.c);
-                            not_found = false;
-                            break;
-                        }
-                        else if unit.f.params.len() == 0 && param_types.len() == 0
-                        {
-                            lval = Some(unit.c);
-                            not_found = false;
-                        }
-                    }
-                    if not_found
-                    {
-                        panic!("Function not found");
-                    }
+                    let val = self.search_for_func(&param_types, functions);
+
                     let mut params = vec![];
                     for arg in args.iter()
                     {
                         params.push(self.gen_expr(arg));
                     }
-                    return self.ctx.new_call(None, lval.unwrap(), &params);
+
+                    return self.ctx.new_call(
+                        Some(self.ctx.new_location(
+                            str(expr.pos.file).to_string(),
+                            expr.pos.line as _,
+                            expr.pos.column as _,
+                        )),
+                        val.unwrap(),
+                        &params,
+                    );
                 }
                 else if self.external_functions.contains_key(&name.name())
                 {
@@ -1260,6 +1310,7 @@ impl<'a> Codegen<'a>
                         }
                         let name_str: &str = &str(func.name).to_string();
                         let id = self.fun_id;
+
                         func.ir_temp_id = id;
                         let name = if name_str == "main"
                         {
@@ -1267,9 +1318,9 @@ impl<'a> Codegen<'a>
                         }
                         else
                         {
-                            format!("a{}", self.fun_id)
+                            format!("{}{}", str(func.name), self.fun_id)
                         };
-                        self.fun_id += 1;
+
                         let f = self.ctx.new_function(
                             None,
                             linkage,
@@ -1281,20 +1332,33 @@ impl<'a> Codegen<'a>
 
                         if let Some(functions) = self.functions.get_mut(&func.name)
                         {
-                            for fun in functions.iter()
+                            let mut found = false;
+                            for fun in functions.iter_mut()
                             {
-                                if &fun.f == func
+                                if fun.f.name == func.name
+                                    && fun.f.params == func.params
+                                    && fun.f.ret == func.ret
+                                    && fun.f.variadic == func.variadic
                                 {
-                                    continue;
+                                    *fun = FunctionUnit {
+                                        f: func.clone(),
+                                        c: f,
+                                        irname: name.clone(),
+                                    };
+                                    self.fun_id += 1;
+                                    found = true;
+
+                                    break;
                                 }
                             }
-                            let mut func = func.clone();
-                            func.ir_temp_id = id;
-                            functions.push(FunctionUnit {
-                                f: func.clone(),
-                                c: f,
-                                irname: name,
-                            });
+                            if !found
+                            {
+                                functions.push(FunctionUnit {
+                                    f: func.clone(),
+                                    c: f,
+                                    irname: name,
+                                });
+                            }
                         }
                         else
                         {
@@ -1307,6 +1371,7 @@ impl<'a> Codegen<'a>
                                 }],
                             );
                         }
+                        self.fun_id += 1;
                     }
                 }
                 _ => (),
@@ -1462,7 +1527,7 @@ impl<'a> Codegen<'a>
             let main_fn: fn(i32, *const *const i8) -> i32 =
                 unsafe { std::mem::transmute(result.get_function("main")) };
 
-            println!("Exit value: {}", main_fn(argc, argv_c.as_ptr()));
+            println!("\nExit value: {}", main_fn(argc, argv_c.as_ptr()));
         }
         else
         {

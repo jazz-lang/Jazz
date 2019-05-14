@@ -84,7 +84,10 @@ impl<'a> Parser<'a>
             None
         };
 
-        self.expect_semicolon()?;
+        if self.token.is(TokenKind::Semicolon)
+        {
+            self.expect_semicolon()?;
+        }
 
         let global = Global {
             id: self.generate_id(),
@@ -249,7 +252,10 @@ impl<'a> Parser<'a>
         let ty = self.parse_type()?;
         self.expect_token(TokenKind::Eq)?;
         let expr = self.parse_expression()?;
-        self.expect_semicolon()?;
+        if self.token.is(TokenKind::Semicolon)
+        {
+            self.expect_semicolon()?;
+        }
 
         Ok(Const {
             id: self.generate_id(),
@@ -350,7 +356,10 @@ impl<'a> Parser<'a>
             Some(expr)
         };
 
-        self.expect_semicolon()?;
+        if self.token.is(TokenKind::Semicolon)
+        {
+            self.expect_semicolon()?;
+        }
 
         Ok(Box::new(Stmt {
             id: self.generate_id(),
@@ -1041,7 +1050,10 @@ impl<'a> Parser<'a>
     fn parse_break(&mut self) -> StmtResult
     {
         let pos = self.expect_token(TokenKind::Break)?.position;
-        self.expect_semicolon()?;
+        if self.token.is(TokenKind::Semicolon)
+        {
+            self.expect_semicolon()?;
+        }
 
         Ok(Box::new(Stmt {
             id: self.generate_id(),
@@ -1053,7 +1065,10 @@ impl<'a> Parser<'a>
     fn parse_continue(&mut self) -> StmtResult
     {
         let pos = self.expect_token(TokenKind::Break)?.position;
-        self.expect_semicolon()?;
+        if self.token.is(TokenKind::Semicolon)
+        {
+            self.expect_semicolon()?;
+        }
 
         Ok(Box::new(Stmt {
             id: self.generate_id(),

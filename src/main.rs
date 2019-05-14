@@ -82,8 +82,8 @@ impl FromStr for Backend
 #[derive(StructOpt, Debug)]
 #[structopt(name = "jazz", about = "Jazz language compiler")]
 pub struct Options
-{   
-    #[structopt(short = "l",long = "link")]
+{
+    #[structopt(short = "l", long = "link")]
     pub libraries_link: Vec<String>,
 
     #[structopt(parse(from_os_str))]
@@ -164,7 +164,11 @@ fn main() -> Result<(), MsgWithPos>
         .map_or(String::new(), |e: PathBuf| e.to_str().unwrap().to_owned());
     ctx.opt = opts.opt_level;
     ctx.gimple = opts.emit_gimple;
-    ctx.file.elems.extend(opts.libraries_link.iter().map(|name| jazz::ast::Elem::Link(jazz::intern(name))));
+    ctx.file.elems.extend(
+        opts.libraries_link
+            .iter()
+            .map(|name| jazz::ast::Elem::Link(jazz::intern(name))),
+    );
     let mut semantic = SemCheck::new(&mut ctx);
 
     semantic.run();

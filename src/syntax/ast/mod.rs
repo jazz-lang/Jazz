@@ -55,21 +55,22 @@ pub enum Elem
     Alias(Name, Type),
 }
 
+impl PartialEq for Elem
+{
+    fn eq(&self, other: &Self) -> bool
+    {
+        match (self, other)
+        {
+            (Elem::Func(f), Elem::Func(f2)) => f == f2,
+            (Elem::Struct(s), Elem::Struct(s2)) => s.name == s2.name,
+            (Elem::ConstExpr { name, .. }, Elem::ConstExpr { name: name2, .. }) => name == name2,
+            (Elem::Alias(name, _), Elem::Alias(name2, _)) => name == name2,
+            (Elem::Const(c), Elem::Const(c2)) => c.name == c2.name,
+            (Elem::Global(g), Elem::Global(g2)) => g.name == g2.name,
+            (Elem::Import(s), Elem::Import(s2)) => s == s2,
+            (Elem::Link(l), Elem::Link(l2)) => l == l2,
 
-
-impl PartialEq for Elem {
-    fn eq(&self,other: &Self) -> bool {
-        match (self,other) {
-            (Elem::Func(f),Elem::Func(f2)) => f == f2,
-            (Elem::Struct(s),Elem::Struct(s2)) => s.name == s2.name,
-            (Elem::ConstExpr {name,..},Elem::ConstExpr {name: name2,..}) => name == name2,
-            (Elem::Alias(name,_),Elem::Alias(name2,_)) => name == name2,
-            (Elem::Const(c),Elem::Const(c2)) => c.name == c2.name,
-            (Elem::Global(g),Elem::Global(g2)) => g.name == g2.name,
-            (Elem::Import(s),Elem::Import(s2)) => s == s2,
-            (Elem::Link(l),Elem::Link(l2)) => l == l2,
-
-            _ => false 
+            _ => false,
         }
     }
 }
@@ -88,10 +89,9 @@ pub struct Global
     pub expr: Option<Box<Expr>>,
 }
 
-impl PartialEq for Global {
-    fn eq(&self,other: &Self) -> bool {
-        self.name == other.name
-    }
+impl PartialEq for Global
+{
+    fn eq(&self, other: &Self) -> bool { self.name == other.name }
 }
 
 #[derive(Clone, Debug)]
@@ -105,14 +105,10 @@ pub struct Const
     pub expr: Box<Expr>,
 }
 
-
-impl PartialEq for Const {
-    fn eq(&self,other: &Self) -> bool {
-        self.name == other.name
-    }
+impl PartialEq for Const
+{
+    fn eq(&self, other: &Self) -> bool { self.name == other.name }
 }
-
-
 
 #[derive(Clone, Debug)]
 pub struct Struct
@@ -124,14 +120,12 @@ pub struct Struct
     pub fields: Vec<StructField>,
 }
 
-impl PartialEq for Struct {
-    fn eq(&self,other: &Self) -> bool {
-        self.name == other.name
-    }
+impl PartialEq for Struct
+{
+    fn eq(&self, other: &Self) -> bool { self.name == other.name }
 }
 
-
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug)]
 pub struct StructField
 {
     pub id: NodeId,
@@ -140,6 +134,17 @@ pub struct StructField
     pub data_type: Type,
 }
 impl Eq for StructField {}
+
+use std::hash::{Hash, Hasher};
+
+impl Hash for StructField
+{
+    fn hash<H: Hasher>(&self, h: &mut H)
+    {
+        self.name.hash(h);
+        self.data_type.hash(h);
+    }
+}
 
 impl PartialEq for StructField
 {
@@ -161,7 +166,7 @@ pub struct StructArg
 use super::interner::*;
 use crate::syntax::position::Position;
 
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug)]
 pub enum Type
 {
     Basic(TypeBasic),
@@ -170,6 +175,34 @@ pub enum Type
     Func(TypeFunc),
     Struct(TypeStruct),
     Void(Position),
+}
+
+impl Hash for Type
+{
+    fn hash<H: Hasher>(&self, h: &mut H)
+    {
+        match self
+        {
+            Type::Basic(b) => b.name.hash(h),
+            Type::Array(a1) =>
+            {
+                a1.subtype.hash(h);
+                a1.len.hash(h)
+            }
+            Type::Ptr(p) => p.subtype.hash(h),
+            Type::Void(_) => 0.hash(h),
+            Type::Func(f) =>
+            {
+                f.params.hash(h);
+                f.ret.hash(h)
+            }
+            Type::Struct(s) =>
+            {
+                s.fields.hash(h);
+                s.name.hash(h);
+            }
+        }
+    }
 }
 
 use std::cmp::{Eq, PartialEq};
@@ -445,7 +478,6 @@ impl fmt::Display for Type
             }
             Type::Func(fun) =>
             {
-                
                 write!(f, "(")?;
                 for (i, p) in fun.params.iter().enumerate()
                 {
