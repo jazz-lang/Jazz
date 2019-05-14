@@ -993,6 +993,17 @@ impl<'a> SemCheck<'a>
                             t1
                         }
                     }
+                } 
+                else if t1.is_ptr() && t2.is_ptr() {
+                    match op {
+                        "<" | ">" | ">=" | "<=" | "!=" | "==" =>
+                        {
+                            let ty = Type::create_basic(expr.id, expr.pos, intern("bool"));
+                            self.types.insert(expr.id, ty.clone());
+                            ty
+                        }
+                        _ => unimplemented!()
+                    }
                 }
                 else
                 {

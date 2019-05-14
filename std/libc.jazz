@@ -33,6 +33,14 @@ constexpr EOF = (-1)
 constexpr FILENAME_MAX = 250
 constexpr FOPEN_MAX = 20
 constexpr TMP_MAX = 32767
+constexpr PROT_EXEC = 4
+constexpr PROT_WRITE = 2
+constexpr PROT_READ = 1
+constexpr PROT_NONE = 0
+constexpr MAP_ANON = 0x0020
+constexpr MAP_ANONYMUS = 0x0020
+constexpr MAP_PRIVATE = 0x0002
+
 
 pub struct FILE {
 	ptr: *u8,
@@ -106,3 +114,4 @@ pub extern func memmove(dst: *u8,src: *u8,count: usize) *u8;
 pub extern func strlen(c: *char) i32;
 pub extern func memset(dst: *u8,b: u8,c: usize) *u8;
 pub extern func usleep(i: i32) void;
+pub extern func mmap(addr: *u8,len: usize,prot: i32,flags: i32,fd: i32,offset:i64) *u8;
