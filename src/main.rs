@@ -83,9 +83,7 @@ impl FromStr for Backend
 #[structopt(name = "jazz", about = "Jazz language compiler")]
 pub struct Options
 {
-    #[structopt(short = "l", long = "link")]
-    pub libraries_link: Vec<String>,
-
+    
     #[structopt(parse(from_os_str))]
     pub file: PathBuf,
     #[structopt(
@@ -125,6 +123,10 @@ pub struct Options
         help = "Select backend"
     )]
     pub backend: Backend,
+    #[structopt(short = "l", long = "link")]
+    pub libraries_link: Vec<String>,
+    #[structopt(short = "f")]
+    pub gcc_opts: Vec<String>,
 }
 
 fn main() -> Result<(), MsgWithPos>
@@ -183,6 +185,9 @@ fn main() -> Result<(), MsgWithPos>
         Backend::GccJIT =>
         {
             let mut cgen = Codegen::new(&mut ctx, "JazzModule");
+            for opt in opts.gcc_opts.iter() {
+                cgen.ctx.add_command_line_option(opt);
+            }
             cgen.compile();
         }
         Backend::CraneLift =>

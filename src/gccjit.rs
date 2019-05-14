@@ -43,7 +43,7 @@ pub struct GccStruct
 
 pub struct Codegen<'a>
 {
-    ctx: Context,
+    pub ctx: Context,
     context: &'a mut CContext,
     continue_blocks: VecDeque<Block>,
     break_blocks: VecDeque<Block>,
