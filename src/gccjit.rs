@@ -908,12 +908,26 @@ impl<'a> Codegen<'a>
                 else if let Some(functions) = self.functions.get(&name.name())
                 {
                     let val = self.search_for_func(&param_types, functions);
+                    
+                    if val.is_none() {
+                        for f in functions.iter() {
+                            println!("{:#?}",f.f.params);
+                        }
+                        print!("Function {}(",str(name.name()));
+                        for p in param_types.iter() {
+                            print!(" {} ",p);
+                        }
+                        print!(") not found\n");
+                        std::process::exit(-1);
+
+                    }
 
                     let mut params = vec![];
                     for arg in args.iter()
                     {
                         params.push(self.gen_expr(arg));
                     }
+
 
                     return self.ctx.new_call(
                         Some(self.ctx.new_location(

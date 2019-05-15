@@ -28,9 +28,21 @@ pub fn str(name: Name) -> ArcStr
     read.str(name)
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(C)]
 pub struct Name(pub usize);
+
+impl fmt::Debug for Name {
+    fn fmt(&self,f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,"Name({},{})",str(*self),self.0)
+    }
+}
+
+impl fmt::Display for Name {
+    fn fmt(&self,f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,"{}",str(*self))
+    }
+}
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct ArcStr(pub Arc<String>);

@@ -505,6 +505,44 @@ impl<'a> SemCheck<'a>
             }
         }
 
+        for (i,elem) in self.ctx.file.elems.clone().iter().enumerate() {
+            match elem {
+                Elem::Func(f) => {
+                    let mut new_params = vec![];
+                    for (name,param) in f.params.iter() {
+                        new_params.push((*name,box self.infer_type(param)));
+                    }
+                    let ret = self.infer_type(&f.ret);
+                    let f = if let Elem::Func(f) = &mut self.ctx.file.elems[i] {
+                        f
+                    } else {
+                        unreachable!();
+                    };
+
+                    f.ret = box ret;
+                    f.params = new_params;
+                    
+                }
+                Elem::Struct(s) => {
+                    let s: &Struct = s;
+                    let mut new_fields = vec![];
+                    for field in s.fields.iter() {
+                        let mut f: StructField = field.clone();
+                        f.data_type = self.infer_type(&f.data_type);
+                        new_fields.push(f);
+                    } 
+
+                    if let Elem::Struct(s) = &mut self.ctx.file.elems[i] {
+                        s.fields = new_fields;
+                    } else {
+                        unreachable!();
+                    }
+                }
+                
+                _ => (),
+            }
+        }
+
         Ok(())
     }
 
