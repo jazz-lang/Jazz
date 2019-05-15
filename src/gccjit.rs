@@ -1398,15 +1398,16 @@ impl<'a> Codegen<'a>
                     else
                     {
                         let mut params = vec![];
-                        if func.this.is_some()
-                        {
-                            let (name, ty) = func.this.as_ref().unwrap();
-                            let ty = self.ty_to_ctype(ty);
-                            params.push(self.ctx.new_parameter(None, ty, &str(*name).to_string()));
-                        }
+                        
 
                         for (name, ty) in func.params.iter()
                         {
+                            let ty = self.ty_to_ctype(ty);
+                            params.push(self.ctx.new_parameter(None, ty, &str(*name).to_string()));
+                        }
+                        if func.this.is_some()
+                        {
+                            let (name, ty) = func.this.as_ref().unwrap();
                             let ty = self.ty_to_ctype(ty);
                             params.push(self.ctx.new_parameter(None, ty, &str(*name).to_string()));
                         }
@@ -1625,7 +1626,7 @@ impl<'a> Codegen<'a>
                                 {
                                     let cty = self.ty_to_ctype(ty);
                                     let loc = fun.c.new_local(None, cty, &str(*name).to_string());
-                                    let param_ = fun.c.get_param(0);
+                                    let param_ = fun.c.get_param(func.params.len() as _);
                                     block.add_assignment(None, loc, param_);
                                     self.variables.insert(
                                         *name,
