@@ -203,15 +203,15 @@ impl<'a> SemCheck<'a>
                 }
                 else
                 {
-                    let path = std::path::Path::new(&self.ctx.file.root);
-                    format!("{}/{}", path.parent().unwrap().display(), import)
+
+                    format!("{}/{}", self.ctx.file.root, import)
                 };
 
                 let mut file = File {
                     elems: vec![],
                     src: String::new(),
-                    path: String::new(),
-                    root: import.clone(),
+                    path: import.clone(),
+                    root: std::path::Path::new(&import).parent().unwrap_or(&std::path::Path::new(&import)).to_str().unwrap().to_owned(),
                 };
                 use crate::syntax::lexer;
                 use crate::syntax::parser::Parser;

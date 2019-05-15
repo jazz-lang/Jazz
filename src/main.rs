@@ -144,6 +144,7 @@ fn main() -> Result<(), MsgWithPos>
         path: opts.file.to_str().unwrap().to_owned(),
         elems: vec![],
     };
+    
 
     let reader = Reader::from_file(opts.file.to_str().unwrap()).unwrap();
 
