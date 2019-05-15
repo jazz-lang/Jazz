@@ -1325,7 +1325,7 @@ impl<'a> Codegen<'a>
                                 match ty {
                                     Type::Basic(b) => s.push_str(&str(b.name)),
                                     Type::Ptr(ptr) => {
-                                        s.push_str("*");
+                                        s.push_str("ptr");
                                         s.push_str(&ty_to_n(&ptr.subtype));
                                     }
                                     Type::Func(_) => {
@@ -1334,7 +1334,7 @@ impl<'a> Codegen<'a>
                                     Type::Struct(st) => s.push_str(&format!("{}",str(st.name))),
                                     Type::Void(_) => s.push_str("v"),
                                     Type::Array(array) => {
-                                        s.push_str("*");
+                                        s.push_str("ptr");
                                         s.push_str(&ty_to_n(&array.subtype));
                                     }
                                 }
