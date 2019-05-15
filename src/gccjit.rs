@@ -1318,7 +1318,35 @@ impl<'a> Codegen<'a>
                         }
                         else
                         {
-                            format!("{}{}", str(func.name), self.fun_id)
+
+                            fn ty_to_n(ty: &Type) -> String {
+                                let mut s = String::new();
+
+                                match ty {
+                                    Type::Basic(b) => s.push_str(&str(b.name)),
+                                    Type::Ptr(ptr) => {
+                                        s.push_str("*");
+                                        s.push_str(&ty_to_n(&ptr.subtype));
+                                    }
+                                    Type::Func(_) => {
+                                        s.push_str(&format!("{}",ty));
+                                    }
+                                    Type::Struct(st) => s.push_str(&format!("{}",str(st.name))),
+                                    Type::Void(_) => s.push_str("v"),
+                                    Type::Array(array) => {
+                                        s.push_str("*");
+                                        s.push_str(&ty_to_n(&array.subtype));
+                                    }
+                                }
+
+                                s
+                            }
+                            let mut name = str(func.name).to_string();
+                            for (_,param) in func.params.iter()
+                            {      name.push_str(&ty_to_n(param));
+                                
+                            }
+                            name
                         };
 
                         let f = self.ctx.new_function(
