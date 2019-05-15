@@ -203,7 +203,6 @@ impl<'a> SemCheck<'a>
                 }
                 else
                 {
-
                     format!("{}/{}", self.ctx.file.root, import)
                 };
 
@@ -211,7 +210,12 @@ impl<'a> SemCheck<'a>
                     elems: vec![],
                     src: String::new(),
                     path: import.clone(),
-                    root: std::path::Path::new(&import).parent().unwrap_or(&std::path::Path::new(&import)).to_str().unwrap().to_owned(),
+                    root: std::path::Path::new(&import)
+                        .parent()
+                        .unwrap_or(&std::path::Path::new(&import))
+                        .to_str()
+                        .unwrap()
+                        .to_owned(),
                 };
                 use crate::syntax::lexer;
                 use crate::syntax::parser::Parser;
@@ -505,40 +509,64 @@ impl<'a> SemCheck<'a>
             }
         }
 
-        for (i,elem) in self.ctx.file.elems.clone().iter().enumerate() {
-            match elem {
-                Elem::Func(f) => {
+        for (i, elem) in self.ctx.file.elems.clone().iter().enumerate()
+        {
+            match elem
+            {
+                Elem::Func(f1) =>
+                {
                     let mut new_params = vec![];
-                    for (name,param) in f.params.iter() {
-                        new_params.push((*name,box self.infer_type(param)));
+                    for (name, param) in f1.params.iter()
+                    {
+                        new_params.push((*name, box self.infer_type(param)));
                     }
-                    let ret = self.infer_type(&f.ret);
-                    let f = if let Elem::Func(f) = &mut self.ctx.file.elems[i] {
+                    let ret = self.infer_type(&f1.ret);
+                    let this = if let Some((_name, ty)) = &f1.this
+                    {
+                        Some(self.infer_type(ty))
+                    }
+                    else
+                    {
+                        None
+                    };
+                    let f = if let Elem::Func(f) = &mut self.ctx.file.elems[i]
+                    {
                         f
-                    } else {
+                    }
+                    else
+                    {
                         unreachable!();
                     };
 
                     f.ret = box ret;
+
+                    if let Some((_, ty)) = &mut f.this
+                    {
+                        *ty = box this.unwrap();
+                    }
                     f.params = new_params;
-                    
                 }
-                Elem::Struct(s) => {
+                Elem::Struct(s) =>
+                {
                     let s: &Struct = s;
                     let mut new_fields = vec![];
-                    for field in s.fields.iter() {
+                    for field in s.fields.iter()
+                    {
                         let mut f: StructField = field.clone();
                         f.data_type = self.infer_type(&f.data_type);
                         new_fields.push(f);
-                    } 
+                    }
 
-                    if let Elem::Struct(s) = &mut self.ctx.file.elems[i] {
+                    if let Elem::Struct(s) = &mut self.ctx.file.elems[i]
+                    {
                         s.fields = new_fields;
-                    } else {
+                    }
+                    else
+                    {
                         unreachable!();
                     }
                 }
-                
+
                 _ => (),
             }
         }
@@ -1031,16 +1059,18 @@ impl<'a> SemCheck<'a>
                             t1
                         }
                     }
-                } 
-                else if t1.is_ptr() && t2.is_ptr() {
-                    match op {
+                }
+                else if t1.is_ptr() && t2.is_ptr()
+                {
+                    match op
+                    {
                         "<" | ">" | ">=" | "<=" | "!=" | "==" =>
                         {
                             let ty = Type::create_basic(expr.id, expr.pos, intern("bool"));
                             self.types.insert(expr.id, ty.clone());
                             ty
                         }
-                        _ => unimplemented!()
+                        _ => unimplemented!(),
                     }
                 }
                 else

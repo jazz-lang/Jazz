@@ -1,7 +1,7 @@
 # Structs
 
 New struct types can be defined with the `struct` keyword:
-```
+```go
 struct Foo {
     foo: i32
 }

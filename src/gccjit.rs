@@ -23,7 +23,8 @@ pub struct FunctionUnit
     pub f: Function,
     /// GCCJIT Function
     pub c: CFunction,
-
+    pub this_ast: Option<Type>,
+    pub this_ir: Option<CType>,
     pub irname: String,
 }
 #[derive(Clone)]
@@ -215,7 +216,12 @@ impl<'a> Codegen<'a>
             }
         }
     }
-    fn search_for_func(&self, params: &[Type], functions: &[FunctionUnit]) -> Option<(CFunction,Vec<CType>)>
+    fn search_for_func(
+        &self,
+        params: &[Type],
+        this: Option<&Type>,
+        functions: &[FunctionUnit],
+    ) -> Option<(CFunction, Vec<CType>)>
     {
         let val = None;
         for function in functions.iter()
@@ -228,6 +234,53 @@ impl<'a> Codegen<'a>
             {
                 continue;
             }
+
+            if let Some(ty) = &function.this_ast
+            {
+                if this.is_none()
+                {
+                    continue;
+                }
+                else
+                {
+                    let this = this.unwrap();
+                    let this = if this.is_ptr()
+                    {
+                        this.clone()
+                    }
+                    else
+                    {
+                        this.make_ptr()
+                    };
+                    
+                    if &*ty != &this
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        let mut sig_params = vec![];
+                        for (_, p) in function.f.params.iter()
+                        {
+                            sig_params.push(*p.clone());
+                        }
+
+                        if sig_params == params
+                        {
+                            return Some((
+                                function.c,
+                                function
+                                    .f
+                                    .params
+                                    .iter()
+                                    .map(|(_, typ)| self.ty_to_ctype(typ))
+                                    .collect(),
+                            ));
+                        }
+                    }
+                }
+            }
+
             for (index, param) in params.iter().enumerate()
             {
                 if index < function.f.params.len()
@@ -263,7 +316,15 @@ impl<'a> Codegen<'a>
 
             if params_okay
             {
-                return Some((function.c,function.f.params.iter().map(|(_,typ)| self.ty_to_ctype(typ)).collect()));
+                return Some((
+                    function.c,
+                    function
+                        .f
+                        .params
+                        .iter()
+                        .map(|(_, typ)| self.ty_to_ctype(typ))
+                        .collect(),
+                ));
             }
             else
             {
@@ -887,11 +948,6 @@ impl<'a> Codegen<'a>
 
             ExprKind::Call(name, this, args) =>
             {
-                if this.is_some()
-                {
-                    panic!("methods not yet implemented in gccjit backend");
-                }
-
                 let param_types = args
                     .iter()
                     .map(|expr| self.get_id_type(expr.id).clone())
@@ -907,31 +963,57 @@ impl<'a> Codegen<'a>
                 }
                 else if let Some(functions) = self.functions.get(&name.name())
                 {
-                    let val = self.search_for_func(&param_types, functions);
-                    
-                    if val.is_none() {
-                        
-                        print!("Function {}(",str(name.name()));
-                        for p in param_types.iter() {
-                            print!(" {} ",p);
+                    let ty = if let Some(this) = this
+                    {
+                        Some(self.get_id_type(this.id))
+                    }
+                    else
+                    {
+                        None
+                    };
+                    let val = self.search_for_func(&param_types, ty.as_ref(), functions);
+
+                    if val.is_none()
+                    {
+                        print!("Function {}(", str(name.name()));
+                        for p in param_types.iter()
+                        {
+                            print!(" {} ", p);
                         }
                         print!(") not found\n");
                         std::process::exit(-1);
-
                     }
-                    let (val,types) = val.unwrap();
+                    let (val, types) = val.unwrap();
                     let mut params = vec![];
-                    for (i,arg) in args.iter().enumerate()
+
+                    for (i, arg) in args.iter().enumerate()
                     {
-                        let val = if i < types.len() {
+                        let val = if i < types.len()
+                        {
                             let val = self.gen_expr(arg);
                             self.ctx.new_cast(None, val, types[i])
-                        } else {
+                        }
+                        else
+                        {
                             self.gen_expr(arg)
                         };
                         params.push(val);
                     }
 
+                    if this.is_some()
+                    {
+                        let expr = this.clone().unwrap().clone();
+                        let ty = self.get_id_type(expr.id);
+                        let val = if !ty.is_ptr()
+                        {
+                            self.expr_to_lvalue(&expr).unwrap().get_address(None)
+                        }
+                        else
+                        {
+                            self.gen_expr(&expr)
+                        };
+                        params.push(val);
+                    }
 
                     return self.ctx.new_call(
                         Some(self.ctx.new_location(
@@ -1306,6 +1388,8 @@ impl<'a> Codegen<'a>
                         let unit = FunctionUnit {
                             f: func.clone(),
                             c: f,
+                            this_ast: None,
+                            this_ir: None,
                             irname: str(func.name).to_string(),
                         };
 
@@ -1336,22 +1420,26 @@ impl<'a> Codegen<'a>
                         }
                         else
                         {
-
-                            fn ty_to_n(ty: &Type) -> String {
+                            fn ty_to_n(ty: &Type) -> String
+                            {
                                 let mut s = String::new();
 
-                                match ty {
+                                match ty
+                                {
                                     Type::Basic(b) => s.push_str(&str(b.name)),
-                                    Type::Ptr(ptr) => {
+                                    Type::Ptr(ptr) =>
+                                    {
                                         s.push_str("ptr");
                                         s.push_str(&ty_to_n(&ptr.subtype));
                                     }
-                                    Type::Func(_) => {
-                                        s.push_str(&format!("{}",ty));
+                                    Type::Func(_) =>
+                                    {
+                                        s.push_str(&format!("{}", ty));
                                     }
-                                    Type::Struct(st) => s.push_str(&format!("{}",str(st.name))),
+                                    Type::Struct(st) => s.push_str(&format!("{}", str(st.name))),
                                     Type::Void(_) => s.push_str("v"),
-                                    Type::Array(array) => {
+                                    Type::Array(array) =>
+                                    {
                                         s.push_str("ptr");
                                         s.push_str(&ty_to_n(&array.subtype));
                                     }
@@ -1360,9 +1448,15 @@ impl<'a> Codegen<'a>
                                 s
                             }
                             let mut name = str(func.name).to_string();
-                            for (_,param) in func.params.iter()
-                            {      name.push_str(&ty_to_n(param));
-                                
+                            if func.this.is_some()
+                            {
+                                name.push_str("this");
+                                let this = *func.this.clone().unwrap().1.clone();
+                                name.push_str(&ty_to_n(&this));
+                            }
+                            for (_, param) in func.params.iter()
+                            {
+                                name.push_str(&ty_to_n(param));
                             }
                             name
                         };
@@ -1375,6 +1469,18 @@ impl<'a> Codegen<'a>
                             &name,
                             func.variadic,
                         );
+
+                        let (this_ast, this_ir) = if let Some((_, ty)) = &func.this
+                        {
+                            let ty = *ty.clone();
+                            let irty = self.ty_to_ctype(&ty);
+
+                            (Some(ty), Some(irty))
+                        }
+                        else
+                        {
+                            (None, None)
+                        };
 
                         if let Some(functions) = self.functions.get_mut(&func.name)
                         {
@@ -1389,6 +1495,8 @@ impl<'a> Codegen<'a>
                                     *fun = FunctionUnit {
                                         f: func.clone(),
                                         c: f,
+                                        this_ast: this_ast.clone(),
+                                        this_ir,
                                         irname: name.clone(),
                                     };
                                     self.fun_id += 1;
@@ -1402,6 +1510,8 @@ impl<'a> Codegen<'a>
                                 functions.push(FunctionUnit {
                                     f: func.clone(),
                                     c: f,
+                                    this_ast: this_ast.clone(),
+                                    this_ir,
                                     irname: name,
                                 });
                             }
@@ -1413,6 +1523,8 @@ impl<'a> Codegen<'a>
                                 vec![FunctionUnit {
                                     f: func.clone(),
                                     c: f,
+                                    this_ast,
+                                    this_ir,
                                     irname: name,
                                 }],
                             );
@@ -1505,6 +1617,22 @@ impl<'a> Codegen<'a>
                                             lval: loc,
                                             cty,
                                             ty: *param.clone(),
+                                        },
+                                    );
+                                }
+
+                                if let Some((name, ty)) = &func.this
+                                {
+                                    let cty = self.ty_to_ctype(ty);
+                                    let loc = fun.c.new_local(None, cty, &str(*name).to_string());
+                                    let param_ = fun.c.get_param(0);
+                                    block.add_assignment(None, loc, param_);
+                                    self.variables.insert(
+                                        *name,
+                                        VarInfo {
+                                            lval: loc,
+                                            cty,
+                                            ty: *ty.clone(),
                                         },
                                     );
                                 }

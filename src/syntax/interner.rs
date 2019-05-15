@@ -32,16 +32,17 @@ pub fn str(name: Name) -> ArcStr
 #[repr(C)]
 pub struct Name(pub usize);
 
-impl fmt::Debug for Name {
-    fn fmt(&self,f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f,"Name({},{})",str(*self),self.0)
+impl fmt::Debug for Name
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
+    {
+        write!(f, "Name({},{})", str(*self), self.0)
     }
 }
 
-impl fmt::Display for Name {
-    fn fmt(&self,f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f,"{}",str(*self))
-    }
+impl fmt::Display for Name
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", str(*self)) }
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]

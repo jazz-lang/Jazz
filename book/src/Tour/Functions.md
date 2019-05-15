@@ -23,7 +23,7 @@ To declare method function you need use this syntax:
 ```go
 func (v: *StructType) foo() void {}
 ```
-Currently methods works only with C++ backend.
+
 
 # Function type
 To declare function type you can use following syntax:

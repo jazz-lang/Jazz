@@ -83,7 +83,6 @@ impl FromStr for Backend
 #[structopt(name = "jazz", about = "Jazz language compiler")]
 pub struct Options
 {
-    
     #[structopt(parse(from_os_str))]
     pub file: PathBuf,
     #[structopt(
@@ -144,7 +143,6 @@ fn main() -> Result<(), MsgWithPos>
         path: opts.file.to_str().unwrap().to_owned(),
         elems: vec![],
     };
-    
 
     let reader = Reader::from_file(opts.file.to_str().unwrap()).unwrap();
 
@@ -186,7 +184,8 @@ fn main() -> Result<(), MsgWithPos>
         Backend::GccJIT =>
         {
             let mut cgen = Codegen::new(&mut ctx, "JazzModule");
-            for opt in opts.gcc_opts.iter() {
+            for opt in opts.gcc_opts.iter()
+            {
                 cgen.ctx.add_command_line_option(opt);
             }
             cgen.compile();

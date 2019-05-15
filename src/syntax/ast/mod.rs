@@ -269,6 +269,17 @@ pub struct TypeFunc
 
 impl Type
 {
+    pub fn make_ptr(&self) -> Type
+    {
+        match self
+        {
+            Type::Basic(b) => Type::create_ptr(b.id, b.pos, box self.clone()),
+            Type::Ptr(p) => Type::create_ptr(p.id, p.pos, box self.clone()),
+            Type::Struct(s) => Type::create_ptr(s.id, s.pos, box self.clone()),
+            _ => unimplemented!(),
+        }
+    }
+
     pub const fn create_basic(id: NodeId, pos: Position, name: Name) -> Type
     {
         Type::Basic(TypeBasic { id, pos, name })
