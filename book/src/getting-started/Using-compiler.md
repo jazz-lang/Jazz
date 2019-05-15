@@ -2,6 +2,11 @@
 
 Jazz compiler got these options:
 ```
+Jazz language compiler
+
+USAGE:
+    jazz [FLAGS] [OPTIONS] <file>
+
 FLAGS:
         --emit-asm       Print assembly to stdout
         --emit-gimple    Dump GIMPLE to stdout if gccjit backend used
@@ -12,9 +17,14 @@ FLAGS:
     -V, --version        Prints version information
 
 OPTIONS:
-        --backend <backend>        Select backend [default: gccjit]  [possible values: gccjit, cranelift, cpp]
-    -O, --opt-level <opt_level>    Set optimization level [default: 2]
-    -o, --output <output>          Set output filename
+        --backend <backend>           Select backend [default: gccjit]  [possible values: gccjit, cranelift, cpp]
+    -f <gcc_opts>...                  
+    -l, --link <libraries_link>...    
+    -O, --opt-level <opt_level>       Set optimization level [default: 2]
+    -o, --output <output>             Set output filename
+
+ARGS:
+    <file>    
 ```
 
 ## Compiling file

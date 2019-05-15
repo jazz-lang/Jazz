@@ -280,9 +280,9 @@ pub enum InstructionData
     Move(Opcode, Value),
     Return(Opcode, Value),
     VoidReturn(Opcode),
-    /// Load value at v0[v1]
+    /// Load value at v0\[v1\]
     Load(Opcode, Value, Value),
-    /// Store v2 at v0[v1]
+    /// Store v2 at v0\[v1\]
     Store(Opcode, Value, Value),
 }
 

@@ -53,6 +53,7 @@ pub enum TokenKind
     SizeOf,
     Underscore,
     Defer,
+    Lambda,
 
     // Operators
     Add,
@@ -130,8 +131,8 @@ impl TokenKind
 
             TokenKind::LQuote => "<",
             TokenKind::RQuote => ">",
-
-            TokenKind::Fun => "fun",
+            TokenKind::Lambda => "lambda",
+            TokenKind::Fun => "func",
             TokenKind::Let => "let",
             TokenKind::Var => "var",
             TokenKind::While => "while",

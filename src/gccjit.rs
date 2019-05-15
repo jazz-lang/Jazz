@@ -215,7 +215,7 @@ impl<'a> Codegen<'a>
             }
         }
     }
-    fn search_for_func(&self, params: &[Type], functions: &[FunctionUnit]) -> Option<CFunction>
+    fn search_for_func(&self, params: &[Type], functions: &[FunctionUnit]) -> Option<(CFunction,Vec<CType>)>
     {
         let val = None;
         for function in functions.iter()
@@ -263,7 +263,7 @@ impl<'a> Codegen<'a>
 
             if params_okay
             {
-                return Some(function.c);
+                return Some((function.c,function.f.params.iter().map(|(_,typ)| self.ty_to_ctype(typ)).collect()));
             }
             else
             {
@@ -910,9 +910,7 @@ impl<'a> Codegen<'a>
                     let val = self.search_for_func(&param_types, functions);
                     
                     if val.is_none() {
-                        for f in functions.iter() {
-                            println!("{:#?}",f.f.params);
-                        }
+                        
                         print!("Function {}(",str(name.name()));
                         for p in param_types.iter() {
                             print!(" {} ",p);
@@ -921,11 +919,17 @@ impl<'a> Codegen<'a>
                         std::process::exit(-1);
 
                     }
-
+                    let (val,types) = val.unwrap();
                     let mut params = vec![];
-                    for arg in args.iter()
+                    for (i,arg) in args.iter().enumerate()
                     {
-                        params.push(self.gen_expr(arg));
+                        let val = if i < types.len() {
+                            let val = self.gen_expr(arg);
+                            self.ctx.new_cast(None, val, types[i])
+                        } else {
+                            self.gen_expr(arg)
+                        };
+                        params.push(val);
                     }
 
 
@@ -935,7 +939,7 @@ impl<'a> Codegen<'a>
                             expr.pos.line as _,
                             expr.pos.column as _,
                         )),
-                        val.unwrap(),
+                        val,
                         &params,
                     );
                 }
