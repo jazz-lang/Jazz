@@ -924,14 +924,14 @@ impl<'a> Codegen<'a>
                     rvalue.access_field(None, *field)
                 }
             }
-            ExprKind::Assign(lval, rval) =>
+            ExprKind::Assign(lval_, rval_) =>
             {
-                let lval = self.expr_to_lvalue(lval).unwrap();
-                let rval = self.gen_expr(rval);
-                let casted_val = self.ctx.new_cast(None, rval, lval.to_rvalue().get_type());
+                let lval = self.expr_to_lvalue(lval_).unwrap();
+                let rval = self.gen_expr(rval_);
+                let casted_val = self.ctx.new_cast(Some(gccloc_from_loc(&self.ctx, &rval_.pos)), rval, lval.to_rvalue().get_type());
                 self.cur_block
                     .unwrap()
-                    .add_assignment(None, lval, casted_val);
+                    .add_assignment(Some(gccloc_from_loc(&self.ctx, &lval_.pos)), lval, casted_val);
 
                 self.ctx.new_rvalue_zero(self.ctx.new_type::<i32>()) // todo: something better than this?
             }
@@ -946,25 +946,25 @@ impl<'a> Codegen<'a>
                 {
                     let rval = self.gen_expr(expr_);
                     let tmp = self.ctx.new_global(
-                        None,
+                        Some(gccloc_from_loc(&self.ctx, &expr_.pos)),
                         GlobalKind::Internal,
                         rval.get_type(),
                         &self.tmp_id.to_string(),
                     );
-                    self.cur_block.unwrap().add_assignment(None, tmp, rval);
+                    self.cur_block.unwrap().add_assignment(Some(gccloc_from_loc(&self.ctx, &expr_.pos)), tmp, rval);
 
-                    tmp.get_address(None)
+                    tmp.get_address(Some(gccloc_from_loc(&self.ctx, &expr.pos)))
                 }
                 else
                 {
-                    val.unwrap().get_address(None)
+                    val.unwrap().get_address(Some(gccloc_from_loc(&self.ctx, &expr.pos)))
                 }
             }
             ExprKind::Conv(val, to) =>
             {
                 let cty = self.ty_to_ctype(to);
                 let rval = self.gen_expr(val);
-                self.ctx.new_cast(None, rval, cty)
+                self.ctx.new_cast(Some(gccloc_from_loc(&self.ctx, &expr.pos)), rval, cty)
             }
 
             ExprKind::Call(name, this, args) =>
@@ -1012,7 +1012,7 @@ impl<'a> Codegen<'a>
                         let val = if i < types.len()
                         {
                             let val = self.gen_expr(arg);
-                            self.ctx.new_cast(None, val, types[i])
+                            self.ctx.new_cast(Some(gccloc_from_loc(&self.ctx, &arg.pos)), val, types[i])
                         }
                         else
                         {
@@ -1027,7 +1027,7 @@ impl<'a> Codegen<'a>
                         let ty = self.get_id_type(expr.id);
                         let val = if !ty.is_ptr()
                         {
-                            self.expr_to_lvalue(&expr).unwrap().get_address(None)
+                            self.expr_to_lvalue(&expr).unwrap().get_address(Some(gccloc_from_loc(&self.ctx, &expr.pos)))
                         }
                         else
                         {
@@ -1059,7 +1059,7 @@ impl<'a> Codegen<'a>
                         {
                             let ty: Type = *unit.f.params[i].1.clone();
                             let cty = self.ty_to_ctype(&ty);
-                            self.ctx.new_cast(None, val, cty)
+                            self.ctx.new_cast(Some(gccloc_from_loc(&self.ctx, &arg.pos)), val, cty)
                         }
                         else
                         {
@@ -1067,7 +1067,7 @@ impl<'a> Codegen<'a>
                         };
                         params.push(val);
                     }
-                    return self.ctx.new_call(None, unit.c, &params);
+                    return self.ctx.new_call(Some(gccloc_from_loc(&self.ctx, &expr.pos)), unit.c, &params);
                 }
                 else
                 {
@@ -1080,7 +1080,7 @@ impl<'a> Codegen<'a>
                     params.push(self.gen_expr(arg));
                 }
 
-                self.ctx.new_call_through_ptr(None, var, &params)
+                self.ctx.new_call_through_ptr(Some(gccloc_from_loc(&self.ctx, &expr.pos)), var, &params)
             }
 
             ExprKind::Struct(name, args) =>
@@ -1243,7 +1243,7 @@ impl<'a> Codegen<'a>
                     let l = self.gen_expr(e1);
                     let r = self.gen_expr(e2);
                     let r = self.ctx.new_cast(Some(gccloc_from_loc(&self.ctx, &e2.pos)), r, cty);
-                    self.ctx.new_binary_op(None, binary, cty, l, r)
+                    self.ctx.new_binary_op(Some(gccloc_from_loc(&self.ctx, &expr.pos)), binary, cty, l, r)
                 }
                 else
                 {
