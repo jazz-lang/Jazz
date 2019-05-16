@@ -17,10 +17,13 @@ use crate::syntax::interner::Name;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 
-fn gccloc_from_loc(ctx: &Context, loc: &crate::syntax::position::Position) -> gccjit_rs::location::Location {
+fn gccloc_from_loc(
+    ctx: &Context,
+    loc: &crate::syntax::position::Position,
+) -> gccjit_rs::location::Location
+{
     ctx.new_location(str(loc.file).to_string(), loc.line as _, loc.column as _)
 }
-
 
 #[derive(Clone)]
 pub struct FunctionUnit
@@ -33,8 +36,6 @@ pub struct FunctionUnit
     pub this_ir: Option<CType>,
     pub irname: String,
 }
-
-
 
 #[derive(Clone)]
 pub struct VarInfo
@@ -448,7 +449,11 @@ impl<'a> Codegen<'a>
                 {
                     let array = self.gen_expr(lhs);
                     let idx = self.gen_expr(rhs);
-                    Some(self.ctx.new_array_access(Some(gccloc_from_loc(&self.ctx, &expr.pos)), array, idx))
+                    Some(self.ctx.new_array_access(
+                        Some(gccloc_from_loc(&self.ctx, &expr.pos)),
+                        array,
+                        idx,
+                    ))
                 }
                 else
                 {
@@ -460,7 +465,11 @@ impl<'a> Codegen<'a>
                 let array = self.gen_expr(array);
                 let index = self.gen_expr(index);
 
-                Some(self.ctx.new_array_access(Some(gccloc_from_loc(&self.ctx, &expr.pos)), array, index))
+                Some(self.ctx.new_array_access(
+                    Some(gccloc_from_loc(&self.ctx, &expr.pos)),
+                    array,
+                    index,
+                ))
             }
             ExprKind::Field(object, name) =>
             {
@@ -479,7 +488,10 @@ impl<'a> Codegen<'a>
 
                         let cfield = struct_.fields.get(name).expect("Field not found");
                         let lval = self.expr_to_lvalue(object).expect("LValue expected");
-                        Some(lval.to_rvalue().dereference_field(Some(gccloc_from_loc(&self.ctx, &expr.pos)), *cfield))
+                        Some(lval.to_rvalue().dereference_field(
+                            Some(gccloc_from_loc(&self.ctx, &expr.pos)),
+                            *cfield,
+                        ))
                     }
                     else if let Type::Basic(basic) = &*ptr.subtype.clone()
                     {
@@ -487,7 +499,10 @@ impl<'a> Codegen<'a>
 
                         let cfield = struct_.fields.get(name).expect("Field not found");
                         let lval = self.expr_to_lvalue(object).expect("LValue expected");
-                        return Some(lval.to_rvalue().dereference_field(Some(gccloc_from_loc(&self.ctx, &expr.pos)), *cfield));
+                        return Some(lval.to_rvalue().dereference_field(
+                            Some(gccloc_from_loc(&self.ctx, &expr.pos)),
+                            *cfield,
+                        ));
                     }
                     else
                     {
@@ -544,7 +559,9 @@ impl<'a> Codegen<'a>
             StmtKind::Expr(expr) =>
             {
                 let rval = self.gen_expr(expr);
-                self.cur_block.unwrap().add_eval(Some(gccloc_from_loc(&self.ctx, &expr.pos)), rval);
+                self.cur_block
+                    .unwrap()
+                    .add_eval(Some(gccloc_from_loc(&self.ctx, &expr.pos)), rval);
             }
             StmtKind::Block(stmts) =>
             {
@@ -582,7 +599,9 @@ impl<'a> Codegen<'a>
                 };
                 let dead_block = self.cur_func.unwrap().new_block(self.block_name_new());
 
-                self.cur_block.unwrap().end_with_jump(Some(gccloc_from_loc(&self.ctx, &stmt.pos)), break_bb);
+                self.cur_block
+                    .unwrap()
+                    .end_with_jump(Some(gccloc_from_loc(&self.ctx, &stmt.pos)), break_bb);
                 self.cur_block = Some(dead_block);
                 *self.terminated.last_mut().unwrap() = true;
             }
@@ -598,7 +617,9 @@ impl<'a> Codegen<'a>
                 };
                 let dead_block = self.cur_func.unwrap().new_block(self.block_name_new());
 
-                self.cur_block.unwrap().end_with_jump(Some(gccloc_from_loc(&self.ctx,&stmt.pos)), continue_bb);
+                self.cur_block
+                    .unwrap()
+                    .end_with_jump(Some(gccloc_from_loc(&self.ctx, &stmt.pos)), continue_bb);
                 self.cur_block = Some(dead_block);
             }
             StmtKind::Return(expr) =>
@@ -608,7 +629,9 @@ impl<'a> Codegen<'a>
                     let expr = expr.as_ref().unwrap();
                     let rval = self.gen_expr(expr);
 
-                    self.cur_block.unwrap().end_with_return(Some(gccloc_from_loc(&self.ctx, &stmt.pos)), rval);
+                    self.cur_block
+                        .unwrap()
+                        .end_with_return(Some(gccloc_from_loc(&self.ctx, &stmt.pos)), rval);
                 }
                 else
                 {
@@ -628,15 +651,20 @@ impl<'a> Codegen<'a>
                 let ty = self.get_id_type(stmt.id).clone();
 
                 let cty = self.ty_to_ctype(&ty);
-                let local = self
-                    .cur_func
-                    .unwrap()
-                    .new_local(Some(gccloc_from_loc(&self.ctx, &stmt.pos)), cty, &str(*name).to_string());
+                let local = self.cur_func.unwrap().new_local(
+                    Some(gccloc_from_loc(&self.ctx, &stmt.pos)),
+                    cty,
+                    &str(*name).to_string(),
+                );
                 if init.is_some()
                 {
                     let expr = init.as_ref().unwrap();
                     let rval = self.gen_expr(expr);
-                    self.cur_block.unwrap().add_assignment(Some(gccloc_from_loc(&self.ctx, &expr.pos)), local, rval);
+                    self.cur_block.unwrap().add_assignment(
+                        Some(gccloc_from_loc(&self.ctx, &expr.pos)),
+                        local,
+                        rval,
+                    );
                 }
 
                 self.variables.insert(
@@ -670,14 +698,20 @@ impl<'a> Codegen<'a>
 
                 let expr = self.gen_expr(cond);
 
-                self.cur_block
-                    .unwrap()
-                    .end_with_conditional(Some(gccloc_from_loc(&self.ctx, &cond.pos)), expr, bb_then, bb_else);
+                self.cur_block.unwrap().end_with_conditional(
+                    Some(gccloc_from_loc(&self.ctx, &cond.pos)),
+                    expr,
+                    bb_then,
+                    bb_else,
+                );
                 self.terminated.push(false);
                 self.cur_block = Some(bb_then);
                 self.gen_stmt(then, true);
-                if !*self.terminated.last().unwrap() {
-                self.cur_block.unwrap().end_with_jump(Some(gccloc_from_loc(&self.ctx, &then.pos)), bb_merge);
+                if !*self.terminated.last().unwrap()
+                {
+                    self.cur_block
+                        .unwrap()
+                        .end_with_jump(Some(gccloc_from_loc(&self.ctx, &then.pos)), bb_merge);
                 }
                 self.cur_block = Some(bb_merge);
 
@@ -687,8 +721,12 @@ impl<'a> Codegen<'a>
                 {
                     self.cur_block = Some(bb_else);
                     self.gen_stmt(else_branch, true);
-                    if !*self.terminated.last().unwrap() {
-                    self.cur_block.unwrap().end_with_jump(Some(gccloc_from_loc(&self.ctx, &else_branch.pos)), bb_merge);
+                    if !*self.terminated.last().unwrap()
+                    {
+                        self.cur_block.unwrap().end_with_jump(
+                            Some(gccloc_from_loc(&self.ctx, &else_branch.pos)),
+                            bb_merge,
+                        );
                     }
                 }
                 //self.terminated.pop();
@@ -928,10 +966,16 @@ impl<'a> Codegen<'a>
             {
                 let lval = self.expr_to_lvalue(lval_).unwrap();
                 let rval = self.gen_expr(rval_);
-                let casted_val = self.ctx.new_cast(Some(gccloc_from_loc(&self.ctx, &rval_.pos)), rval, lval.to_rvalue().get_type());
-                self.cur_block
-                    .unwrap()
-                    .add_assignment(Some(gccloc_from_loc(&self.ctx, &lval_.pos)), lval, casted_val);
+                let casted_val = self.ctx.new_cast(
+                    Some(gccloc_from_loc(&self.ctx, &rval_.pos)),
+                    rval,
+                    lval.to_rvalue().get_type(),
+                );
+                self.cur_block.unwrap().add_assignment(
+                    Some(gccloc_from_loc(&self.ctx, &lval_.pos)),
+                    lval,
+                    casted_val,
+                );
 
                 self.ctx.new_rvalue_zero(self.ctx.new_type::<i32>()) // todo: something better than this?
             }
@@ -951,20 +995,26 @@ impl<'a> Codegen<'a>
                         rval.get_type(),
                         &self.tmp_id.to_string(),
                     );
-                    self.cur_block.unwrap().add_assignment(Some(gccloc_from_loc(&self.ctx, &expr_.pos)), tmp, rval);
+                    self.cur_block.unwrap().add_assignment(
+                        Some(gccloc_from_loc(&self.ctx, &expr_.pos)),
+                        tmp,
+                        rval,
+                    );
 
                     tmp.get_address(Some(gccloc_from_loc(&self.ctx, &expr.pos)))
                 }
                 else
                 {
-                    val.unwrap().get_address(Some(gccloc_from_loc(&self.ctx, &expr.pos)))
+                    val.unwrap()
+                        .get_address(Some(gccloc_from_loc(&self.ctx, &expr.pos)))
                 }
             }
             ExprKind::Conv(val, to) =>
             {
                 let cty = self.ty_to_ctype(to);
                 let rval = self.gen_expr(val);
-                self.ctx.new_cast(Some(gccloc_from_loc(&self.ctx, &expr.pos)), rval, cty)
+                self.ctx
+                    .new_cast(Some(gccloc_from_loc(&self.ctx, &expr.pos)), rval, cty)
             }
 
             ExprKind::Call(name, this, args) =>
@@ -1012,7 +1062,11 @@ impl<'a> Codegen<'a>
                         let val = if i < types.len()
                         {
                             let val = self.gen_expr(arg);
-                            self.ctx.new_cast(Some(gccloc_from_loc(&self.ctx, &arg.pos)), val, types[i])
+                            self.ctx.new_cast(
+                                Some(gccloc_from_loc(&self.ctx, &arg.pos)),
+                                val,
+                                types[i],
+                            )
                         }
                         else
                         {
@@ -1027,7 +1081,13 @@ impl<'a> Codegen<'a>
                         let ty = self.get_id_type(expr.id);
                         let val = if !ty.is_ptr()
                         {
-                            self.expr_to_lvalue(&expr).unwrap().get_address(Some(gccloc_from_loc(&self.ctx, &expr.pos)))
+                            let val = self.gen_expr(&Expr {
+                                pos: expr.pos,
+                                id: expr.id,
+                                kind: ExprKind::AddressOf(expr),
+                            });
+                            
+                            val
                         }
                         else
                         {
@@ -1059,7 +1119,8 @@ impl<'a> Codegen<'a>
                         {
                             let ty: Type = *unit.f.params[i].1.clone();
                             let cty = self.ty_to_ctype(&ty);
-                            self.ctx.new_cast(Some(gccloc_from_loc(&self.ctx, &arg.pos)), val, cty)
+                            self.ctx
+                                .new_cast(Some(gccloc_from_loc(&self.ctx, &arg.pos)), val, cty)
                         }
                         else
                         {
@@ -1067,7 +1128,11 @@ impl<'a> Codegen<'a>
                         };
                         params.push(val);
                     }
-                    return self.ctx.new_call(Some(gccloc_from_loc(&self.ctx, &expr.pos)), unit.c, &params);
+                    return self.ctx.new_call(
+                        Some(gccloc_from_loc(&self.ctx, &expr.pos)),
+                        unit.c,
+                        &params,
+                    );
                 }
                 else
                 {
@@ -1080,7 +1145,11 @@ impl<'a> Codegen<'a>
                     params.push(self.gen_expr(arg));
                 }
 
-                self.ctx.new_call_through_ptr(Some(gccloc_from_loc(&self.ctx, &expr.pos)), var, &params)
+                self.ctx.new_call_through_ptr(
+                    Some(gccloc_from_loc(&self.ctx, &expr.pos)),
+                    var,
+                    &params,
+                )
             }
 
             ExprKind::Struct(name, args) =>
@@ -1093,10 +1162,11 @@ impl<'a> Codegen<'a>
                 //let rval: RValue = self.ctx.new_rvalue_zero(struct_.ty.as_type());
                 let tmp_ = format!("{}", self.tmp_id);
                 self.tmp_id += 1;
-                let tmp: LValue =
-                    self.cur_func
-                        .unwrap()
-                        .new_local(Some(gccloc_from_loc(&self.ctx, &expr.pos)), struct_.ty.as_type(), &tmp_);
+                let tmp: LValue = self.cur_func.unwrap().new_local(
+                    Some(gccloc_from_loc(&self.ctx, &expr.pos)),
+                    struct_.ty.as_type(),
+                    &tmp_,
+                );
                 //self.cur_block.unwrap().add_assignment(None, tmp, rval);
                 for arg in args.iter()
                 {
@@ -1104,7 +1174,10 @@ impl<'a> Codegen<'a>
                     let val = self.gen_expr(&arg.expr);
                     self.cur_block.unwrap().add_assignment(
                         Some(gccloc_from_loc(&self.ctx, &expr.pos)),
-                        tmp.access_field(Some(gccloc_from_loc(&self.ctx, &expr.pos)), *struct_.fields.get(&arg.name).unwrap()),
+                        tmp.access_field(
+                            Some(gccloc_from_loc(&self.ctx, &expr.pos)),
+                            *struct_.fields.get(&arg.name).unwrap(),
+                        ),
                         val,
                     );
                 }
@@ -1128,7 +1201,10 @@ impl<'a> Codegen<'a>
 
                         if &unit.f.name == name
                         {
-                            v = Some(unit.c.get_address(Some(gccloc_from_loc(&self.ctx, &expr.pos))));
+                            v = Some(
+                                unit.c
+                                    .get_address(Some(gccloc_from_loc(&self.ctx, &expr.pos))),
+                            );
                             break;
                         }
                     }
@@ -1138,7 +1214,8 @@ impl<'a> Codegen<'a>
                 {
                     let func = self.external_functions.get(name).unwrap();
 
-                    func.c.get_address(Some(gccloc_from_loc(&self.ctx, &expr.pos)))
+                    func.c
+                        .get_address(Some(gccloc_from_loc(&self.ctx, &expr.pos)))
                 }
                 else
                 {
@@ -1173,15 +1250,24 @@ impl<'a> Codegen<'a>
                     let cty = self.ty_to_ctype(&t1);
                     let e1 = self.gen_expr(e1);
                     let r2 = self.gen_expr(e2);
-                    let r2 = self.ctx.new_cast(Some(gccloc_from_loc(&self.ctx, &e2.pos)), r2, cty);
-                    return self.ctx.new_comparison(Some(gccloc_from_loc(&self.ctx, &expr.pos)), comparison, e1, r2);
+                    let r2 = self
+                        .ctx
+                        .new_cast(Some(gccloc_from_loc(&self.ctx, &e2.pos)), r2, cty);
+                    return self.ctx.new_comparison(
+                        Some(gccloc_from_loc(&self.ctx, &expr.pos)),
+                        comparison,
+                        e1,
+                        r2,
+                    );
                 }
 
                 if t1.is_ptr() && crate::semantic::ty_is_any_int(&t2)
                 {
                     let array = self.gen_expr(e1);
                     let index = self.gen_expr(e2);
-                    self.ctx.new_array_access(Some(gccloc_from_loc(&self.ctx, &expr.pos)), array, index).to_rvalue()
+                    self.ctx
+                        .new_array_access(Some(gccloc_from_loc(&self.ctx, &expr.pos)), array, index)
+                        .to_rvalue()
                 }
                 else if ty_is_any_int(&t1) && ty_is_any_int(&t2)
                 {
@@ -1204,8 +1290,16 @@ impl<'a> Codegen<'a>
                     };
                     let l = self.gen_expr(e1);
                     let r = self.gen_expr(e2);
-                    let r = self.ctx.new_cast(Some(gccloc_from_loc(&self.ctx, &e2.pos)), r, cty);
-                    self.ctx.new_binary_op(Some(gccloc_from_loc(&self.ctx, &expr.pos)), binary, cty, l, r)
+                    let r = self
+                        .ctx
+                        .new_cast(Some(gccloc_from_loc(&self.ctx, &e2.pos)), r, cty);
+                    self.ctx.new_binary_op(
+                        Some(gccloc_from_loc(&self.ctx, &expr.pos)),
+                        binary,
+                        cty,
+                        l,
+                        r,
+                    )
                 }
                 else if ty_is_any_float(&t1) && ty_is_any_float(&t2)
                 {
@@ -1223,8 +1317,16 @@ impl<'a> Codegen<'a>
                     };
                     let l = self.gen_expr(e1);
                     let r = self.gen_expr(e2);
-                    let r = self.ctx.new_cast(Some(gccloc_from_loc(&self.ctx, &e2.pos)), r, cty);
-                    self.ctx.new_binary_op(Some(gccloc_from_loc(&self.ctx, &expr.pos)), binary, cty, l, r)
+                    let r = self
+                        .ctx
+                        .new_cast(Some(gccloc_from_loc(&self.ctx, &e2.pos)), r, cty);
+                    self.ctx.new_binary_op(
+                        Some(gccloc_from_loc(&self.ctx, &expr.pos)),
+                        binary,
+                        cty,
+                        l,
+                        r,
+                    )
                 }
                 else if ty_is_any_float(&t1) && ty_is_any_int(&t2)
                 {
@@ -1242,8 +1344,16 @@ impl<'a> Codegen<'a>
                     };
                     let l = self.gen_expr(e1);
                     let r = self.gen_expr(e2);
-                    let r = self.ctx.new_cast(Some(gccloc_from_loc(&self.ctx, &e2.pos)), r, cty);
-                    self.ctx.new_binary_op(Some(gccloc_from_loc(&self.ctx, &expr.pos)), binary, cty, l, r)
+                    let r = self
+                        .ctx
+                        .new_cast(Some(gccloc_from_loc(&self.ctx, &e2.pos)), r, cty);
+                    self.ctx.new_binary_op(
+                        Some(gccloc_from_loc(&self.ctx, &expr.pos)),
+                        binary,
+                        cty,
+                        l,
+                        r,
+                    )
                 }
                 else
                 {
@@ -1308,13 +1418,19 @@ impl<'a> Codegen<'a>
                         let cty = self.ty_to_ctype(&field.data_type).clone();
                         types.push(field.data_type.clone());
                         let name: &str = &str(field.name).to_string();
-                        let cfield = self.ctx.new_field(Some(gccloc_from_loc(&self.ctx, &field.pos)), cty, name);
+                        let cfield = self.ctx.new_field(
+                            Some(gccloc_from_loc(&self.ctx, &field.pos)),
+                            cty,
+                            name,
+                        );
                         cfields.insert(field.name, cfield);
                         fields.push(cfield);
                     }
-                    let struct_ = self
-                        .ctx
-                        .new_struct_type(Some(gccloc_from_loc(&self.ctx, &s.pos)), &str(s.name).to_string(), &fields);
+                    let struct_ = self.ctx.new_struct_type(
+                        Some(gccloc_from_loc(&self.ctx, &s.pos)),
+                        &str(s.name).to_string(),
+                        &fields,
+                    );
 
                     let cstruct = GccStruct {
                         ty: struct_,
@@ -1394,7 +1510,11 @@ impl<'a> Codegen<'a>
                         for (name, ty) in func.params.iter()
                         {
                             let tyi = self.ty_to_ctype(ty);
-                            params.push(self.ctx.new_parameter(Some(gccloc_from_loc(&self.ctx, &ty.pos())), tyi, &str(*name).to_string()));
+                            params.push(self.ctx.new_parameter(
+                                Some(gccloc_from_loc(&self.ctx, &ty.pos())),
+                                tyi,
+                                &str(*name).to_string(),
+                            ));
                         }
 
                         let f = self.ctx.new_function(

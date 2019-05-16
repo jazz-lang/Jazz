@@ -3,7 +3,7 @@ use std::fmt;
 #[macro_use]
 pub mod macros;
 pub mod builder;
-
+pub mod opt;
 use crate::syntax::interner::Name;
 
 pub struct Function
