@@ -528,6 +528,7 @@ pub struct Function
     pub inline: bool,
     pub external: bool,
     pub public: bool,
+    pub internal: bool,
     pub static_: bool,
     pub params: Vec<(Name, Box<Type>)>,
     pub ret: Box<Type>,

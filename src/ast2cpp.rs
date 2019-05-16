@@ -249,7 +249,7 @@ impl Translator
             ExprKind::AddressOf(expr) =>
             {
                 self.code.push('&');
-                
+
                 self.gen_expr(expr);
             }
             ExprKind::Assign(e1, e2) =>
@@ -332,7 +332,7 @@ impl Translator
             if let Elem::Func(func) = elem
             {
                 let f: &Function = func;
-                if f.external
+                if f.external || f.internal
                 {
                     self.code.push_str("extern \"C\" {\n");
                 }
@@ -366,7 +366,7 @@ impl Translator
                     }
                 }
                 self.code.push_str(");\n");
-                if f.external
+                if f.external || f.internal
                 {
                     self.code.push_str(" } \n");
                 }
@@ -456,7 +456,10 @@ impl Translator
                 Elem::Global(global) =>
                 {
                     let global: &Global = global;
-
+                    if global.external
+                    {
+                        self.code.push_str("extern \"C\" {\n");
+                    }
                     if !global.reassignable
                     {
                         self.code.push_str("const ");
@@ -470,6 +473,10 @@ impl Translator
                         self.gen_expr(global.expr.as_ref().unwrap());
                     }
                     self.code.push(';');
+                    if global.external
+                    {
+                        self.code.push_str("\n}\n");
+                    }
                 }
                 Elem::Link(_) =>
                 {}

@@ -949,7 +949,7 @@ impl<'a> Parser<'a>
         };
 
         let ty = self.parse_type()?;
-        let body = if modifiers.contains("extern")
+        let body = if modifiers.contains("extern") || modifiers.contains("internal")
         {
             self.expect_semicolon()?;
             None
@@ -963,6 +963,7 @@ impl<'a> Parser<'a>
             id: self.generate_id(),
             name: ident,
             pos,
+            internal: modifiers.contains("internal"),
             public: modifiers.contains("pub"),
             inline: modifiers.contains("inline"),
             static_: modifiers.contains("static"),

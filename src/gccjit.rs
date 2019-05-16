@@ -1086,7 +1086,7 @@ impl<'a> Codegen<'a>
                                 id: expr.id,
                                 kind: ExprKind::AddressOf(expr),
                             });
-                            
+
                             val
                         }
                         else
@@ -1503,7 +1503,7 @@ impl<'a> Codegen<'a>
                         FunctionType::Exported
                     };
 
-                    if func.external
+                    if func.external || func.internal
                     {
                         let mut params = vec![];
 
@@ -1517,14 +1517,21 @@ impl<'a> Codegen<'a>
                             ));
                         }
 
-                        let f = self.ctx.new_function(
-                            None,
-                            linkage,
-                            self.ty_to_ctype(&func.ret),
-                            &params,
-                            &str(func.name).to_string(),
-                            func.variadic,
-                        );
+                        let f = if func.internal
+                        {
+                            self.ctx.get_builtin_function(&str(func.name).to_string())
+                        }
+                        else
+                        {
+                            self.ctx.new_function(
+                                None,
+                                linkage,
+                                self.ty_to_ctype(&func.ret),
+                                &params,
+                                &str(func.name).to_string(),
+                                func.variadic,
+                            )
+                        };
 
                         let unit = FunctionUnit {
                             f: func.clone(),
@@ -1716,7 +1723,7 @@ impl<'a> Codegen<'a>
             {
                 Elem::Func(func) =>
                 {
-                    if func.external
+                    if func.external || func.internal
                     {
                         continue;
                     }

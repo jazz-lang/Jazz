@@ -156,7 +156,7 @@ impl<'a> SemCheck<'a>
                 self.ret = self.infer_type(&fun.ret);
                 self.vars.clear();
                 self.vars.push(HashMap::new());
-                if !fun.external
+                if !fun.external && !fun.internal
                 {
                     for (name, ty) in fun.params.iter()
                     {
