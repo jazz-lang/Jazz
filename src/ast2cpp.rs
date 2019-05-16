@@ -156,6 +156,7 @@ impl Translator
                 {
                     self.type_to_c(ty.as_ref().unwrap());
                 }
+                self.code.push(' ');
                 self.code.push_str(&str(*name).to_string());
                 if expr.is_some()
                 {
@@ -248,6 +249,7 @@ impl Translator
             ExprKind::AddressOf(expr) =>
             {
                 self.code.push('&');
+                
                 self.gen_expr(expr);
             }
             ExprKind::Assign(e1, e2) =>
