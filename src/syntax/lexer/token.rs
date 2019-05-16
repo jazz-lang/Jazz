@@ -34,6 +34,7 @@ pub enum TokenKind
     Loop,
     Break,
     Continue,
+    NextLoop,
     Return,
     True,
     False,
@@ -130,6 +131,7 @@ impl TokenKind
             TokenKind::End => "<<EOF>>",
 
             TokenKind::LQuote => "<",
+            TokenKind::NextLoop => "nextloop",
             TokenKind::RQuote => ">",
             TokenKind::Lambda => "lambda",
             TokenKind::Fun => "func",

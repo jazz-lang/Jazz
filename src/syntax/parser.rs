@@ -1064,7 +1064,7 @@ impl<'a> Parser<'a>
 
     fn parse_continue(&mut self) -> StmtResult
     {
-        let pos = self.expect_token(TokenKind::Break)?.position;
+        let pos = self.expect_token(TokenKind::Continue)?.position;
         if self.token.is(TokenKind::Semicolon)
         {
             self.expect_semicolon()?;

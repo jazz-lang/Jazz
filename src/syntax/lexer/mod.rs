@@ -701,6 +701,7 @@ fn keywords_in_map() -> HashMap<&'static str, TokenKind>
     keywords.insert("loop", TokenKind::Loop);
     keywords.insert("break", TokenKind::Break);
     keywords.insert("continue", TokenKind::Continue);
+    keywords.insert("nextloop", TokenKind::NextLoop);
     keywords.insert("return", TokenKind::Return);
     keywords.insert("true", TokenKind::True);
     keywords.insert("false", TokenKind::False);

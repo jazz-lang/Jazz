@@ -252,7 +252,7 @@ impl<'a> Codegen<'a>
                     {
                         this.make_ptr()
                     };
-                    
+
                     if &*ty != &this
                     {
                         continue;
@@ -571,9 +571,11 @@ impl<'a> Codegen<'a>
                 {
                     panic!("");
                 };
+                let dead_block = self.cur_func.unwrap().new_block(self.block_name_new());
+
                 self.cur_block.unwrap().end_with_jump(None, break_bb);
-                self.cur_block = Some(break_bb);
-                self.terminated.push(true);
+                self.cur_block = Some(dead_block);
+                *self.terminated.last_mut().unwrap() = true;
             }
             StmtKind::Continue =>
             {
@@ -585,7 +587,10 @@ impl<'a> Codegen<'a>
                 {
                     panic!("")
                 };
+                let dead_block = self.cur_func.unwrap().new_block(self.block_name_new());
+
                 self.cur_block.unwrap().end_with_jump(None, continue_bb);
+                self.cur_block = Some(dead_block);
             }
             StmtKind::Return(expr) =>
             {
@@ -600,7 +605,10 @@ impl<'a> Codegen<'a>
                 {
                     self.cur_block.unwrap().end_with_void_return(None);
                 }
-                self.terminated.push(true);
+                if self.terminated.last().is_some()
+                {
+                    *self.terminated.last_mut().unwrap() = true;
+                }
             }
             StmtKind::Var(name, _, _, init) =>
             {
@@ -656,21 +664,17 @@ impl<'a> Codegen<'a>
                 self.cur_block = Some(bb_then);
                 self.gen_stmt(then, true);
 
-                if !*self.terminated.last().unwrap()
-                {
-                    self.cur_block.unwrap().end_with_jump(None, bb_merge);
-                    self.cur_block = Some(bb_merge);
-                }
+                self.cur_block.unwrap().end_with_jump(None, bb_merge);
+                self.cur_block = Some(bb_merge);
+
                 self.terminated.pop();
                 self.terminated.push(false);
                 if let Some(else_branch) = otherwise
                 {
                     self.cur_block = Some(bb_else);
                     self.gen_stmt(else_branch, true);
-                    if !*self.terminated.last().unwrap()
-                    {
-                        self.cur_block.unwrap().end_with_jump(None, bb_merge);
-                    }
+
+                    self.cur_block.unwrap().end_with_jump(None, bb_merge);
                 }
                 self.terminated.pop();
                 self.cur_block = Some(bb_merge);
@@ -687,14 +691,16 @@ impl<'a> Codegen<'a>
 
                 self.cur_block.unwrap().end_with_jump(None, loop_cond);
                 self.cur_block = Some(loop_cond);
+                self.terminated.push(false);
                 let val = self.gen_expr(cond);
+                //if !*self.terminated.last().unwrap() {
                 self.cur_block
                     .unwrap()
                     .end_with_conditional(None, val, loop_body, after_loop);
+                //}
 
                 self.cur_block = Some(loop_body);
                 self.gen_stmt(block_, true);
-
                 self.cur_block.unwrap().end_with_jump(None, loop_cond);
 
                 self.continue_blocks.pop_back();
@@ -1398,7 +1404,6 @@ impl<'a> Codegen<'a>
                     else
                     {
                         let mut params = vec![];
-                        
 
                         for (name, ty) in func.params.iter()
                         {
@@ -1639,7 +1644,7 @@ impl<'a> Codegen<'a>
                                 }
                                 self.cur_return = Some(*func.ret.clone());
                                 self.gen_stmt(func.body.as_ref().unwrap(), true);
-                                if !self.terminated.last().unwrap_or(&false)
+                                /*if !self.terminated.last().unwrap_or(&false)
                                 {
                                     let ret = self.cur_return.clone().unwrap().clone();
                                     if ret.is_void()
@@ -1659,7 +1664,7 @@ impl<'a> Codegen<'a>
                                             self.cur_block.unwrap().end_with_return(None, val);
                                         }
                                     }
-                                }
+                                }*/
                                 //let cty = ty_to_ctype(&func.ret, &self.ctx);
                                 //block.end_with_return(None,self.ctx.new_rvalue_zero(cty));
                             }
