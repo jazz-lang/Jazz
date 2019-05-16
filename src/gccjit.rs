@@ -1786,7 +1786,7 @@ impl<'a> Codegen<'a>
                                 }
                                 self.cur_return = Some(*func.ret.clone());
                                 self.gen_stmt(func.body.as_ref().unwrap(), true);
-                                if !self.terminated.last().unwrap_or(&false)
+                                /*if !self.terminated.last().unwrap_or(&false)
                                 {
                                     let ret = self.cur_return.clone().unwrap().clone();
                                     if ret.is_void()
@@ -1806,7 +1806,7 @@ impl<'a> Codegen<'a>
                                             self.cur_block.unwrap().end_with_return(None, val);
                                         }
                                     }
-                                }
+                                }*/
                                 //let cty = ty_to_ctype(&func.ret, &self.ctx);
                                 //block.end_with_return(None,self.ctx.new_rvalue_zero(cty));
                             }
