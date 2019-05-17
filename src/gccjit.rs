@@ -646,12 +646,12 @@ impl<'a> Codegen<'a>
                 {
                     panic!("");
                 };
-                let dead_block = self.cur_func.unwrap().new_block(self.block_name_new());
+                //let dead_block = self.cur_func.unwrap().new_block(self.block_name_new());
 
                 self.cur_block
                     .unwrap()
                     .end_with_jump(Some(gccloc_from_loc(&self.ctx, &stmt.pos)), break_bb);
-                self.cur_block = Some(dead_block);
+                self.cur_block = Some(break_bb);
                 *self.terminated.last_mut().unwrap() = true;
             }
             StmtKind::Continue =>
@@ -664,12 +664,12 @@ impl<'a> Codegen<'a>
                 {
                     panic!("")
                 };
-                let dead_block = self.cur_func.unwrap().new_block(self.block_name_new());
+                //let dead_block = self.cur_func.unwrap().new_block(self.block_name_new());
 
                 self.cur_block
                     .unwrap()
                     .end_with_jump(Some(gccloc_from_loc(&self.ctx, &stmt.pos)), continue_bb);
-                self.cur_block = Some(dead_block);
+                self.cur_block = Some(continue_bb);
             }
             StmtKind::Return(expr) =>
             {

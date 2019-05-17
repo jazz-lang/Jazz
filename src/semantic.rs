@@ -246,11 +246,8 @@ impl<'a> SemCheck<'a>
                     {
                         if !self.imported.contains_key(&s.name)
                         {
-                            if s.public
-                            {
-                                self.imported.insert(s.name, Elem::Struct(s.clone()));
-                                self.ctx.file.elems.push(Elem::Struct(s.clone()));
-                            }
+                            self.imported.insert(s.name, Elem::Struct(s.clone()));
+                            self.ctx.file.elems.push(Elem::Struct(s.clone()));
                         }
                     }
                 }
@@ -302,11 +299,8 @@ impl<'a> SemCheck<'a>
                         {
                             if !self.imported.contains_key(&c.name)
                             {
-                                if c.public
-                                {
-                                    self.imported.insert(c.name, Elem::Const(c.clone()));
-                                    self.ctx.file.elems.push(Elem::Const(c.clone()));
-                                }
+                                self.imported.insert(c.name, Elem::Const(c.clone()));
+                                self.ctx.file.elems.push(Elem::Const(c.clone()));
                             }
                         }
                         Elem::Struct(_s) => (),
@@ -314,11 +308,8 @@ impl<'a> SemCheck<'a>
                         {
                             if !self.imported.contains_key(&glob.name)
                             {
-                                if glob.public
-                                {
-                                    self.imported.insert(glob.name, Elem::Global(glob.clone()));
-                                    self.ctx.file.elems.push(Elem::Global(glob.clone()));
-                                }
+                                self.imported.insert(glob.name, Elem::Global(glob.clone()));
+                                self.ctx.file.elems.push(Elem::Global(glob.clone()));
                             }
                         }
                         Elem::ConstExpr {

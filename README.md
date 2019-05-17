@@ -54,3 +54,4 @@ pub func main() i32 {
 
 # Libraries and programs written in Jazz
 - [AllegroJazz](https://github.com/playXE/AllegroJazz/) Jazz bindings to Allegro 5 library.
+    - [Snake](https://github.com/playXE/Snake-Jazz/) Snake game written in Jazz using AllegroJazz library
