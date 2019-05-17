@@ -195,7 +195,7 @@ impl<'a> Codegen<'a>
                         }
                         else
                         {
-                            panic!("Unknown type: {} at {}",s,ty.pos())
+                            panic!("Unknown type: {} at {}", s, ty.pos())
                         }
                     }
                 }
@@ -210,7 +210,12 @@ impl<'a> Codegen<'a>
                     .collect::<Vec<_>>();
                 ctx.new_function_pointer_type(None, self.ty_to_ctype(&tyfunc.ret), &params, false)
             }
-            Type::Struct(struct_) => self.structures.get(&struct_.name).expect(&format!("Struct {} not found",str(struct_.name))).ty.as_type(),
+            Type::Struct(struct_) => self
+                .structures
+                .get(&struct_.name)
+                .expect(&format!("Struct {} not found", str(struct_.name)))
+                .ty
+                .as_type(),
             Type::Array(array) =>
             {
                 if array.len.is_some()
@@ -1103,17 +1108,7 @@ impl<'a> Codegen<'a>
                     for (i, arg) in args.iter().enumerate()
                     {
                         let val = self.gen_expr(arg);
-                        let val = if i < unit.f.params.len()
-                        {
-                            let ty: Type = *unit.f.params[i].1.clone();
-                            let cty = self.ty_to_ctype(&ty);
-                            self.ctx
-                                .new_cast(Some(gccloc_from_loc(&self.ctx, &arg.pos)), val, cty)
-                        }
-                        else
-                        {
-                            val
-                        };
+
                         params.push(val);
                     }
                     return self.ctx.new_call(
