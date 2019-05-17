@@ -1,0 +1,17 @@
+import "libc.jazz"
+
+alias HashFunc = (*u8) -> u32
+
+pub struct HashTable {
+	size: usize,
+	mod: i32,
+	mask: u32,
+	nnodes: i32,
+	noccupied: i32,
+	have_big_keys: u32,
+	have_big_values: u32,
+	keys: *u8,
+	hashes: *u32,
+	values: *u8
+	
+}

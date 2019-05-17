@@ -1,5 +1,5 @@
-// math.h
-
+link "c"
+link "m"
 pub extern func acos(x: f64) f64;
 pub extern func acosf(x: f32) f32;
 pub extern func asin(x: f64) f64;
@@ -101,7 +101,7 @@ pub extern func free(p: *u8) void;
 pub extern func realloc(p: *u8,size: usize) *u8;
 pub extern func exit(i: i32) void;
 pub extern func system(c: *char) i32;
-pub extern func rand() i32;
+pub extern func rand() u64;
 pub extern func get_rand_max() i32;
 pub extern func srand(s: i32) void;
 
@@ -115,3 +115,13 @@ pub extern func strlen(c: *char) i32;
 pub extern func memset(dst: *u8,b: u8,c: usize) *u8;
 pub extern func usleep(i: i32) void;
 pub extern func mmap(addr: *u8,len: usize,prot: i32,flags: i32,fd: i32,offset:i64) *u8;
+
+
+pub extern func ltoa(num: i64,str: *char,radix: i32) *char;
+pub extern func ultoa(num: u64,str: *char,radix: i32) *char;
+pub extern func itoa(num: i32,str: *char,radix: i32) *char;
+pub extern func ftoa(num: f32,str: *char,precision: u8) *char;
+
+
+pub extern func time(t: *u64) u64;
+pub extern func srand(v: u64) void;

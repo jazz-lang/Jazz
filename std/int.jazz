@@ -1,0 +1,31 @@
+/// This file contains methods for integer primitives
+
+import "libc.jazz"
+
+pub func (v: *i32) power(val: i32) i32 {
+	var f = *v;
+	var p = pow(f as f64,val as f64);
+	return p as i32;
+}
+
+pub func (v: *i32) toString() *char {
+	var buffer = malloc(8 as usize) as *char;
+	sprintf(buffer,"%i",*v);
+
+	return buffer;
+}
+
+pub func (v: *i64) power(val: i64) i64 {
+	var f = *v;
+	var p = pow(f as f64,val as f64);
+	return p as i64;
+} 
+
+pub func (v: *i64) toString() *char {
+	var buffer = malloc(16 as usize) as *char;
+	sprintf(buffer,"%li",*v);
+
+	return buffer;
+}
+
+
