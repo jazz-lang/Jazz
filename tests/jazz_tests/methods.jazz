@@ -1,0 +1,45 @@
+// Compiler:
+//  	stdout:			
+// 		 Exit value: 42
+
+
+extern func exit(code: i32) void;
+extern func printf(c: *char,...) void;
+
+func assert(cond: bool) void {
+	if !cond {
+		printf("Assertion failed\n");
+		exit(-1);
+	}
+
+	return;
+}
+
+pub struct Point {
+	x: i32,
+	y: i32
+}
+
+func (v: *Point) getX() i32 {
+	return v.x;
+}
+
+func (v: *Point) setX(val: i32) void {
+	v.x = val;
+	return;
+}
+
+pub func main() i32 {
+	var p = Point {
+		x: 0,
+		y: 0
+	};
+
+	assert(p.x == 0);
+	assert(p.y == 0);
+
+	p.setX(42);
+
+	assert(p.getX() == 42);
+	return p.getX();
+}

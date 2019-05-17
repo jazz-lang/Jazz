@@ -1,0 +1,10 @@
+// Compiler:
+//  	stdout: 
+// 			Exit value: 42
+
+constexpr X = 40
+constexpr Y = 2
+
+pub func main() i32 {
+	return X + Y;
+}
