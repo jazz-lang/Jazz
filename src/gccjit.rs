@@ -210,7 +210,7 @@ impl<'a> Codegen<'a>
                     .collect::<Vec<_>>();
                 ctx.new_function_pointer_type(None, self.ty_to_ctype(&tyfunc.ret), &params, false)
             }
-            Type::Struct(struct_) => self.structures.get(&struct_.name).unwrap().ty.as_type(),
+            Type::Struct(struct_) => self.structures.get(&struct_.name).expect(&format!("Struct {} not found",str(struct_.name))).ty.as_type(),
             Type::Array(array) =>
             {
                 if array.len.is_some()
@@ -1057,21 +1057,9 @@ impl<'a> Codegen<'a>
                     let (val, types) = val.unwrap();
                     let mut params = vec![];
 
-                    for (i, arg) in args.iter().enumerate()
+                    for (_, arg) in args.iter().enumerate()
                     {
-                        let val = if i < types.len()
-                        {
-                            let val = self.gen_expr(arg);
-                            self.ctx.new_cast(
-                                Some(gccloc_from_loc(&self.ctx, &arg.pos)),
-                                val,
-                                types[i],
-                            )
-                        }
-                        else
-                        {
-                            self.gen_expr(arg)
-                        };
+                        let val = self.gen_expr(arg);
                         params.push(val);
                     }
 
