@@ -239,6 +239,7 @@ impl<'a> Codegen<'a>
     ) -> Option<(CFunction, Vec<CType>)>
     {
         let val = None;
+        
         for function in functions.iter()
         {
             let function: &FunctionUnit = function;
@@ -267,9 +268,10 @@ impl<'a> Codegen<'a>
                     {
                         this.make_ptr()
                     };
-
+                    
                     if &*ty != &this
                     {
+                        
                         continue;
                     }
                     else
@@ -998,13 +1000,14 @@ impl<'a> Codegen<'a>
                         Some(gccloc_from_loc(&self.ctx, &expr_.pos)),
                         GlobalKind::Internal,
                         rval.get_type(),
-                        &self.tmp_id.to_string(),
+                        &format!("_{}_",self.tmp_id.to_string()),
                     );
                     self.cur_block.unwrap().add_assignment(
                         Some(gccloc_from_loc(&self.ctx, &expr_.pos)),
                         tmp,
                         rval,
                     );
+                    self.tmp_id += 1;
 
                     tmp.get_address(Some(gccloc_from_loc(&self.ctx, &expr.pos)))
                 }
@@ -1059,7 +1062,7 @@ impl<'a> Codegen<'a>
                         print!(") not found\n");
                         std::process::exit(-1);
                     }
-                    let (val, types) = val.unwrap();
+                    let (val, _types) = val.unwrap();
                     let mut params = vec![];
 
                     for (_, arg) in args.iter().enumerate()
@@ -1143,7 +1146,7 @@ impl<'a> Codegen<'a>
                     .find_struct(&Type::create_basic(expr.id, expr.pos, name))
                     .expect("Struct not found");
                 //let rval: RValue = self.ctx.new_rvalue_zero(struct_.ty.as_type());
-                let tmp_ = format!("{}", self.tmp_id);
+                let tmp_ = format!("_{}_", self.tmp_id);
                 self.tmp_id += 1;
                 let tmp: LValue = self.cur_func.unwrap().new_local(
                     Some(gccloc_from_loc(&self.ctx, &expr.pos)),
@@ -1622,6 +1625,7 @@ impl<'a> Codegen<'a>
                                     && fun.f.params == func.params
                                     && fun.f.ret == func.ret
                                     && fun.f.variadic == func.variadic
+                                    && fun.f.this == func.this
                                 {
                                     *fun = FunctionUnit {
                                         f: func.clone(),

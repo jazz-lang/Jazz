@@ -20,6 +20,7 @@ pub struct SemCheck<'a>
     aliases: HashMap<Name, Type>,
     imported: HashMap<Name, Elem>,
     imported_funs: HashMap<Name, Vec<Function>>,
+    internal_funs: HashMap<Name, Function>,
 }
 
 pub fn ty_is_any_int(ty: &Type) -> bool
@@ -142,6 +143,7 @@ impl<'a> SemCheck<'a>
             aliases: HashMap::new(),
             imported: HashMap::new(),
             imported_funs: HashMap::new(),
+            internal_funs: HashMap::new(),
         }
     }
 
@@ -400,6 +402,10 @@ impl<'a> SemCheck<'a>
 
                 Elem::Func(func) =>
                 {
+                    /*fif func.internal {
+                        self.internal_funs.insert(func.name, func.clone());
+                        continue;
+                    }*/
                     let mut params: Vec<Type> =
                         func.params.iter().map(|(_, ty)| *ty.clone()).collect();
                     let mut ret = func.ret.clone();
@@ -447,45 +453,16 @@ impl<'a> SemCheck<'a>
                         variadic: func.variadic,
                     };
 
+                    
+
                     if !self.signatures.contains_key(&func.name)
                     {
                         self.signatures.insert(func.name, vec![]);
                     }
                     let signatures = self.signatures.get_mut(&func.name).unwrap();
-                    if signatures.contains(&sig)
-                    {
-                        return Err(ErrorWPos::new(
-                            func.pos,
-                            Error::FunctionExists(
-                                str(func.name).to_string(),
-                                Type::create_func(
-                                    func.id,
-                                    func.pos,
-                                    sig.params.iter().map(|ty| Box::new(ty.clone())).collect(),
-                                    func.ret.clone(),
-                                ),
-                            ),
-                            src.clone(),
-                        ));
-                    }
+                    
                     signatures.push(sig.clone());
-                    if self.functions.contains_key(&sig)
-                    {
-                        return Err(ErrorWPos::new(
-                            func.pos,
-                            Error::FunctionExists(
-                                str(func.name).to_string(),
-                                Type::create_func(
-                                    func.id,
-                                    func.pos,
-                                    sig.params.iter().map(|ty| Box::new(ty.clone())).collect(),
-                                    func.ret.clone(),
-                                ),
-                            ),
-                            src.clone(),
-                        ));
-                        //return Err(ErrorWPos::new(func.pos,Error::FunctionExists(str(func.name).to_string(),Type::create_func(func.id, func.pos, func.params.clone(), func.ret.clone())),src.clone()));
-                    }
+                    
 
                     self.functions.insert(sig, func.clone());
                 }
@@ -857,6 +834,7 @@ impl<'a> SemCheck<'a>
             }
             ExprKind::Call(path, object, args) =>
             {
+                
                 let mut params = vec![];
                 for arg in args.iter()
                 {
@@ -886,8 +864,11 @@ impl<'a> SemCheck<'a>
                             objty =
                                 Box::new(Type::create_ptr(objty.id(), objty.pos(), objty.clone()));
                         }
+                        
+
                         for sig in sigs.iter()
                         {
+                            
                             if sig.params == params && sig.this == Some(objty.clone())
                             {
                                 let ty = *sig.ret.clone();

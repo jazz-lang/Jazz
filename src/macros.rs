@@ -11,4 +11,11 @@ macro_rules! error {
         eprintln!("{} {}: {}", "ERROR".red(), $pos, $fmt);
         std::process::exit(-1);
     }};
+
+    ($EXIT: expr,$fmt: expr,$pos: expr) => {{
+        eprintln!("{} {}: {}", "ERROR".red(), $pos, $fmt);
+        if $EXIT {
+            std::process::exit(-1);
+        }
+    }}
 }
