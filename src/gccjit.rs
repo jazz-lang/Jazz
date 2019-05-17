@@ -250,7 +250,15 @@ impl<'a> Codegen<'a>
             {
                 continue;
             }
-
+           
+           if function.f.params.len() == 0 && params.len() == 0 && function.this_ast.is_none() && this.is_none() {
+               return Some(
+                   (
+                       function.c,
+                       vec![]
+                   )
+               )
+           }
             if let Some(ty) = &function.this_ast
             {
                 if this.is_none()
@@ -331,7 +339,7 @@ impl<'a> Codegen<'a>
                 continue;
             }
 
-            if params_okay
+            if params_okay 
             {
                 return Some((
                     function.c,
@@ -1214,11 +1222,12 @@ impl<'a> Codegen<'a>
                 let t1 = self.get_id_type(e1.id);
                 let t2 = self.get_id_type(e2.id);
                 use crate::semantic::{ty_is_any_float, ty_is_any_int};
+                let op: &str = op;
                 if op.contains("==")
                     || op.contains("!=")
-                    || op.contains(">")
-                    || op.contains("<")
-                    || op.contains(">")
+                    || op == "<"
+                    || op == ">"
+                    
                     || op.contains(">=")
                     || op.contains("<=")
                 {

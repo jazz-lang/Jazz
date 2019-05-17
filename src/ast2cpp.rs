@@ -460,10 +460,7 @@ impl Translator
                     {
                         self.code.push_str("extern \"C\" {\n");
                     }
-                    if !global.reassignable
-                    {
-                        self.code.push_str("const ");
-                    }
+                    self.code.push_str("static ");
                     self.type_to_c(&global.typ);
                     self.code
                         .push_str(&format!(" {}", str(global.name).to_owned()));
