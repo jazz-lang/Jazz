@@ -195,7 +195,7 @@ impl<'a> Codegen<'a>
                         }
                         else
                         {
-                            unreachable!()
+                            panic!("Unknown type: {} at {}",s,ty.pos())
                         }
                     }
                 }
