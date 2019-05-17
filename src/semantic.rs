@@ -231,10 +231,30 @@ impl<'a> SemCheck<'a>
                 let mut ctx = Context::new(file);
 
                 let mut sem = SemCheck::new(&mut ctx);
-                //sem.imports();
-                
-                sem.run();
-                
+                sem.imports();
+
+                let maybe_err = sem.declare();
+                if maybe_err.is_err()
+                {
+                    eprintln!("{}", maybe_err.err().unwrap());
+                    std::process::exit(-1);
+                }
+
+                for elem in ctx.file.elems.iter()
+                {
+                    if let Elem::Struct(s) = elem
+                    {
+                        if !self.imported.contains_key(&s.name)
+                        {
+                            if s.public
+                            {
+                                self.imported.insert(s.name, Elem::Struct(s.clone()));
+                                self.ctx.file.elems.push(Elem::Struct(s.clone()));
+                            }
+                        }
+                    }
+                }
+
                 for elem in ctx.file.elems.iter()
                 {
                     match elem
@@ -266,7 +286,8 @@ impl<'a> SemCheck<'a>
                                     }
                                 }
 
-                                if !f_found {
+                                if !f_found
+                                {
                                     let funs = self.imported_funs.get_mut(&f.name).unwrap();
                                     self.ctx.file.elems.push(Elem::Func(f.clone()));
                                     funs.push(f.clone());
@@ -275,7 +296,7 @@ impl<'a> SemCheck<'a>
                         }
                         Elem::Link(name) =>
                         {
-                            self.ctx.file.elems.push(Elem::Link(*name));
+                            self.ctx.file.elems.insert(0, Elem::Link(*name));
                         }
                         Elem::Const(c) =>
                         {
@@ -288,17 +309,7 @@ impl<'a> SemCheck<'a>
                                 }
                             }
                         }
-                        Elem::Struct(s) =>
-                        {
-                            if !self.imported.contains_key(&s.name)
-                            {
-                                if s.public
-                                {
-                                    self.imported.insert(s.name, Elem::Struct(s.clone()));
-                                    self.ctx.file.elems.push(Elem::Struct(s.clone()));
-                                }
-                            }
-                        }
+                        Elem::Struct(_s) => (),
                         Elem::Global(glob) =>
                         {
                             if !self.imported.contains_key(&glob.name)
@@ -449,17 +460,15 @@ impl<'a> SemCheck<'a>
                         variadic: func.variadic,
                     };
 
-                    
-
                     if !self.signatures.contains_key(&func.name)
                     {
                         self.signatures.insert(func.name, vec![sig.clone()]);
-                    } else {
+                    }
+                    else
+                    {
                         let sigs = self.signatures.get_mut(&func.name).unwrap();
                         sigs.push(sig.clone());
                     }
-                    
-                    
 
                     self.functions.insert(sig, func.clone());
                 }
@@ -477,6 +486,18 @@ impl<'a> SemCheck<'a>
                     let mut c = c.clone();
                     c.typ = Box::new(self.infer_type(&*c.typ));
                     self.globals.insert(c.name, c.clone());
+                }
+                Elem::Struct(s) =>
+                {
+                    let mut fields = vec![];
+                    for field in s.fields.iter()
+                    {
+                        let mut field: StructField = field.clone();
+                        field.data_type = self.infer_type(&field.data_type);
+                        fields.push(field);
+                    }
+
+                    self.structures.get_mut(&s.name).unwrap().fields = fields;
                 }
 
                 _ => (), // do nothing
@@ -831,7 +852,6 @@ impl<'a> SemCheck<'a>
             }
             ExprKind::Call(path, object, args) =>
             {
-                
                 let mut params = vec![];
                 for arg in args.iter()
                 {
@@ -858,22 +878,24 @@ impl<'a> SemCheck<'a>
                         let objty = objty.clone().unwrap();
                         let objty = if !objty.is_ptr()
                         {
-                            
-                                Box::new(Type::create_ptr(objty.id(), objty.pos(), objty.clone()))
-                        } else {
+                            Box::new(Type::create_ptr(objty.id(), objty.pos(), objty.clone()))
+                        }
+                        else
+                        {
                             objty.clone()
                         };
-                        
+
                         for sig in sigs.iter()
                         {
-                           
                             if sig.params == params && sig.this == Some(objty.clone())
                             {
                                 let ty = *sig.ret.clone();
                                 self.types.insert(expr.id, ty.clone());
 
                                 return ty;
-                            } else {
+                            }
+                            else
+                            {
                                 continue;
                             }
                         }

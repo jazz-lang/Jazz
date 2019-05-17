@@ -155,7 +155,7 @@ impl<'a> Codegen<'a>
         }
     }
 
-    pub fn ty_to_ctype(&self, ty: &Type) -> CType
+    pub fn ty_to_ctype(&mut self, ty: &Type) -> CType
     {
         let ctx = self.ctx;
         match ty
@@ -189,8 +189,9 @@ impl<'a> Codegen<'a>
                         else if let Some(ty) = self
                             .aliases
                             .get(&crate::syntax::interner::intern(s))
-                            .clone()
+                            
                         {
+                            let ty = ty.clone();
                             return self.ty_to_ctype(&ty);
                         }
                         else
@@ -210,12 +211,41 @@ impl<'a> Codegen<'a>
                     .collect::<Vec<_>>();
                 ctx.new_function_pointer_type(None, self.ty_to_ctype(&tyfunc.ret), &params, false)
             }
-            Type::Struct(struct_) => self
-                .structures
-                .get(&struct_.name)
-                .expect(&format!("Struct {} not found", str(struct_.name)))
-                .ty
-                .as_type(),
+            Type::Struct(struct_) => {
+                if self.structures.contains_key(&struct_.name) {
+                    self
+                    .structures
+                    .get(&struct_.name)
+                    .expect(&format!("Struct {} not found", str(struct_.name)))
+                    .ty
+                    .as_type()
+                } else {
+                    let mut fields = vec![];
+                    let mut cfields = HashMap::new();
+                    let mut types = vec![];
+                    for field in struct_.fields.iter()
+                    {
+                        let field: &StructField = field;
+                        let cty = self.ty_to_ctype(&field.data_type).clone();
+                        types.push(field.data_type.clone());
+                        let name: &str = &str(field.name).to_string();
+                        let cfield = self.ctx.new_field(
+                            Some(gccloc_from_loc(&self.ctx, &field.pos)),
+                            cty,
+                            name,
+                        );
+                        cfields.insert(field.name, cfield);
+                        fields.push(cfield);
+                    }
+                    let ty = self.ctx.new_struct_type(None, &str(struct_.name).to_string(), &fields);
+                    self.structures.insert(struct_.name, GccStruct {
+                        ty: ty,
+                        fields: cfields,types: types
+                        
+                    });
+                    ty.as_type()
+                }
+            }
             Type::Array(array) =>
             {
                 if array.len.is_some()
@@ -232,14 +262,14 @@ impl<'a> Codegen<'a>
         }
     }
     fn search_for_func(
-        &self,
+        &mut self,
         params: &[Type],
         this: Option<&Type>,
         functions: &[FunctionUnit],
     ) -> Option<(CFunction, Vec<CType>)>
     {
         let val = None;
-        
+
         for function in functions.iter()
         {
             let function: &FunctionUnit = function;
@@ -250,15 +280,14 @@ impl<'a> Codegen<'a>
             {
                 continue;
             }
-           
-           if function.f.params.len() == 0 && params.len() == 0 && function.this_ast.is_none() && this.is_none() {
-               return Some(
-                   (
-                       function.c,
-                       vec![]
-                   )
-               )
-           }
+
+            if function.f.params.len() == 0
+                && params.len() == 0
+                && function.this_ast.is_none()
+                && this.is_none()
+            {
+                return Some((function.c, vec![]));
+            }
             if let Some(ty) = &function.this_ast
             {
                 if this.is_none()
@@ -276,10 +305,9 @@ impl<'a> Codegen<'a>
                     {
                         this.make_ptr()
                     };
-                    
+
                     if &*ty != &this
                     {
-                        
                         continue;
                     }
                     else
@@ -292,6 +320,7 @@ impl<'a> Codegen<'a>
 
                         if sig_params == params
                         {
+                            
                             return Some((
                                 function.c,
                                 function
@@ -339,7 +368,7 @@ impl<'a> Codegen<'a>
                 continue;
             }
 
-            if params_okay 
+            if params_okay
             {
                 return Some((
                     function.c,
@@ -981,18 +1010,26 @@ impl<'a> Codegen<'a>
             {
                 let lval = self.expr_to_lvalue(lval_).unwrap();
                 let rval = self.gen_expr(rval_);
-                let casted_val = self.ctx.new_cast(
-                    Some(gccloc_from_loc(&self.ctx, &rval_.pos)),
-                    rval,
-                    lval.to_rvalue().get_type(),
-                );
+                let ty = self.get_id_type(rval_.id);
+                let val = if !ty.is_struct()
+                {
+                    self.ctx.new_cast(
+                        Some(gccloc_from_loc(&self.ctx, &rval_.pos)),
+                        rval,
+                        lval.to_rvalue().get_type(),
+                    )
+                }
+                else
+                {
+                    rval
+                };
                 self.cur_block.unwrap().add_assignment(
                     Some(gccloc_from_loc(&self.ctx, &lval_.pos)),
                     lval,
-                    casted_val,
+                    val,
                 );
 
-                self.ctx.new_rvalue_zero(self.ctx.new_type::<i32>()) // todo: something better than this?
+                val
             }
 
             ExprKind::Bool(b) => self
@@ -1008,7 +1045,7 @@ impl<'a> Codegen<'a>
                         Some(gccloc_from_loc(&self.ctx, &expr_.pos)),
                         GlobalKind::Internal,
                         rval.get_type(),
-                        &format!("_{}_",self.tmp_id.to_string()),
+                        &format!("_{}_", self.tmp_id.to_string()),
                     );
                     self.cur_block.unwrap().add_assignment(
                         Some(gccloc_from_loc(&self.ctx, &expr_.pos)),
@@ -1050,6 +1087,7 @@ impl<'a> Codegen<'a>
                 }
                 else if let Some(functions) = self.functions.get(&name.name())
                 {
+                    let functions = functions.clone();
                     let ty = if let Some(this) = this
                     {
                         Some(self.get_id_type(this.id))
@@ -1058,7 +1096,7 @@ impl<'a> Codegen<'a>
                     {
                         None
                     };
-                    let val = self.search_for_func(&param_types, ty.as_ref(), functions);
+                    let val = self.search_for_func(&param_types, ty.as_ref(), &functions);
 
                     if val.is_none()
                     {
@@ -1227,7 +1265,6 @@ impl<'a> Codegen<'a>
                     || op.contains("!=")
                     || op == "<"
                     || op == ">"
-                    
                     || op.contains(">=")
                     || op.contains("<=")
                 {
@@ -1421,12 +1458,14 @@ impl<'a> Codegen<'a>
                         cfields.insert(field.name, cfield);
                         fields.push(cfield);
                     }
+                    
                     let struct_ = self.ctx.new_struct_type(
                         Some(gccloc_from_loc(&self.ctx, &s.pos)),
                         &str(s.name).to_string(),
                         &fields,
                     );
 
+                    
                     let cstruct = GccStruct {
                         ty: struct_,
                         fields: cfields,
@@ -1450,30 +1489,7 @@ impl<'a> Codegen<'a>
             }
         }
 
-        /*for elem in elems.iter() {
-            match elem {
-                Elem::Struct(s) => {
-
-                    let mut fields = vec![];
-                    let mut cfields = HashMap::new();
-                    for field in s.fields.iter() {
-                        let field: &StructField = field;
-                        let cty = self.ty_to_ctype(&field.data_type).clone();
-                        let name: &str = &str(field.name).to_string();
-                        let cfield = self.ctx.new_field(None, cty, name);
-                        cfields.insert(field.name, cfield);
-                        fields.push(cfield);
-                    }
-                    let cstruct: &mut GccStruct = self.structures.get_mut(&s.name).unwrap();
-                    cstruct.fields = cfields;
-                    cstruct.ty = self
-                        .ctx
-                        .new_struct_type(None, &str(s.name).to_string(), &fields);
-                    //cstruct.ty.set_fields(None, &fields);
-                }
-                _ => {}
-            }
-        }*/
+        
         for elem in elems.iter_mut()
         {
             match elem
@@ -1518,10 +1534,11 @@ impl<'a> Codegen<'a>
                         }
                         else
                         {
+                            let ret = self.ty_to_ctype(&func.ret);
                             self.ctx.new_function(
                                 None,
                                 linkage,
-                                self.ty_to_ctype(&func.ret),
+                                ret,
                                 &params,
                                 &str(func.name).to_string(),
                                 func.variadic,
@@ -1604,10 +1621,12 @@ impl<'a> Codegen<'a>
                             name
                         };
 
+                        let ret = self.ty_to_ctype(&func.ret);
+
                         let f = self.ctx.new_function(
                             None,
                             linkage,
-                            self.ty_to_ctype(&func.ret),
+                            ret,
                             &params,
                             &name,
                             func.variadic,
@@ -1683,6 +1702,7 @@ impl<'a> Codegen<'a>
         {
             match elem
             {
+                
                 Elem::Global(global) =>
                 {
                     let global: &crate::syntax::ast::Global = global;
