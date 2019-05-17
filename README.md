@@ -51,3 +51,6 @@ pub func main() i32 {
     ```
 2. Run `cargo build --release`
 3. Run `cargo install --path .`
+
+# Libraries and programs written in Jazz
+- [AllegroJazz](https://github.com/playXE/AllegroJazz/) Jazz bindings to Allegro 5 library.
