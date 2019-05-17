@@ -231,13 +231,10 @@ impl<'a> SemCheck<'a>
                 let mut ctx = Context::new(file);
 
                 let mut sem = SemCheck::new(&mut ctx);
-                sem.imports();
-                let maybe_err = sem.declare();
-                if maybe_err.is_err()
-                {
-                    eprintln!("{}", maybe_err.err().unwrap());
-                    std::process::exit(-1);
-                }
+                //sem.imports();
+                
+                sem.run();
+                
                 for elem in ctx.file.elems.iter()
                 {
                     match elem
@@ -262,15 +259,14 @@ impl<'a> SemCheck<'a>
                                     {
                                         params.push((p.0, Box::new(self.infer_type(&p.1))));
                                     }
-                                    if params == fun.params
+                                    if params == fun.params && f.this == fun.this
                                     {
                                         f_found = true;
                                         break;
                                     }
                                 }
 
-                                if !f_found
-                                {
+                                if !f_found {
                                     let funs = self.imported_funs.get_mut(&f.name).unwrap();
                                     self.ctx.file.elems.push(Elem::Func(f.clone()));
                                     funs.push(f.clone());
@@ -457,11 +453,12 @@ impl<'a> SemCheck<'a>
 
                     if !self.signatures.contains_key(&func.name)
                     {
-                        self.signatures.insert(func.name, vec![]);
+                        self.signatures.insert(func.name, vec![sig.clone()]);
+                    } else {
+                        let sigs = self.signatures.get_mut(&func.name).unwrap();
+                        sigs.push(sig.clone());
                     }
-                    let signatures = self.signatures.get_mut(&func.name).unwrap();
                     
-                    signatures.push(sig.clone());
                     
 
                     self.functions.insert(sig, func.clone());
@@ -858,23 +855,26 @@ impl<'a> SemCheck<'a>
                     if object.is_some()
                     {
                         let sigs: &Vec<FuncSig> = sigs.unwrap();
-                        let mut objty = objty.clone().unwrap();
-                        if !objty.is_ptr()
-                        {
-                            objty =
-                                Box::new(Type::create_ptr(objty.id(), objty.pos(), objty.clone()));
-                        }
-                        
-
-                        for sig in sigs.iter()
+                        let objty = objty.clone().unwrap();
+                        let objty = if !objty.is_ptr()
                         {
                             
+                                Box::new(Type::create_ptr(objty.id(), objty.pos(), objty.clone()))
+                        } else {
+                            objty.clone()
+                        };
+                        
+                        for sig in sigs.iter()
+                        {
+                           
                             if sig.params == params && sig.this == Some(objty.clone())
                             {
                                 let ty = *sig.ret.clone();
                                 self.types.insert(expr.id, ty.clone());
 
                                 return ty;
+                            } else {
+                                continue;
                             }
                         }
                     }
