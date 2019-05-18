@@ -527,6 +527,7 @@ pub struct Function
     pub variadic: bool,
     pub inline: bool,
     pub external: bool,
+    pub constant: bool,
     pub public: bool,
     pub internal: bool,
     pub static_: bool,
@@ -535,6 +536,115 @@ pub struct Function
     pub this: Option<(Name, Box<Type>)>,
     pub body: Option<Box<Stmt>>,
     pub ir_temp_id: usize,
+}
+
+impl Function
+{
+    pub fn replace_expr_to(&mut self, id: NodeId, to: Expr)
+    {
+        fn replace_stmt(s: &mut Stmt, id: NodeId, to: Expr) -> bool
+        {
+            match &mut s.kind
+            {
+                StmtKind::Continue => false,
+                StmtKind::Break => false,
+                StmtKind::Return(expr) =>
+                {
+                    if expr.is_some()
+                    {
+                        let expr = expr.as_mut().unwrap();
+                        if expr.id == id
+                        {
+                            expr.kind = to.kind.clone();
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                StmtKind::Block(block) =>
+                {
+                    for stmt in block.iter_mut()
+                    {
+                        if replace_stmt(stmt, id, to.clone())
+                        {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                }
+                StmtKind::Expr(expr) =>
+                {
+                    if expr.id == id
+                    {
+                        *expr = box to;
+                        return true;
+                    }
+                    return false;
+                }
+                StmtKind::If(e, then, other) =>
+                {
+                    if e.id == id
+                    {
+                        *e = box to;
+                        return true;
+                    }
+                    if replace_stmt(then, id, to.clone())
+                    {
+                        return true;
+                    }
+                    if other.is_some()
+                    {
+                        let other = other.as_mut().unwrap();
+                        if replace_stmt(other, id, to.clone())
+                        {
+                            return true;
+                        }
+                        else
+                        {
+                            return false;
+                        }
+                    }
+                    return false;
+                }
+                StmtKind::While(expr, then) =>
+                {
+                    if expr.id == id
+                    {
+                        *expr = box to;
+                        return true;
+                    }
+                    if replace_stmt(then, id, to.clone())
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+                StmtKind::Loop(body) => replace_stmt(body, id, to.clone()),
+                StmtKind::Var(_, _, _, expr) =>
+                {
+                    if expr.is_some()
+                    {
+                        let expr = expr.as_mut().unwrap();
+                        if expr.id == id
+                        {
+                            *expr = box to;
+                            return true;
+                        }
+                    }
+                    false
+                }
+            }
+        }
+        if self.body.is_some()
+        {
+            let body = self.body.as_mut().unwrap();
+            replace_stmt(body, id, to);
+        }
+    }
 }
 
 impl PartialEq for Function

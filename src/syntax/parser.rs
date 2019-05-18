@@ -117,11 +117,13 @@ impl<'a> Parser<'a>
                 TokenKind::Internal => "internal",
                 TokenKind::Pub => "pub",
                 TokenKind::Static => "static",
+                //TokenKind::ConstExpr => "constant",
                 _ =>
                 {
                     break;
                 }
             };
+            
             self.advance_token()?;
             if modifiers.contains(modifier)
             {
@@ -165,7 +167,7 @@ impl<'a> Parser<'a>
 
     fn parse_top_level_element(&mut self, elements: &mut Vec<Elem>) -> Result<(), MsgWithPos>
     {
-        let modifiers = self.parse_modifiers()?;
+        let mut modifiers = self.parse_modifiers()?;
 
         match &self.token.kind
         {
@@ -213,22 +215,34 @@ impl<'a> Parser<'a>
             }
             TokenKind::ConstExpr =>
             {
+                
+                
                 let pos = self.advance_token()?.position;
-                let name = self.expect_identifier()?;
-                self.expect_token(TokenKind::Eq)?;
-                let expr = self.parse_expression()?;
-                elements.push(Elem::ConstExpr {
-                    id: self.generate_id(),
-                    pos,
-                    expr,
-                    name,
-                })
+                if self.token.is(TokenKind::Fun) {
+                    modifiers.insert("constant".to_owned());
+                    elements.push(
+                        Elem::Func(
+                            self.parse_function(modifiers)?
+                        )
+                    );
+                } else {
+                    assert!(modifiers.is_empty());
+                    let name = self.expect_identifier()?;
+                    self.expect_token(TokenKind::Eq)?;
+                    let expr = self.parse_expression()?;
+                    elements.push(Elem::ConstExpr {
+                        id: self.generate_id(),
+                        pos,
+                        expr,
+                        name,
+                    })
+                }
             }
             TokenKind::Const =>
             {
-                let mut xconst = self.parse_const()?;
-                xconst.public = modifiers.contains("pub");
-                elements.push(Elem::Const(xconst));
+                self.advance_token()?;
+                modifiers.insert("constant".to_owned());
+                elements.push(Elem::Func(self.parse_function(modifiers)?));
             }
             _ =>
             {
@@ -968,6 +982,7 @@ impl<'a> Parser<'a>
             inline: modifiers.contains("inline"),
             static_: modifiers.contains("static"),
             external: modifiers.contains("extern"),
+            constant: modifiers.contains("constant"),
             attributes: Vec::new(),
             this: this_,
             ret: Box::new(ty),

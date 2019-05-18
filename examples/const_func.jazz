@@ -1,0 +1,21 @@
+/// run this example with --consteval or with -O3
+
+
+constexpr func add(x: i32,y: i32) i32 {
+	return x + y;
+	
+}
+
+constexpr X = 40
+
+constexpr func f() i32 {
+	return X;
+} 
+
+import "std/libc.jazz"
+
+pub func main() i32 {
+	var val = add (f(), 2);
+	printf("%i\n",val);
+	return 0;
+}

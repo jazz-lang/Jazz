@@ -11,6 +11,7 @@ pub mod ast2cpp;
 pub mod err;
 pub mod gccjit;
 pub mod ir;
+pub mod optimize;
 pub mod semantic;
 pub mod syntax;
 

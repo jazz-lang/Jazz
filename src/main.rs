@@ -32,6 +32,7 @@ fn main() {
 
 use jazz::err::MsgWithPos;
 use jazz::gccjit::Codegen;
+use jazz::optimize::const_eval;
 use jazz::semantic::*;
 use jazz::syntax::ast::*;
 use jazz::syntax::lexer::reader::Reader;
@@ -126,6 +127,11 @@ pub struct Options
     pub libraries_link: Vec<String>,
     #[structopt(short = "f")]
     pub gcc_opts: Vec<String>,
+    #[structopt(
+        long = "consteval",
+        help = "Enables constant folding and const function evaluating"
+    )]
+    pub const_eval: bool,
 }
 
 fn main() -> Result<(), MsgWithPos>
@@ -173,6 +179,12 @@ fn main() -> Result<(), MsgWithPos>
     let mut semantic = SemCheck::new(&mut ctx);
 
     semantic.run();
+    if opts.const_eval
+    {
+        let mut eval = const_eval::ConstEval::new(&mut ctx);
+        eval.run();
+    }
+
     match opts.backend
     {
         Backend::CPP =>

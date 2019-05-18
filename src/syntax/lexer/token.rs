@@ -269,7 +269,7 @@ impl fmt::Display for Token
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd)]
 pub enum IntBase
 {
     Bin,
@@ -290,7 +290,7 @@ impl IntBase
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, PartialOrd)]
 pub enum IntSuffix
 {
     Int,
@@ -301,7 +301,7 @@ pub enum IntSuffix
     UByte,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, PartialOrd)]
 pub enum FloatSuffix
 {
     Float,
