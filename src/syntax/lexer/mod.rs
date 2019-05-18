@@ -607,13 +607,15 @@ impl Lexer
             Some('U') if base == IntBase::Dec =>
             {
                 self.read_char();
-                match self.cur()
+                let suffix = match self.cur()
                 {
                     Some('B') | Some('Y') => IntSuffix::UByte,
                     Some('I') => IntSuffix::Int,
                     Some('L') => IntSuffix::ULong,
                     _ => IntSuffix::UInt,
-                }
+                };
+                self.read_char();
+                suffix
             }
 
             _ => IntSuffix::Int,

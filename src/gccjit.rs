@@ -677,10 +677,12 @@ impl<'a> Codegen<'a>
                 {
                     let expr = expr.as_ref().unwrap();
                     let rval = self.gen_expr(expr);
-
+                    let ty = self.cur_return.as_ref().unwrap().clone();
+                    let cty = self.ty_to_ctype(&ty);
+                    let val = self.ctx.new_cast(None, rval, cty);
                     self.cur_block
                         .unwrap()
-                        .end_with_return(Some(gccloc_from_loc(&self.ctx, &stmt.pos)), rval);
+                        .end_with_return(Some(gccloc_from_loc(&self.ctx, &stmt.pos)), val);
                 }
                 else
                 {
@@ -1020,10 +1022,12 @@ impl<'a> Codegen<'a>
                 let ty = self.get_id_type(rval_.id);
                 let val = if !ty.is_struct()
                 {
+                    let ty_ = self.get_id_type(lval_.id);
+                    let cty = self.ty_to_ctype(&ty_);
                     self.ctx.new_cast(
                         Some(gccloc_from_loc(&self.ctx, &rval_.pos)),
                         rval,
-                        lval.to_rvalue().get_type(),
+                        cty,
                     )
                 }
                 else
