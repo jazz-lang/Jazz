@@ -1,6 +1,8 @@
 use std::fmt;
 use std::ops::Index;
 
+pub mod display;
+
 use super::lexer::token::{FloatSuffix, IntBase, IntSuffix};
 
 pub struct File

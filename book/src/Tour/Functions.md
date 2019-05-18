@@ -50,3 +50,9 @@ Be careful since Jazz don't match function args in this expression.
     ```go
         extern func printf(fmt: *char,...) void;
     ```
+
+## Constant functions
+
+Constant functions allow performing operations when compiling the code. To turn on this feature you need to run the compiler with `--consteval`. That option enables constant folding and constant functions evaluating.
+
+Constant functions limited to numbers, binary and unary operations, variable declaration and constant function calling, if you try to call non-constant function in constant function then constant function will be translated into GIMPLE without compile-time calculating, also if you try to call constant function and parameters not known at compile-time then function compiled into GIMPLE directly too.
