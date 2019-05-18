@@ -929,16 +929,18 @@ impl<'a> Codegen<'a>
                 let rvalue = self.gen_expr(expr);
                 rvalue.dereference(None).to_rvalue()
             }
-            ExprKind::Unary(op, expr) =>
+            ExprKind::Unary(op, expr_) =>
             {
                 let op: &str = op;
-                let rval = self.gen_expr(expr);
+                let rval = self.gen_expr(expr_);
                 let ty = rval.get_type();
+                
                 match op
                 {
                     "-" => self.ctx.new_unary_op(None, UnaryOp::Minus, ty, rval),
                     "!" =>
                     {
+                    
                         let ast_ty = self.get_id_type(expr.id);
                         if crate::semantic::ty_is_any_int(&ast_ty)
                         {
