@@ -132,10 +132,7 @@ pub struct Options
         help = "Enables constant folding and const function evaluating"
     )]
     pub const_eval: bool,
-    #[structopt(
-        long = "print-ast",
-        help = "Print program"
-    )]
+    #[structopt(long = "print-ast", help = "Print program")]
     pub print_ast: bool,
 }
 
@@ -189,9 +186,11 @@ fn main() -> Result<(), MsgWithPos>
         let mut eval = const_eval::ConstEval::new(&mut ctx);
         eval.run();
     }
-    if opts.print_ast {
-        for elem in ctx.file.elems.iter() {
-            println!("{}",elem);
+    if opts.print_ast
+    {
+        for elem in ctx.file.elems.iter()
+        {
+            println!("{}", elem);
         }
     }
 

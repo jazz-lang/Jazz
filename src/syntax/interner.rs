@@ -28,7 +28,7 @@ pub fn str(name: Name) -> ArcStr
     read.str(name)
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash,PartialOrd)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd)]
 #[repr(C)]
 pub struct Name(pub usize);
 

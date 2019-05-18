@@ -123,7 +123,7 @@ impl<'a> Parser<'a>
                     break;
                 }
             };
-            
+
             self.advance_token()?;
             if modifiers.contains(modifier)
             {
@@ -215,17 +215,14 @@ impl<'a> Parser<'a>
             }
             TokenKind::ConstExpr =>
             {
-                
-                
                 let pos = self.advance_token()?.position;
-                if self.token.is(TokenKind::Fun) {
+                if self.token.is(TokenKind::Fun)
+                {
                     modifiers.insert("constant".to_owned());
-                    elements.push(
-                        Elem::Func(
-                            self.parse_function(modifiers)?
-                        )
-                    );
-                } else {
+                    elements.push(Elem::Func(self.parse_function(modifiers)?));
+                }
+                else
+                {
                     assert!(modifiers.is_empty());
                     let name = self.expect_identifier()?;
                     self.expect_token(TokenKind::Eq)?;
