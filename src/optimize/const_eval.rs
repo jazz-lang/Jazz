@@ -304,6 +304,32 @@ impl<'a> ConstEval<'a>
             ExprKind::Bool(b) => Const::Bool(*b),
 
             ExprKind::Binary(op, lhs, rhs) => self.eval_binop(op, lhs, rhs),
+            ExprKind::Unary(op,expr) => {
+                let op: &str = op;
+                let val = self.eval(expr);
+                if val.is_none() {
+                    return Const::None;
+                }
+                match op {
+                    "+" => match val {
+                        Const::Imm(i,s,b) => Const::Imm(i,s,b),
+                        Const::Float(f,s) => Const::Float(f,s),
+                        _ => Const::None
+                    }
+                    "-" => match val {
+                        Const::Imm(i,s,b) => Const::Imm(-i,s,b),
+                        Const::Float(f,s) => Const::Float(-f,s),
+                        _ => Const::None
+                    }
+                    "!" => match val {
+                        Const::Imm(i,s,b) => Const::Imm(!i,s,b),
+                        
+                        Const::Bool(b) => Const::Bool(!b),
+                        _ => Const::None
+                    }
+                    _ => Const::None
+                }
+            }    
             
             ExprKind::Ident(name) => self.try_get_var(name),
             ExprKind::Assign(to, from) =>
