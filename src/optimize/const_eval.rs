@@ -11,7 +11,7 @@ enum Const
     Imm(i64, IntSuffix, IntBase),
     Float(f64, FloatSuffix),
     Bool(bool),
-    Struct(Name,Vec<(Name,Const)>),
+    Struct(Name,Vec<(Name,Const,NodeId)>),
     Void,
     None,
 }
@@ -27,10 +27,10 @@ impl Const
             Const::Bool(b) => ExprKind::Bool(*b),
             Const::Struct(name,fields) => {
                 let mut args = vec![];
-                for (name,constant) in fields.iter() {
+                for (name,constant,id) in fields.iter() {
                     args.push(
                         StructArg {
-                            id: NodeId(0),
+                            id: *id,
                             pos: Position::new(intern(""),0,0),
                             name: *name,
                             expr: box Expr {id: NodeId(0),pos:  Position::new(intern(""),0,0),kind:  constant.to_kind()}
@@ -306,8 +306,9 @@ impl<'a> ConstEval<'a>
                         }
                         let cval = self.known_vars.get_mut(name).unwrap();
                         if let Const::Struct(_,fields) = cval {
-                            for (name,val_) in fields.iter_mut() {
+                            for (name,val_,id) in fields.iter_mut() {
                                 if name == field {
+                                    *id = from.id;
                                     *val_ = val.clone();
                                     break;
                                 }
@@ -403,7 +404,7 @@ impl<'a> ConstEval<'a>
                     if val.is_none() {
                         return Const::None;
                     }
-                    new_fields.push((field.name,val))
+                    new_fields.push((field.name,val,field.expr.id))
                 }
 
                 Const::Struct(name.name(),new_fields)
@@ -414,7 +415,7 @@ impl<'a> ConstEval<'a>
                     return Const::None;
                 }
                 if let Const::Struct(_,fields) = val {
-                    for (name,cval) in fields.iter() {
+                    for (name,cval,_) in fields.iter() {
                         if name == field {
                             return cval.clone();
                         }

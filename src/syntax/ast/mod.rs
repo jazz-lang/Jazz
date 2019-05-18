@@ -30,7 +30,7 @@ impl File
     }
 }
 
-#[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
+#[derive(PartialEq, Eq, Copy, Clone, Debug, Hash,PartialOrd)]
 pub struct NodeId(pub usize);
 
 impl fmt::Display for NodeId
