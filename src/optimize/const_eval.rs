@@ -1,14 +1,17 @@
 use crate::syntax::lexer::token::{FloatSuffix, IntBase, IntSuffix};
 use std::collections::HashMap;
+use crate::intern;
+use crate::syntax::position::Position;
 /// Constant value that known at compile-time
 ///
 /// TODO: Complex values such as structs and strings
-#[derive(Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Clone, PartialOrd,)]
 enum Const
 {
     Imm(i64, IntSuffix, IntBase),
     Float(f64, FloatSuffix),
     Bool(bool),
+    Struct(Name,Vec<(Name,Const)>),
     Void,
     None,
 }
@@ -22,7 +25,51 @@ impl Const
             Const::Imm(imm, suffix, base) => ExprKind::Int(*imm, base.clone(), suffix.clone()),
             Const::Float(f, suffix) => ExprKind::Float(*f, suffix.clone()),
             Const::Bool(b) => ExprKind::Bool(*b),
+            Const::Struct(name,fields) => {
+                let mut args = vec![];
+                for (name,constant) in fields.iter() {
+                    args.push(
+                        StructArg {
+                            id: NodeId(0),
+                            pos: Position::new(intern(""),0,0),
+                            name: *name,
+                            expr: box Expr {id: NodeId(0),pos:  Position::new(intern(""),0,0),kind:  constant.to_kind()}
+                        }
+                    )
+                }
+                ExprKind::Struct(
+                    Path::new(*name),
+                    args
+                )
+            }
             _ => unreachable!(),
+        }
+    }
+}
+
+use std::cmp::{PartialEq,PartialOrd,Ordering};
+
+impl PartialEq for Const {
+    fn eq(&self,other: &Self) -> bool {
+        match (self,other) {
+            (Const::Imm(i,_,_),Const::Imm(i2,_,_)) => i == i2,
+            (Const::Imm(i,_,_),Const::Float(f,_)) => *i as f64 == *f,
+            (Const::Float(f,_),Const::Imm(i,_,_)) => *f == *i as f64,
+            (Const::Float(f,_),Const::Float(f2,_)) => f == f2,
+            (Const::Bool(b),Const::Bool(b2)) => b == b2,
+            (Const::Struct(s1name,fields1),Const::Struct(s2name,fields2)) => {
+                
+                if fields1.len() == 0 && fields2.len() == 0 {
+                    return s1name == s2name;
+                } else {
+                    let mut fields_ok = false;
+                    for (f1,f2) in fields1.iter().zip(fields2.iter()) {
+                        fields_ok = f1 == f2;
+                    }
+                    fields_ok
+                }
+            }
+            _ => false
         }
     }
 }
@@ -250,6 +297,25 @@ impl<'a> ConstEval<'a>
                     }
                 }
             }
+            ExprKind::Field(expr,field) => {
+                if let ExprKind::Ident(name) = &expr.kind {
+                    if self.known_vars.contains_key(name) {
+                        let val = self.eval(from);
+                        if val.is_none() {
+                            return;
+                        }
+                        let cval = self.known_vars.get_mut(name).unwrap();
+                        if let Const::Struct(_,fields) = cval {
+                            for (name,val_) in fields.iter_mut() {
+                                if name == field {
+                                    *val_ = val.clone();
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                } 
+            }
             _ => (),
         }
     }
@@ -330,6 +396,33 @@ impl<'a> ConstEval<'a>
                     _ => Const::None
                 }
             }    
+            ExprKind::Struct(name,fields) => {
+                let mut new_fields = vec![];
+                for field in fields.iter() {
+                    let val = self.eval(&field.expr);
+                    if val.is_none() {
+                        return Const::None;
+                    }
+                    new_fields.push((field.name,val))
+                }
+
+                Const::Struct(name.name(),new_fields)
+            }
+            ExprKind::Field(val,field) => {
+                let val = self.eval(val);
+                if val.is_none() {
+                    return Const::None;
+                }
+                if let Const::Struct(_,fields) = val {
+                    for (name,cval) in fields.iter() {
+                        if name == field {
+                            return cval.clone();
+                        }
+                    }
+                }
+
+                return Const::None;
+            }
             
             ExprKind::Ident(name) => self.try_get_var(name),
             ExprKind::Assign(to, from) =>

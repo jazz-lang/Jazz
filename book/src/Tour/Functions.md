@@ -56,3 +56,14 @@ Be careful since Jazz don't match function args in this expression.
 Constant functions allow performing operations when compiling the code. To turn on this feature you need to run the compiler with `--consteval`. That option enables constant folding and constant functions evaluating.
 
 Constant functions limited to numbers, binary and unary operations, variable declaration and constant function calling, if you try to call non-constant function in constant function then constant function will be translated into GIMPLE without compile-time calculating, also if you try to call constant function and parameters not known at compile-time then function compiled into GIMPLE directly too.
+
+To make function constant you need use `constexpr` keyword:
+```go
+constexpr func add(x: i32,y: i32) i32 {
+    return x + y;
+}
+
+pub func main() i32 {
+    return add(2,3);
+}
+```

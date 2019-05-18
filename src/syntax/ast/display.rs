@@ -34,9 +34,9 @@ impl Display for ExprKind {
             ExprKind::Struct(path,fields) => {
                 write!(f,"{} {{\n",path.name())?;
                 for field in fields.iter() {
-                    write!(f,"\t{}: {}",field.name,field.expr)?;
+                    write!(f,"\t{}: {}\n",field.name,field.expr)?;
                 }
-                write!(f,"\n }}")
+                write!(f,"\n \t}}")
             }
             ExprKind::Binary(op,lhs,rhs) => write!(f,"{} {} {}",lhs,op,rhs),
             ExprKind::Unary(op,val) => write!(f,"{}{}",op,val),
