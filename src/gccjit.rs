@@ -267,6 +267,47 @@ impl<'a> Codegen<'a>
             }
         }
     }
+
+    fn assign(&mut self, pos: crate::syntax::position::Position, to: &Expr, from: &Expr) -> RValue
+    {
+        let lval = self.expr_to_lvalue(to).unwrap();
+        let rval = self.gen_expr(from);
+        let type_ = self.get_id_type(to.id);
+        let _ = self.get_id_type(from.id);
+        let do_cast = match type_
+        {
+            Type::Basic(basic) =>
+            {
+                if self.structures.contains_key(&basic.name)
+                {
+                    false
+                }
+                else
+                {
+                    true
+                }
+            }
+            Type::Struct(_) => false,
+            Type::Ptr(_) => true,
+            Type::Array(_) => false,
+            _ => true,
+        };
+
+        let val = if do_cast
+        {
+            self.ctx.new_cast(None, rval, lval.to_rvalue().get_type())
+        }
+        else
+        {
+            rval
+        };
+        self.cur_block
+            .unwrap()
+            .add_assignment(Some(gccloc_from_loc(&self.ctx, &pos)), lval, val);
+
+        rval
+    }
+
     fn search_for_func(
         &mut self,
         params: &[Type],
@@ -760,14 +801,13 @@ impl<'a> Codegen<'a>
 
                 let expr = self.gen_expr(cond);
 
-                
                 self.cur_block.unwrap().end_with_conditional(
                     Some(gccloc_from_loc(&self.ctx, &cond.pos)),
                     expr,
                     bb_then,
                     bb_else,
                 );
-                
+
                 self.terminated.push(false);
                 self.cur_block = Some(bb_then);
                 self.gen_stmt(then, true);
@@ -1030,7 +1070,8 @@ impl<'a> Codegen<'a>
             }
             ExprKind::Assign(lval_, rval_) =>
             {
-                let lval = self.expr_to_lvalue(lval_).unwrap();
+                self.assign(expr.pos, lval_, rval_)
+                /*let lval = self.expr_to_lvalue(lval_).unwrap();
                 let val = self.gen_expr(rval_);
 
                 let ast_ty = self.get_id_type(rval_.id);
@@ -1038,15 +1079,8 @@ impl<'a> Codegen<'a>
 
                 let val = if !ast_ty.is_struct()
                 {
-                    if ast_ty != lval_ty
-                    {
-                        let ty = self.ty_to_ctype(&lval_ty);
-                        self.ctx.new_cast(None, val, ty)
-                    }
-                    else
-                    {
-                        val
-                    }
+                    let ty = self.ty_to_ctype(&lval_ty);
+                    self.ctx.new_cast(None, val, ty)
                 }
                 else
                 {
@@ -1058,7 +1092,7 @@ impl<'a> Codegen<'a>
                     val,
                 );
 
-                val
+                val*/
             }
 
             ExprKind::Bool(b) => self
