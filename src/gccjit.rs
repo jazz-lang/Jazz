@@ -760,12 +760,14 @@ impl<'a> Codegen<'a>
 
                 let expr = self.gen_expr(cond);
 
+                
                 self.cur_block.unwrap().end_with_conditional(
                     Some(gccloc_from_loc(&self.ctx, &cond.pos)),
                     expr,
                     bb_then,
                     bb_else,
                 );
+                
                 self.terminated.push(false);
                 self.cur_block = Some(bb_then);
                 self.gen_stmt(then, true);
@@ -777,12 +779,13 @@ impl<'a> Codegen<'a>
                 }
                 self.cur_block = Some(bb_merge);
 
-                //self.terminated.pop();
+                self.terminated.pop();
                 self.terminated.push(false);
                 if let Some(else_branch) = otherwise
                 {
                     self.cur_block = Some(bb_else);
                     self.gen_stmt(else_branch, true);
+
                     if !*self.terminated.last().unwrap()
                     {
                         self.cur_block.unwrap().end_with_jump(
@@ -791,7 +794,7 @@ impl<'a> Codegen<'a>
                         );
                     }
                 }
-                //self.terminated.pop();
+                self.terminated.pop();
                 self.cur_block = Some(bb_merge);
             }
             StmtKind::While(cond, block_) =>
