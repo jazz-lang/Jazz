@@ -134,6 +134,11 @@ pub struct Options
     pub const_eval: bool,
     #[structopt(long = "print-ast", help = "Print program")]
     pub print_ast: bool,
+    #[structopt(
+        long = "aggressive-eval",
+        help = "try to evaluate normal (not constexpr) functions too"
+    )]
+    pub aggressive_eval: bool,
 }
 
 fn main() -> Result<(), MsgWithPos>
@@ -183,7 +188,7 @@ fn main() -> Result<(), MsgWithPos>
     semantic.run();
     if opts.const_eval
     {
-        let mut eval = const_eval::ConstEval::new(&mut ctx);
+        let mut eval = const_eval::ConstEval::new(&mut ctx,opts.aggressive_eval || opts.opt_level == 3);
         eval.run();
     }
     if opts.print_ast

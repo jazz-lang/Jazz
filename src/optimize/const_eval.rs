@@ -176,11 +176,12 @@ pub struct ConstEval<'a>
     return_: Option<Const>,
     constexprs: HashMap<Name, Expr>,
     functions: HashMap<Name,Vec<Function>>,
+    try_eval_normal: bool,
 }
 
 impl<'a> ConstEval<'a>
 {
-    pub fn new(ctx: &'a mut Context) -> ConstEval<'a>
+    pub fn new(ctx: &'a mut Context,try_eval_normal: bool) -> ConstEval<'a>
     {
         ConstEval {
             ctx: ctx,
@@ -189,6 +190,7 @@ impl<'a> ConstEval<'a>
             return_: None,
             constexprs: HashMap::new(),
             functions: HashMap::new(),
+            try_eval_normal: try_eval_normal
         }
     }
 
@@ -221,26 +223,26 @@ impl<'a> ConstEval<'a>
             {
                 (Const::Imm(i1, suffix, base), Const::Imm(i2, _, _)) =>
                 {
-                    Const::Imm(i1 + i2, suffix, base)
+                    Const::Imm(i1.overflowing_add(i2).0, suffix, base)
                 }
                 (Const::Float(f1, s), Const::Float(f2, _)) => Const::Float(f1 + f2, s),
                 _ => Const::None,
             },
             "-" => match (c1, c2)
             {
-                (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) => Const::Imm(i1 - i2, s, b),
+                (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) => Const::Imm(i1.overflowing_sub(i2).0, s, b),
                 (Const::Float(f1, s), Const::Float(f2, _)) => Const::Float(f1 - f2, s),
                 _ => Const::None,
             },
             "/" => match (c1, c2)
             {
-                (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) => Const::Imm(i1 / i2, s, b),
+                (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) => Const::Imm(i1.overflowing_div(i2).0, s, b),
                 (Const::Float(f1, s), Const::Float(f2, _)) => Const::Float(f1 / f2, s),
                 _ => Const::None,
             },
             "*" => match (c1, c2)
             {
-                (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) => Const::Imm(i1 * i2, s, b),
+                (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) => Const::Imm(i1.overflowing_mul(i2).0, s, b),
                 (Const::Float(f1, s), Const::Float(f2, _)) => Const::Float(f1 * f2, s),
                 _ => Const::None,
             },
@@ -305,6 +307,8 @@ impl<'a> ConstEval<'a>
                 match (c1,c2) {
                     (Const::Imm(i,_s,_b),Const::Imm(i2,_,_)) => Const::Bool(i == i2),
                     (Const::Float(f,_),Const::Float(f2,_)) => Const::Bool(f == f2),
+                    (Const::Bool(b1),Const::Bool(b2)) => Const::Bool(b1 == b2),
+                    
                     _ => Const::None
                 }
             }
@@ -312,6 +316,7 @@ impl<'a> ConstEval<'a>
                 match (c1,c2) {
                     (Const::Imm(i,_s,_b),Const::Imm(i2,_,_)) => Const::Bool(i != i2),
                     (Const::Float(f,_),Const::Float(f2,_)) => Const::Bool(f != f2),
+                    (Const::Bool(b1),Const::Bool(b2)) => Const::Bool(b1 != b2),
                     _ => Const::None
                 }
             }
@@ -572,7 +577,7 @@ impl<'a> ConstEval<'a>
                         }
                         return self.eval_constfn(&params, func.body.as_ref().unwrap(), args);
                     }
-                } else if self.functions.contains_key(&name.name()) {
+                } else if self.functions.contains_key(&name.name()) && self.try_eval_normal {
                     let funcs: Vec<Function> =
                         self.functions.get(&name.name()).unwrap().clone();
                     let mut func = None;
