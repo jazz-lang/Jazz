@@ -212,7 +212,6 @@ impl<'a> ConstEval<'a>
     {
         let c1 = self.eval(&lhs);
         let c2 = self.eval(&rhs);
-        
 
         if c1.is_none() || c2.is_none()
         {
@@ -725,7 +724,7 @@ impl<'a> ConstEval<'a>
             }
             new_vars.insert(*param, val);
         }
-        
+
         self.known_vars = new_vars;
         let val = self.eval_stmt(body);
         self.known_vars = old_vars;
@@ -809,14 +808,13 @@ impl<'a> ConstEval<'a>
             }
             StmtKind::If(cond, then_body, else_body) =>
             {
-               
                 let val = self.eval(cond);
 
                 if val.is_none()
                 {
                     return None;
                 }
-                
+
                 if let Const::Bool(true) = val
                 {
                     return self.eval_stmt(then_body);
@@ -1046,9 +1044,9 @@ impl<'a> ConstEval<'a>
                     }*/
                     self.id = i;
                     //if !func.constant {
-                        self.opt_func(func, i);
+                    self.opt_func(func, i);
                     //} else {
-                        
+
                     //}
                 }
                 Elem::ConstExpr { name, expr, .. } =>

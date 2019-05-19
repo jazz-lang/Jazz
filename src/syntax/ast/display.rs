@@ -35,7 +35,7 @@ impl Display for ExprKind
                 write!(f, "{} {{\n", path.name())?;
                 for field in fields.iter()
                 {
-                    write!(f, "\t{}: {}\n", field.name, field.expr)?;
+                    write!(f, "\t    {}: {}\n", field.name, field.expr)?;
                 }
                 write!(f, "\n \t}}")
             }
@@ -93,12 +93,12 @@ impl Display for StmtKind
             StmtKind::If(cond, then, or) =>
             {
                 write!(f, "if {} {{\n", cond)?;
-                write!(f, "\t{}", then)?;
+                write!(f, "\t\t{}", then)?;
                 write!(f, "}}")?;
                 if or.is_some()
                 {
                     write!(f, " else ")?;
-                    write!(f, " {} \n", or.as_ref().unwrap())?;
+                    write!(f, " \t{} \n", or.as_ref().unwrap())?;
                     write!(f, "}}\n")?;
                 }
                 write!(f, "\n")
