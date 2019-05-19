@@ -724,7 +724,7 @@ impl<'a> ConstEval<'a>
             }
             new_vars.insert(*param, val);
         }
-        self.id = f.
+        
         self.known_vars = new_vars;
         let val = self.eval_stmt(body);
         self.known_vars = old_vars;
