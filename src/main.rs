@@ -188,7 +188,8 @@ fn main() -> Result<(), MsgWithPos>
     semantic.run();
     if opts.const_eval || opts.aggressive_eval || opts.opt_level == 3
     {
-        let mut eval = const_eval::ConstEval::new(&mut ctx,opts.aggressive_eval || opts.opt_level == 3);
+        let mut eval =
+            const_eval::ConstEval::new(&mut ctx, opts.aggressive_eval || opts.opt_level == 3);
         eval.run();
     }
     if opts.print_ast

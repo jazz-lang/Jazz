@@ -5,7 +5,7 @@ use std::collections::HashMap;
 /// Constant value that known at compile-time
 ///
 /// TODO: Complex values such as structs and strings
-#[derive(Clone, PartialOrd,Debug)]
+#[derive(Clone, PartialOrd, Debug)]
 enum Const
 {
     Imm(i64, IntSuffix, IntBase),
@@ -43,10 +43,9 @@ impl Const
                     })
                 }
                 ExprKind::Struct(Path::new(*name), args)
-            
             }
             Const::Ret(c) => c.to_kind(),
-            
+
             _ => unreachable!(),
         }
     }
@@ -175,13 +174,13 @@ pub struct ConstEval<'a>
     const_functions: HashMap<Name, Vec<Function>>,
     return_: Option<Const>,
     constexprs: HashMap<Name, Expr>,
-    functions: HashMap<Name,Vec<Function>>,
+    functions: HashMap<Name, Vec<Function>>,
     try_eval_normal: bool,
 }
 
 impl<'a> ConstEval<'a>
 {
-    pub fn new(ctx: &'a mut Context,try_eval_normal: bool) -> ConstEval<'a>
+    pub fn new(ctx: &'a mut Context, try_eval_normal: bool) -> ConstEval<'a>
     {
         ConstEval {
             ctx: ctx,
@@ -190,7 +189,7 @@ impl<'a> ConstEval<'a>
             return_: None,
             constexprs: HashMap::new(),
             functions: HashMap::new(),
-            try_eval_normal: try_eval_normal
+            try_eval_normal: try_eval_normal,
         }
     }
 
@@ -230,19 +229,28 @@ impl<'a> ConstEval<'a>
             },
             "-" => match (c1, c2)
             {
-                (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) => Const::Imm(i1.overflowing_sub(i2).0, s, b),
+                (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) =>
+                {
+                    Const::Imm(i1.overflowing_sub(i2).0, s, b)
+                }
                 (Const::Float(f1, s), Const::Float(f2, _)) => Const::Float(f1 - f2, s),
                 _ => Const::None,
             },
             "/" => match (c1, c2)
             {
-                (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) => Const::Imm(i1.overflowing_div(i2).0, s, b),
+                (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) =>
+                {
+                    Const::Imm(i1.overflowing_div(i2).0, s, b)
+                }
                 (Const::Float(f1, s), Const::Float(f2, _)) => Const::Float(f1 / f2, s),
                 _ => Const::None,
             },
             "*" => match (c1, c2)
             {
-                (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) => Const::Imm(i1.overflowing_mul(i2).0, s, b),
+                (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) =>
+                {
+                    Const::Imm(i1.overflowing_mul(i2).0, s, b)
+                }
                 (Const::Float(f1, s), Const::Float(f2, _)) => Const::Float(f1 * f2, s),
                 _ => Const::None,
             },
@@ -288,50 +296,45 @@ impl<'a> ConstEval<'a>
                 (Const::Bool(b1), Const::Bool(b2)) => Const::Bool(b1 && b2),
                 _ => Const::None,
             },
-            "<" => {
-                
-                match (c1,c2) {
-                    (Const::Imm(i,_s,_b),Const::Imm(i2,_,_)) => Const::Bool(i < i2),
-                    (Const::Float(f,_),Const::Float(f2,_)) => Const::Bool(f < f2),
-                    _ => Const::None
-                }
-            }
-            ">" => {
-                match (c1,c2) {
-                    (Const::Imm(i,_s,_b),Const::Imm(i2,_,_)) => Const::Bool(i > i2),
-                    (Const::Float(f,_),Const::Float(f2,_)) => Const::Bool(f > f2),
-                    _ => Const::None
-                }
-            }
-            "==" => {
-                match (c1,c2) {
-                    (Const::Imm(i,_s,_b),Const::Imm(i2,_,_)) => Const::Bool(i == i2),
-                    (Const::Float(f,_),Const::Float(f2,_)) => Const::Bool(f == f2),
-                    (Const::Bool(b1),Const::Bool(b2)) => Const::Bool(b1 == b2),
-                    
-                    _ => Const::None
-                }
-            }
-            "!=" => {
-                match (c1,c2) {
-                    (Const::Imm(i,_s,_b),Const::Imm(i2,_,_)) => Const::Bool(i != i2),
-                    (Const::Float(f,_),Const::Float(f2,_)) => Const::Bool(f != f2),
-                    (Const::Bool(b1),Const::Bool(b2)) => Const::Bool(b1 != b2),
-                    _ => Const::None
-                }
-            }
-            ">=" => {
-                match (c1,c2) {
-                    (Const::Imm(i,_s,_b),Const::Imm(i2,_,_)) => Const::Bool(i >= i2),
-                    (Const::Float(f,_),Const::Float(f2,_)) => Const::Bool(f >= f2),
-                    _ => Const::None
-                }
-            }
-            "<=" => match (c1,c2) {
-                    (Const::Imm(i,_s,_b),Const::Imm(i2,_,_)) => Const::Bool(i <= i2),
-                    (Const::Float(f,_),Const::Float(f2,_)) => Const::Bool(f <= f2),
-                    _ => Const::None
-                }
+            "<" => match (c1, c2)
+            {
+                (Const::Imm(i, _s, _b), Const::Imm(i2, _, _)) => Const::Bool(i < i2),
+                (Const::Float(f, _), Const::Float(f2, _)) => Const::Bool(f < f2),
+                _ => Const::None,
+            },
+            ">" => match (c1, c2)
+            {
+                (Const::Imm(i, _s, _b), Const::Imm(i2, _, _)) => Const::Bool(i > i2),
+                (Const::Float(f, _), Const::Float(f2, _)) => Const::Bool(f > f2),
+                _ => Const::None,
+            },
+            "==" => match (c1, c2)
+            {
+                (Const::Imm(i, _s, _b), Const::Imm(i2, _, _)) => Const::Bool(i == i2),
+                (Const::Float(f, _), Const::Float(f2, _)) => Const::Bool(f == f2),
+                (Const::Bool(b1), Const::Bool(b2)) => Const::Bool(b1 == b2),
+
+                _ => Const::None,
+            },
+            "!=" => match (c1, c2)
+            {
+                (Const::Imm(i, _s, _b), Const::Imm(i2, _, _)) => Const::Bool(i != i2),
+                (Const::Float(f, _), Const::Float(f2, _)) => Const::Bool(f != f2),
+                (Const::Bool(b1), Const::Bool(b2)) => Const::Bool(b1 != b2),
+                _ => Const::None,
+            },
+            ">=" => match (c1, c2)
+            {
+                (Const::Imm(i, _s, _b), Const::Imm(i2, _, _)) => Const::Bool(i >= i2),
+                (Const::Float(f, _), Const::Float(f2, _)) => Const::Bool(f >= f2),
+                _ => Const::None,
+            },
+            "<=" => match (c1, c2)
+            {
+                (Const::Imm(i, _s, _b), Const::Imm(i2, _, _)) => Const::Bool(i <= i2),
+                (Const::Float(f, _), Const::Float(f2, _)) => Const::Bool(f <= f2),
+                _ => Const::None,
+            },
             _ => Const::None,
         }
     }
@@ -347,7 +350,7 @@ impl<'a> ConstEval<'a>
                 if self.known_vars.contains_key(name)
                 {
                     let val = self.eval(from);
-                    
+
                     if !val.is_none()
                     {
                         self.known_vars.insert(*name, val);
@@ -577,9 +580,10 @@ impl<'a> ConstEval<'a>
                         }
                         return self.eval_constfn(&params, func.body.as_ref().unwrap(), args);
                     }
-                } else if self.functions.contains_key(&name.name()) && self.try_eval_normal {
-                    let funcs: Vec<Function> =
-                        self.functions.get(&name.name()).unwrap().clone();
+                }
+                else if self.functions.contains_key(&name.name()) && self.try_eval_normal
+                {
+                    let funcs: Vec<Function> = self.functions.get(&name.name()).unwrap().clone();
                     let mut func = None;
 
                     for fun in funcs.iter()
@@ -651,7 +655,7 @@ impl<'a> ConstEval<'a>
         for (i, param) in params.iter().enumerate()
         {
             let val = self.eval(&args[i]);
-            
+
             if val.is_none()
             {
                 return Const::None; // Argument value not known at compile time, return none
@@ -682,8 +686,9 @@ impl<'a> ConstEval<'a>
                 {
                     let val = self.eval_stmt(stmt);
                     last = val;
-                    
-                    if let Some(Const::Ret(_)) = last {
+
+                    if let Some(Const::Ret(_)) = last
+                    {
                         break;
                     }
                 }
@@ -692,7 +697,6 @@ impl<'a> ConstEval<'a>
             StmtKind::Expr(expr) =>
             {
                 return Some(self.eval(expr));
-                
             }
             StmtKind::Return(expr) =>
             {
@@ -732,36 +736,46 @@ impl<'a> ConstEval<'a>
 
                 return Some(Const::Void);
             }
-            StmtKind::If(cond,then_body,else_body) =>
+            StmtKind::If(cond, then_body, else_body) =>
             {
-                println!("{}",cond);
+                println!("{}", cond);
                 let val = self.eval(cond);
-                println!("cond {:?}",val);
-                if val.is_none() {
+                println!("cond {:?}", val);
+                if val.is_none()
+                {
                     return None;
                 }
-                if let Const::Bool(true) = val {
+                if let Const::Bool(true) = val
+                {
                     return self.eval_stmt(then_body);
-                } else if let Const::Bool(false) = val {
-                    if else_body.is_some() {
+                }
+                else if let Const::Bool(false) = val
+                {
+                    if else_body.is_some()
+                    {
                         let else_body = else_body.as_ref().unwrap();
                         return self.eval_stmt(else_body);
-                    } else {
+                    }
+                    else
+                    {
                         return Some(Const::Void);
                     }
                 }
                 return Some(Const::Void);
-
-               
             }
 
-            StmtKind::While(cond,body) => {
-                while let Const::Bool(true) = self.eval(cond) {
+            StmtKind::While(cond, body) =>
+            {
+                while let Const::Bool(true) = self.eval(cond)
+                {
                     let val = self.eval_stmt(body);
-                    
-                    if val.is_none() {
+
+                    if val.is_none()
+                    {
                         return None;
-                    } else if let Some(Const::None) = val {
+                    }
+                    else if let Some(Const::None) = val
+                    {
                         return None;
                     }
                 }
@@ -871,12 +885,13 @@ impl<'a> ConstEval<'a>
                 {
                     let expr = val.as_ref().unwrap();
                     let val = self.eval(expr);
-                    
+
                     if !val.is_none()
                     {
                         if let Elem::Func(func) = &mut self.ctx.file.elems[fid]
                         {
-                            if !func.ret.is_void() {
+                            if !func.ret.is_void()
+                            {
                                 func.replace_expr_to(
                                     expr.id,
                                     Expr {
@@ -906,7 +921,8 @@ impl<'a> ConstEval<'a>
     {
         for elem in self.ctx.file.elems.clone().iter()
         {
-            if let Elem::Func(func) = elem {
+            if let Elem::Func(func) = elem
+            {
                 if func.constant
                 {
                     if self.const_functions.contains_key(&func.name)
@@ -918,15 +934,20 @@ impl<'a> ConstEval<'a>
                     {
                         self.const_functions.insert(func.name, vec![func.clone()]);
                     }
-                } else if !func.internal && !func.external {
-                    if self.functions.contains_key(&func.name) {
+                }
+                else if !func.internal && !func.external
+                {
+                    if self.functions.contains_key(&func.name)
+                    {
                         let funcs = self.functions.get_mut(&func.name).unwrap();
                         funcs.push(func.clone());
-                    } else {
+                    }
+                    else
+                    {
                         self.functions.insert(func.name, vec![func.clone()]);
                     }
                 }
-            } 
+            }
         }
         for (i, elem) in self.ctx.file.elems.clone().iter().enumerate()
         {

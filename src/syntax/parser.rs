@@ -1165,40 +1165,53 @@ impl<'a> Parser<'a>
                 //self.advance_token()?;
                 let ret = Box::new(self.parse_type()?);
 
-                Type::create_func(
-                    self.generate_id(),
-                    token.position,
-                    subtypes,
-                    ret,
-                )
+                Type::create_func(self.generate_id(), token.position, subtypes, ret)
             }
 
-            _ => return Err(MsgWithPos::new(
-                self.lexer.path().to_string(),
-                self.src(),
-                self.token.position,
-                Msg::ExpectedType(self.token.name()),
-            )),
+            _ =>
+            {
+                return Err(MsgWithPos::new(
+                    self.lexer.path().to_string(),
+                    self.src(),
+                    self.token.position,
+                    Msg::ExpectedType(self.token.name()),
+                ))
+            }
         };
 
         let pos = ty.pos();
-        if self.token.is(TokenKind::LBracket) {
+        if self.token.is(TokenKind::LBracket)
+        {
             self.advance_token()?;
-            
-            
-            if self.token.is(TokenKind::RBracket) {
+
+            if self.token.is(TokenKind::RBracket)
+            {
                 self.advance_token()?;
-                return Ok(Type::create_array(self.generate_id(), pos, box ty.clone(), None));
-            } else {
-                let len = if let TokenKind::LitInt(lit,_,_) = &self.token.kind {
+                return Ok(Type::create_array(
+                    self.generate_id(),
+                    pos,
+                    box ty.clone(),
+                    None,
+                ));
+            }
+            else
+            {
+                let len = if let TokenKind::LitInt(lit, _, _) = &self.token.kind
+                {
                     lit.parse::<i64>().unwrap() as usize
-                } else {
-                    
+                }
+                else
+                {
                     unimplemented!() // TODO: parse expression
                 };
                 self.advance_token()?;
                 self.expect_token(TokenKind::RBracket)?;
-                return Ok(Type::create_array(self.generate_id(), pos, box ty.clone(), Some(len)))
+                return Ok(Type::create_array(
+                    self.generate_id(),
+                    pos,
+                    box ty.clone(),
+                    Some(len),
+                ));
             }
         }
 

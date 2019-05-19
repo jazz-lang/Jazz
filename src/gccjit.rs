@@ -537,7 +537,7 @@ impl<'a> Codegen<'a>
 
                         let cfield = struct_.fields.get(name).expect("Field not found");
                         let lval = self.gen_expr(object);
-                        
+
                         Some(lval.dereference_field(
                             Some(gccloc_from_loc(&self.ctx, &expr.pos)),
                             *cfield,
@@ -549,7 +549,7 @@ impl<'a> Codegen<'a>
 
                         let cfield = struct_.fields.get(name).expect("Field not found");
                         let lval = self.gen_expr(object);
-                        
+
                         //Some(lval.access_field(, *cfield))
                         return Some(lval.dereference_field(
                             Some(gccloc_from_loc(&self.ctx, &expr.pos)),
@@ -571,7 +571,7 @@ impl<'a> Codegen<'a>
 
                     let cfield = struct_.fields.get(name).expect("Field not found");
                     let lval = self.expr_to_lvalue(object).expect("LValue expected");
-                    
+
                     Some(lval.access_field(Some(gccloc_from_loc(&self.ctx, &expr.pos)), *cfield))
                 }
                 else
@@ -681,7 +681,7 @@ impl<'a> Codegen<'a>
                     let expr = expr.as_ref().unwrap();
                     let val = self.gen_expr(expr);
                     //let ty = self.cur_return.as_ref().unwrap().clone();
-                    
+
                     self.cur_block
                         .unwrap()
                         .end_with_return(Some(gccloc_from_loc(&self.ctx, &stmt.pos)), val);
@@ -941,13 +941,12 @@ impl<'a> Codegen<'a>
                 let op: &str = op;
                 let rval = self.gen_expr(expr_);
                 let ty = rval.get_type();
-                
+
                 match op
                 {
                     "-" => self.ctx.new_unary_op(None, UnaryOp::Minus, ty, rval),
                     "!" =>
                     {
-                    
                         let ast_ty = self.get_id_type(expr.id);
                         if crate::semantic::ty_is_any_int(&ast_ty)
                         {
@@ -1027,7 +1026,14 @@ impl<'a> Codegen<'a>
                 let ty = lval.to_rvalue().get_type();
                 let ast_ty = self.get_id_type(rval_.id);
 
-                let val = if !ast_ty.is_struct() {self.ctx.new_cast(None,val,ty) } else {val};
+                let val = if !ast_ty.is_struct()
+                {
+                    self.ctx.new_cast(None, val, ty)
+                }
+                else
+                {
+                    val
+                };
                 self.cur_block.unwrap().add_assignment(
                     Some(gccloc_from_loc(&self.ctx, &lval_.pos)),
                     lval,
