@@ -189,7 +189,7 @@ fn main() -> Result<(), MsgWithPos>
     if opts.const_eval || opts.aggressive_eval || opts.opt_level == 3
     {
         let mut eval =
-            const_eval::ConstEval::new(&mut ctx, opts.aggressive_eval || opts.opt_level == 3);
+            const_eval::ConstEval::new(&mut ctx, opts.aggressive_eval);
         eval.run();
     }
     if opts.print_ast
