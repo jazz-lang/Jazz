@@ -536,8 +536,9 @@ impl<'a> Codegen<'a>
                             .clone();
 
                         let cfield = struct_.fields.get(name).expect("Field not found");
-                        let lval = self.expr_to_lvalue(object).expect("LValue expected");
-                        Some(lval.to_rvalue().dereference_field(
+                        let lval = self.gen_expr(object);
+                        
+                        Some(lval.dereference_field(
                             Some(gccloc_from_loc(&self.ctx, &expr.pos)),
                             *cfield,
                         ))
@@ -547,8 +548,10 @@ impl<'a> Codegen<'a>
                         let struct_ = self.structures.get(&basic.name).unwrap().clone();
 
                         let cfield = struct_.fields.get(name).expect("Field not found");
-                        let lval = self.expr_to_lvalue(object).expect("LValue expected");
-                        return Some(lval.to_rvalue().dereference_field(
+                        let lval = self.gen_expr(object);
+                        
+                        //Some(lval.access_field(, *cfield))
+                        return Some(lval.dereference_field(
                             Some(gccloc_from_loc(&self.ctx, &expr.pos)),
                             *cfield,
                         ));
@@ -568,7 +571,7 @@ impl<'a> Codegen<'a>
 
                     let cfield = struct_.fields.get(name).expect("Field not found");
                     let lval = self.expr_to_lvalue(object).expect("LValue expected");
-
+                    
                     Some(lval.access_field(Some(gccloc_from_loc(&self.ctx, &expr.pos)), *cfield))
                 }
                 else
@@ -676,10 +679,9 @@ impl<'a> Codegen<'a>
                 if expr.is_some()
                 {
                     let expr = expr.as_ref().unwrap();
-                    let rval = self.gen_expr(expr);
-                    let ty = self.cur_return.as_ref().unwrap().clone();
-                    let cty = self.ty_to_ctype(&ty);
-                    let val = self.ctx.new_cast(None, rval, cty);
+                    let val = self.gen_expr(expr);
+                    //let ty = self.cur_return.as_ref().unwrap().clone();
+                    
                     self.cur_block
                         .unwrap()
                         .end_with_return(Some(gccloc_from_loc(&self.ctx, &stmt.pos)), val);
@@ -711,6 +713,9 @@ impl<'a> Codegen<'a>
                 {
                     let expr = init.as_ref().unwrap();
                     let rval = self.gen_expr(expr);
+                    //let cty = local.to_rvalue().get_type();
+
+                    //let rval = self.ctx.new_cast(None,rval,cty);
                     self.cur_block.unwrap().add_assignment(
                         Some(gccloc_from_loc(&self.ctx, &expr.pos)),
                         local,
@@ -1018,22 +1023,11 @@ impl<'a> Codegen<'a>
             ExprKind::Assign(lval_, rval_) =>
             {
                 let lval = self.expr_to_lvalue(lval_).unwrap();
-                let rval = self.gen_expr(rval_);
-                let ty = self.get_id_type(rval_.id);
-                let val = if !ty.is_struct()
-                {
-                    let ty_ = self.get_id_type(lval_.id);
-                    let cty = self.ty_to_ctype(&ty_);
-                    self.ctx.new_cast(
-                        Some(gccloc_from_loc(&self.ctx, &rval_.pos)),
-                        rval,
-                        cty,
-                    )
-                }
-                else
-                {
-                    rval
-                };
+                let val = self.gen_expr(rval_);
+                let ty = lval.to_rvalue().get_type();
+                let ast_ty = self.get_id_type(rval_.id);
+
+                let val = if !ast_ty.is_struct() {self.ctx.new_cast(None,val,ty) } else {val};
                 self.cur_block.unwrap().add_assignment(
                     Some(gccloc_from_loc(&self.ctx, &lval_.pos)),
                     lval,

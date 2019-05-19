@@ -5,7 +5,7 @@ use std::collections::HashMap;
 /// Constant value that known at compile-time
 ///
 /// TODO: Complex values such as structs and strings
-#[derive(Clone, PartialOrd)]
+#[derive(Clone, PartialOrd,Debug)]
 enum Const
 {
     Imm(i64, IntSuffix, IntBase),
@@ -13,6 +13,7 @@ enum Const
     Bool(bool),
     Struct(Name, Vec<(Name, Const, NodeId)>),
     Void,
+    Ret(Box<Const>),
     None,
 }
 
@@ -42,7 +43,10 @@ impl Const
                     })
                 }
                 ExprKind::Struct(Path::new(*name), args)
+            
             }
+            Const::Ret(c) => c.to_kind(),
+            
             _ => unreachable!(),
         }
     }
@@ -266,12 +270,12 @@ impl<'a> ConstEval<'a>
                 (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) => Const::Imm(i1 << i2, s, b),
                 _ => Const::None,
             },
-            "==" => Const::Bool(c1 == c2),
+            /*"==" => Const::Bool(c1 == c2),
             "!=" => Const::Bool(c1 != c2),
             ">" => Const::Bool(c1 > c2),
             "<" => Const::Bool(c1 < c2),
             ">=" => Const::Bool(c1 >= c2),
-            "<=" => Const::Bool(c1 <= c2),
+            "<=" => Const::Bool(c1 <= c2),*/
             "||" => match (c1, c2)
             {
                 (Const::Bool(b1), Const::Bool(b2)) => Const::Bool(b1 || b2),
@@ -282,6 +286,47 @@ impl<'a> ConstEval<'a>
                 (Const::Bool(b1), Const::Bool(b2)) => Const::Bool(b1 && b2),
                 _ => Const::None,
             },
+            "<" => {
+                
+                match (c1,c2) {
+                    (Const::Imm(i,_s,_b),Const::Imm(i2,_,_)) => Const::Bool(i < i2),
+                    (Const::Float(f,_),Const::Float(f2,_)) => Const::Bool(f < f2),
+                    _ => Const::None
+                }
+            }
+            ">" => {
+                match (c1,c2) {
+                    (Const::Imm(i,_s,_b),Const::Imm(i2,_,_)) => Const::Bool(i > i2),
+                    (Const::Float(f,_),Const::Float(f2,_)) => Const::Bool(f > f2),
+                    _ => Const::None
+                }
+            }
+            "==" => {
+                match (c1,c2) {
+                    (Const::Imm(i,_s,_b),Const::Imm(i2,_,_)) => Const::Bool(i == i2),
+                    (Const::Float(f,_),Const::Float(f2,_)) => Const::Bool(f == f2),
+                    _ => Const::None
+                }
+            }
+            "!=" => {
+                match (c1,c2) {
+                    (Const::Imm(i,_s,_b),Const::Imm(i2,_,_)) => Const::Bool(i != i2),
+                    (Const::Float(f,_),Const::Float(f2,_)) => Const::Bool(f != f2),
+                    _ => Const::None
+                }
+            }
+            ">=" => {
+                match (c1,c2) {
+                    (Const::Imm(i,_s,_b),Const::Imm(i2,_,_)) => Const::Bool(i >= i2),
+                    (Const::Float(f,_),Const::Float(f2,_)) => Const::Bool(f >= f2),
+                    _ => Const::None
+                }
+            }
+            "<=" => match (c1,c2) {
+                    (Const::Imm(i,_s,_b),Const::Imm(i2,_,_)) => Const::Bool(i <= i2),
+                    (Const::Float(f,_),Const::Float(f2,_)) => Const::Bool(f <= f2),
+                    _ => Const::None
+                }
             _ => Const::None,
         }
     }
@@ -297,6 +342,7 @@ impl<'a> ConstEval<'a>
                 if self.known_vars.contains_key(name)
                 {
                     let val = self.eval(from);
+                    
                     if !val.is_none()
                     {
                         self.known_vars.insert(*name, val);
@@ -472,7 +518,7 @@ impl<'a> ConstEval<'a>
             ExprKind::Assign(to, from) =>
             {
                 self.try_assign(to, from);
-                Const::None
+                return self.eval(from);
             }
             ExprKind::Call(name, this, args) =>
             {
@@ -594,18 +640,20 @@ impl<'a> ConstEval<'a>
     fn eval_constfn(&mut self, params: &[Name], body: &Stmt, args: &Vec<Box<Expr>>) -> Const
     {
         let old_vars = self.known_vars.clone();
-        self.known_vars.clear();
+        //self.known_vars.clear();
         self.return_ = None;
-
+        let mut new_vars = HashMap::new();
         for (i, param) in params.iter().enumerate()
         {
             let val = self.eval(&args[i]);
+            
             if val.is_none()
             {
                 return Const::None; // Argument value not known at compile time, return none
             }
-            self.known_vars.insert(*param, val);
+            new_vars.insert(*param, val);
         }
+        self.known_vars = new_vars;
         let val = self.eval_stmt(body);
         self.known_vars = old_vars;
         if val.is_some()
@@ -624,20 +672,22 @@ impl<'a> ConstEval<'a>
         {
             StmtKind::Block(stmts) =>
             {
+                let mut last = None;
                 for stmt in stmts.iter()
                 {
                     let val = self.eval_stmt(stmt);
-                    if val.is_some()
-                    {
-                        return val;
+                    last = val;
+                    
+                    if let Some(Const::Ret(_)) = last {
+                        break;
                     }
                 }
-                return None;
+                return last;
             }
             StmtKind::Expr(expr) =>
             {
-                self.eval(expr);
-                None
+                return Some(self.eval(expr));
+                
             }
             StmtKind::Return(expr) =>
             {
@@ -650,12 +700,12 @@ impl<'a> ConstEval<'a>
                     }
                     else
                     {
-                        return Some(val);
+                        return Some(Const::Ret(box val));
                     }
                 }
                 else
                 {
-                    return Some(Const::Void);
+                    return Some(Const::Ret(box Const::Void));
                 }
             }
             StmtKind::Var(name, _, _, expr) =>
@@ -675,25 +725,43 @@ impl<'a> ConstEval<'a>
                     self.known_vars.insert(*name, val);
                 }
 
-                return None;
+                return Some(Const::Void);
             }
-            /*StmtKind::If(cond,then_body,else_body) =>
+            StmtKind::If(cond,then_body,else_body) =>
             {
+                println!("{}",cond);
                 let val = self.eval(cond);
+                println!("cond {:?}",val);
                 if val.is_none() {
                     return None;
                 }
                 if let Const::Bool(true) = val {
-                    self.eval_stmt(then_body);
+                    return self.eval_stmt(then_body);
                 } else if let Const::Bool(false) = val {
                     if else_body.is_some() {
                         let else_body = else_body.as_ref().unwrap();
-                        self.eval_stmt(else_body);
+                        return self.eval_stmt(else_body);
+                    } else {
+                        return Some(Const::Void);
                     }
                 }
-
                 return Some(Const::Void);
-            }*/
+
+               
+            }
+
+            StmtKind::While(cond,body) => {
+                while let Const::Bool(true) = self.eval(cond) {
+                    let val = self.eval_stmt(body);
+                    
+                    if val.is_none() {
+                        return None;
+                    } else if let Some(Const::None) = val {
+                        return None;
+                    }
+                }
+                return Some(Const::Void);
+            }
             _ => panic!("Unsupported statement in constant function"),
         }
     }
@@ -798,18 +866,21 @@ impl<'a> ConstEval<'a>
                 {
                     let expr = val.as_ref().unwrap();
                     let val = self.eval(expr);
+                    
                     if !val.is_none()
                     {
                         if let Elem::Func(func) = &mut self.ctx.file.elems[fid]
                         {
-                            func.replace_expr_to(
-                                expr.id,
-                                Expr {
-                                    id: expr.id,
-                                    pos: expr.pos,
-                                    kind: val.to_kind(),
-                                },
-                            );
+                            if !func.ret.is_void() {
+                                func.replace_expr_to(
+                                    expr.id,
+                                    Expr {
+                                        id: expr.id,
+                                        pos: expr.pos,
+                                        kind: val.to_kind(),
+                                    },
+                                );
+                            }
                         }
                         self.known_vars.insert(*var, val);
                     }
