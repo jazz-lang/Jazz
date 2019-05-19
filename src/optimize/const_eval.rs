@@ -176,6 +176,7 @@ pub struct ConstEval<'a>
     constexprs: HashMap<Name, Expr>,
     functions: HashMap<Name, Vec<Function>>,
     try_eval_normal: bool,
+    id: usize,
 }
 
 impl<'a> ConstEval<'a>
@@ -190,6 +191,7 @@ impl<'a> ConstEval<'a>
             constexprs: HashMap::new(),
             functions: HashMap::new(),
             try_eval_normal: try_eval_normal,
+            id: 0,
         }
     }
 
@@ -418,6 +420,26 @@ impl<'a> ConstEval<'a>
                                 IntBase::Dec,
                             ),
                             Const::Bool(b) => Const::Imm(b as i64, IntSuffix::Int, IntBase::Dec),
+                            Const::Ret(val) => match *val
+                            {
+                                Const::Imm(i, s, b) => Const::Imm(i, s, b),
+                                Const::Float(f, s) => Const::Imm(
+                                    f as i64,
+                                    match s
+                                    {
+                                        FloatSuffix::Float => IntSuffix::Int,
+                                        FloatSuffix::Double => IntSuffix::Long,
+                                    },
+                                    IntBase::Dec,
+                                ),
+                                Const::Bool(b) =>
+                                {
+                                    Const::Imm(b as i64, IntSuffix::Int, IntBase::Dec)
+                                }
+
+                                Const::Void => Const::Void,
+                                _ => Const::None,
+                            },
                             _ => Const::None,
                         }
                     }
@@ -534,6 +556,7 @@ impl<'a> ConstEval<'a>
                 {
                     return Const::None; // we don't support constexpr methods yet
                 }
+
                 if self.const_functions.contains_key(&name.name())
                 {
                     let funcs: Vec<Function> =
@@ -627,6 +650,33 @@ impl<'a> ConstEval<'a>
                         return self.eval_constfn(&params, func.body.as_ref().unwrap(), args);
                     }
                 }
+                else
+                {
+                    // try to optimize arguments
+
+                    for arg in args.iter()
+                    {
+                        let val = self.eval(arg);
+                        if val.is_none()
+                        {
+                            return Const::None;
+                        }
+                        else
+                        {
+                            if let Elem::Func(f) = &mut self.ctx.file.elems[self.id]
+                            {
+                                f.replace_expr_to(
+                                    arg.id,
+                                    Expr {
+                                        id: arg.id,
+                                        pos: expr.pos,
+                                        kind: val.to_kind(),
+                                    },
+                                );
+                            }
+                        }
+                    }
+                }
 
                 Const::None
             }
@@ -660,14 +710,34 @@ impl<'a> ConstEval<'a>
             {
                 return Const::None; // Argument value not known at compile time, return none
             }
+
+            if let Elem::Func(f) = &mut self.ctx.file.elems[self.id]
+            {
+                f.replace_expr_to(
+                    args[i].id,
+                    Expr {
+                        id: args[i].id,
+                        pos: args[i].pos,
+                        kind: val.to_kind(),
+                    },
+                );
+            }
             new_vars.insert(*param, val);
         }
+        self.id = f.
         self.known_vars = new_vars;
         let val = self.eval_stmt(body);
         self.known_vars = old_vars;
         if val.is_some()
         {
-            return val.unwrap();
+            if let Some(Const::Ret(val)) = val
+            {
+                return *val.clone();
+            }
+            else
+            {
+                return val.unwrap();
+            }
         }
         else
         {
@@ -738,9 +808,8 @@ impl<'a> ConstEval<'a>
             }
             StmtKind::If(cond, then_body, else_body) =>
             {
-                println!("{}", cond);
                 let val = self.eval(cond);
-                println!("cond {:?}", val);
+
                 if val.is_none()
                 {
                     return None;
@@ -800,6 +869,7 @@ impl<'a> ConstEval<'a>
             StmtKind::Expr(expr) =>
             {
                 let val = self.eval(expr);
+
                 if !val.is_none()
                 {
                     if let Elem::Func(func) = &mut self.ctx.file.elems[fid]
@@ -971,6 +1041,7 @@ impl<'a> ConstEval<'a>
                             self.const_functions.insert(func.name, vec![func.clone()]);
                         }
                     }*/
+                    self.id = i;
                     self.opt_func(func, i);
                 }
                 Elem::ConstExpr { name, expr, .. } =>

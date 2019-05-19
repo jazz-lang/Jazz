@@ -713,9 +713,15 @@ impl<'a> Codegen<'a>
                 {
                     let expr = init.as_ref().unwrap();
                     let rval = self.gen_expr(expr);
-                    //let cty = local.to_rvalue().get_type();
-
-                    //let rval = self.ctx.new_cast(None,rval,cty);
+                    //let ast_ty = self.get_id_type(expr.id);
+                    let rval = if !ty.is_struct() && !ty.is_array()
+                    {
+                        self.ctx.new_cast(None, rval, local.to_rvalue().get_type())
+                    }
+                    else
+                    {
+                        rval
+                    };
                     self.cur_block.unwrap().add_assignment(
                         Some(gccloc_from_loc(&self.ctx, &expr.pos)),
                         local,
@@ -1023,12 +1029,21 @@ impl<'a> Codegen<'a>
             {
                 let lval = self.expr_to_lvalue(lval_).unwrap();
                 let val = self.gen_expr(rval_);
-                let ty = lval.to_rvalue().get_type();
+
                 let ast_ty = self.get_id_type(rval_.id);
+                let lval_ty = self.get_id_type(lval_.id);
 
                 let val = if !ast_ty.is_struct()
                 {
-                    self.ctx.new_cast(None, val, ty)
+                    if ast_ty != lval_ty
+                    {
+                        let ty = self.ty_to_ctype(&lval_ty);
+                        self.ctx.new_cast(None, val, ty)
+                    }
+                    else
+                    {
+                        val
+                    }
                 }
                 else
                 {
@@ -1165,7 +1180,7 @@ impl<'a> Codegen<'a>
                         &self.external_functions.get(&name.name()).unwrap().clone();
 
                     let mut params = vec![];
-                    for (i, arg) in args.iter().enumerate()
+                    for (_, arg) in args.iter().enumerate()
                     {
                         let val = self.gen_expr(arg);
 
