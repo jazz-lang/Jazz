@@ -81,6 +81,7 @@ impl<'a> Codegen<'a>
     {
         match ty
         {
+            Type::Vector(v) => return self.ty_size(&v.subtype) * v.size,
             Type::Void(_) => 0,
             Type::Basic(basic) =>
             {
@@ -160,6 +161,22 @@ impl<'a> Codegen<'a>
         let ctx = self.ctx;
         match ty
         {
+            Type::Vector(v) => {
+                let subname: &str = &str(v.subtype.to_basic().unwrap().name).to_string();
+                match subname {
+                    "u8" => self.ctx.new_vector_type::<u8>(v.size),
+                    "i8" => self.ctx.new_vector_type::<i8>(v.size),
+                    "char" => self.ctx.new_vector_type::<char>(v.size),
+                    "i16" => self.ctx.new_vector_type::<i16>(v.size),
+                    "u16" => self.ctx.new_vector_type::<u16>(v.size),
+                    "u32" => self.ctx.new_vector_type::<u32>(v.size),
+                    "u64" => self.ctx.new_vector_type::<u64>(v.size),
+                    "i64" => self.ctx.new_vector_type::<i64>(v.size),
+                    "i32" => self.ctx.new_vector_type::<i32>(v.size),
+                    "usize" => self.ctx.new_vector_type::<usize>(v.size),
+                    _ => unimplemented!()
+                }
+            }
             Type::Void(_) => ctx.new_type::<()>(),
             Type::Basic(basic) =>
             {
@@ -1455,6 +1472,32 @@ impl<'a> Codegen<'a>
                         l,
                         r,
                     )
+                } 
+                else if t1.is_vec() && ty_is_any_int(&t2) || ty_is_any_float(&t2) {
+                    let cty = self.ty_to_ctype(&t1);
+                    let op: &str = op;
+                    let binary = match op
+                    {
+                        "+" => BinaryOp::Plus,
+                        "-" => BinaryOp::Minus,
+                        "*" => BinaryOp::Mult,
+                        "/" => BinaryOp::Divide,
+                        "%" => BinaryOp::Modulo,
+
+                        _ => unreachable!(),
+                    };
+                    let l = self.gen_expr(e1);
+                    let r = self.gen_expr(e2);
+                    let r = self
+                        .ctx
+                        .new_cast(Some(gccloc_from_loc(&self.ctx, &e2.pos)), r, cty);
+                    self.ctx.new_binary_op(
+                        Some(gccloc_from_loc(&self.ctx, &expr.pos)),
+                        binary,
+                        cty,
+                        l,
+                        r,
+                    )
                 }
                 else
                 {
@@ -1653,6 +1696,7 @@ impl<'a> Codegen<'a>
 
                                 match ty
                                 {
+                                    Type::Vector(v) => s.push_str(&format!("vec{}{}",v.subtype,v.size)),
                                     Type::Basic(b) => s.push_str(&str(b.name)),
                                     Type::Ptr(ptr) =>
                                     {

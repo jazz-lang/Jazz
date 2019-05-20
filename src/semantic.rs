@@ -23,6 +23,8 @@ pub struct SemCheck<'a>
     internal_funs: HashMap<Name, Function>,
 }
 
+
+
 pub fn ty_is_any_int(ty: &Type) -> bool
 {
     match ty
@@ -567,6 +569,12 @@ impl<'a> SemCheck<'a>
 
         match ty
         {
+            Type::Vector(v) => {
+                let mut v = v.clone();
+                v.subtype = box self.infer_type(&v.subtype);
+
+                return Type::Vector(v);
+            }
             Type::Struct(struc) =>
             {
                 let id = ty.id();
@@ -1054,6 +1062,38 @@ impl<'a> SemCheck<'a>
                         }
                     }
                 }
+                else if t1.is_vec() && t2.is_vec() {
+                    match op
+                    {
+                        "<" | ">" | ">=" | "<=" | "!=" | "==" =>
+                        {
+                            let ty = Type::create_basic(expr.id, expr.pos, intern("bool"));
+                            self.types.insert(expr.id, ty.clone());
+                            ty
+                        }
+                        _ =>
+                        {
+                            self.types.insert(expr.id, t1.clone());
+                            t1
+                        }
+                    }
+                }
+                else if t1.is_vec() && ty_is_any_int(&t2) || ty_is_any_float(&t2) {
+                    match op
+                    {
+                        "<" | ">" | ">=" | "<=" | "!=" | "==" =>
+                        {
+                            let ty = Type::create_basic(expr.id, expr.pos, intern("bool"));
+                            self.types.insert(expr.id, ty.clone());
+                            ty
+                        }
+                        _ =>
+                        {
+                            self.types.insert(expr.id, t1.clone());
+                            t1
+                        }
+                    }
+                }
                 else if t1.is_ptr() && t2.is_ptr()
                 {
                     match op
@@ -1315,9 +1355,13 @@ impl<'a> SemCheck<'a>
                 let array_type = self.infer_type(&array_type);
                 let _ = self.infer_type(&index);
 
-                let result_type = if array_type.is_array()
+                let result_type = if array_type.is_array() || array_type.is_vec()
                 {
-                    array_type.to_array().unwrap().subtype.clone()
+                    if array_type.is_vec() {
+                        array_type.to_vec().unwrap().subtype.clone()
+                    } else {
+                        array_type.to_array().unwrap().subtype.clone()
+                    }
                 }
                 else if array_type.is_ptr()
                 {

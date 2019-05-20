@@ -101,6 +101,7 @@ fn ty_size(ty: &Type) -> Option<usize>
 {
     match ty
     {
+        Type::Vector(_) => None, // TODO
         Type::Ptr(_) => Some(std::mem::size_of::<*const u8>()),
         Type::Basic(basic) =>
         {

@@ -177,6 +177,7 @@ pub enum Type
     Func(TypeFunc),
     Struct(TypeStruct),
     Void(Position),
+    Vector(TypeVector),
 }
 
 impl Hash for Type
@@ -203,6 +204,10 @@ impl Hash for Type
                 s.fields.hash(h);
                 s.name.hash(h);
             }
+            Type::Vector(v) => {
+                v.subtype.hash(h);
+                v.size.hash(h);
+            }
         }
     }
 }
@@ -223,9 +228,17 @@ impl PartialEq for Type
             (Type::Func(f), Type::Func(f2)) => (f.params == f2.params) && (f.ret == f2.ret),
             (Type::Struct(s), Type::Basic(b)) => s.name == b.name,
             (Type::Basic(b), Type::Struct(s)) => s.name == b.name,
+            (Type::Vector(v1),Type::Vector(v2)) => v1.subtype == v2.subtype && v1.size == v2.size,
             _ => false,
         }
     }
+}
+#[derive(Clone,Debug)]
+pub struct TypeVector {
+    pub id: NodeId,
+    pub pos: Position,
+    pub subtype: Box<Type>,
+    pub size: usize
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -278,6 +291,9 @@ impl Type
             Type::Basic(b) => Type::create_ptr(b.id, b.pos, box self.clone()),
             Type::Ptr(p) => Type::create_ptr(p.id, p.pos, box self.clone()),
             Type::Struct(s) => Type::create_ptr(s.id, s.pos, box self.clone()),
+            Type::Func(f) => Type::create_ptr(f.id,f.pos,box self.clone()),
+            Type::Array(a) => Type::create_ptr(a.id,a.pos,box self.clone()),
+            Type::Vector(v) => Type::create_ptr(v.id,v.pos,box self.clone()),
             _ => unimplemented!(),
         }
     }
@@ -345,6 +361,13 @@ impl Type
         }
     }
 
+    pub fn is_vec(&self) -> bool {
+        match self {
+            Type::Vector(_) => true,
+            _ => false
+        }
+    }
+
     pub fn is_ptr(&self) -> bool
     {
         match self
@@ -391,6 +414,13 @@ impl Type
         }
     }
 
+    pub fn to_vec(&self) -> Option<&TypeVector> {
+        match self {
+            Type::Vector(v) => Some(v),
+            _ => None
+        }
+    }
+
     pub fn to_array(&self) -> Option<&TypeArray>
     {
         match self
@@ -431,6 +461,7 @@ impl Type
     {
         match self
         {
+            Type::Vector(v) => v.pos,
             Type::Array(arr) => arr.pos,
             Type::Basic(b) => b.pos,
             Type::Ptr(p) => p.pos,
@@ -460,6 +491,7 @@ impl fmt::Display for Type
     {
         match self
         {
+            Type::Vector(v) => write!(f,"<{};{}>",v.subtype,v.size),
             Type::Void(_) => write!(f, "void"),
             Type::Ptr(ptr) => write!(f, "*{}", ptr.subtype),
             Type::Array(arr) => write!(
