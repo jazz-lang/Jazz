@@ -344,7 +344,7 @@ impl<'a> Codegen<'a>
         params: &[Type],
         this: Option<&Type>,
         functions: &[FunctionUnit],
-    ) -> Option<(CFunction, Vec<CType>)>
+    ) -> Option<(CFunction, Vec<CType>, Vec<Type>)>
     {
         let val = None;
 
@@ -364,7 +364,7 @@ impl<'a> Codegen<'a>
                 && function.this_ast.is_none()
                 && this.is_none()
             {
-                return Some((function.c, vec![]));
+                return Some((function.c, vec![], vec![]));
             }
             if let Some(ty) = &function.this_ast
             {
@@ -405,6 +405,12 @@ impl<'a> Codegen<'a>
                                     .params
                                     .iter()
                                     .map(|(_, typ)| self.ty_to_ctype(typ))
+                                    .collect(),
+                                function
+                                    .f
+                                    .params
+                                    .iter()
+                                    .map(|(_, typ)| *typ.clone())
                                     .collect(),
                             ));
                         }
@@ -454,6 +460,12 @@ impl<'a> Codegen<'a>
                         .params
                         .iter()
                         .map(|(_, typ)| self.ty_to_ctype(typ))
+                        .collect(),
+                    function
+                        .f
+                        .params
+                        .iter()
+                        .map(|(_, typ)| *typ.clone())
                         .collect(),
                 ));
             }
@@ -570,6 +582,7 @@ impl<'a> Codegen<'a>
                 {
                     let array = self.gen_expr(lhs);
                     let idx = self.gen_expr(rhs);
+
                     Some(self.ctx.new_array_access(
                         Some(gccloc_from_loc(&self.ctx, &expr.pos)),
                         array,
@@ -609,8 +622,8 @@ impl<'a> Codegen<'a>
 
                         let cfield = struct_.fields.get(name).expect("Field not found");
                         let lval = self.gen_expr(object);
-                        let ast_ty = self.get_id_type(expr.id);
-                        let cty = self.ty_to_ctype(&ast_ty);
+                        let _ast_ty = self.get_id_type(expr.id);
+                        //let cty = self.ty_to_ctype(&ast_ty);
 
                         Some(lval.dereference_field(
                             Some(gccloc_from_loc(&self.ctx, &expr.pos)),
@@ -1205,13 +1218,31 @@ impl<'a> Codegen<'a>
                         print!(") not found\n");
                         std::process::exit(-1);
                     }
-                    let (val, _types) = val.unwrap();
+                    let (val, c_types, ast_types) = val.unwrap();
                     let mut params = vec![];
 
-                    for (_, arg) in args.iter().enumerate()
+                    for (i, arg) in args.iter().enumerate()
                     {
-                        let val = self.gen_expr(arg);
-                        params.push(val);
+                        if i < ast_types.len()
+                        {
+                            let val = self.gen_expr(arg);
+                            let ty = &ast_types[i];
+                            let implicit_casted = if !ty.is_struct() && !ty.is_array()
+                            {
+                                let cty = c_types[i];
+                                self.ctx.new_cast(None, val, cty)
+                            }
+                            else
+                            {
+                                val
+                            };
+                            params.push(implicit_casted);
+                        }
+                        else
+                        {
+                            let val = self.gen_expr(arg);
+                            params.push(val);
+                        }
                     }
 
                     if this.is_some()
@@ -1251,8 +1282,25 @@ impl<'a> Codegen<'a>
                         &self.external_functions.get(&name.name()).unwrap().clone();
 
                     let mut params = vec![];
-                    for (_, arg) in args.iter().enumerate()
+                    for (i, arg) in args.iter().enumerate()
                     {
+                        if i < unit.f.params.len()
+                        {
+                            let val = self.gen_expr(arg);
+                            let cty = self.ty_to_ctype(&unit.f.params[i].1);
+                            let val = if !unit.f.params[i].1.is_struct()
+                                && !unit.f.params[i].1.is_array()
+                            {
+                                self.ctx.new_cast(None, val, cty)
+                            }
+                            else
+                            {
+                                val
+                            };
+
+                            params.push(val);
+                            continue;
+                        }
                         let val = self.gen_expr(arg);
 
                         params.push(val);

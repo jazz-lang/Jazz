@@ -1,6 +1,4 @@
-use super::{
-    Block, BlockData, Entity, Function, Inst, InstructionData, IrType, Opcode, Value, CFG,
-};
+use super::{Block, Entity, Function, InstructionData, IrType, Opcode, Value, CFG};
 use linked_hash_map::LinkedHashMap as HashMap;
 
 pub struct FunctionBuilder<'a>

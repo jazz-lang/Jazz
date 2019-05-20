@@ -256,7 +256,7 @@ impl<'a> Parser<'a>
         }
         Ok(())
     }
-
+    #[allow(dead_code)]
     fn parse_const(&mut self) -> Result<Const, MsgWithPos>
     {
         let pos = self.expect_token(TokenKind::Const)?.position;

@@ -1,4 +1,4 @@
-use parking_lot::{Mutex, RwLock};
+use parking_lot::Mutex;
 use std::{borrow::Borrow, collections::HashMap, fmt, ops::Deref};
 use wrc::WRC as Arc;
 

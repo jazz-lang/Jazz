@@ -61,7 +61,7 @@ impl Const
     }
 }
 
-use std::cmp::{Ordering, PartialEq, PartialOrd};
+use std::cmp::PartialEq;
 
 impl PartialEq for Const
 {
