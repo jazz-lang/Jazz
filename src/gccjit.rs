@@ -578,11 +578,14 @@ impl<'a> Codegen<'a>
 
                         let cfield = struct_.fields.get(name).expect("Field not found");
                         let lval = self.gen_expr(object);
-
+                        let ast_ty = self.get_id_type(expr.id);
+                        let cty = self.ty_to_ctype(&ast_ty);
+                    
                         Some(lval.dereference_field(
                             Some(gccloc_from_loc(&self.ctx, &expr.pos)),
                             *cfield,
                         ))
+                        
                     }
                     else if let Type::Basic(basic) = &*ptr.subtype.clone()
                     {
@@ -1012,9 +1015,10 @@ impl<'a> Codegen<'a>
                     _ => unreachable!(),
                 }
             }
-            ExprKind::Field(expr_, name) =>
+            ExprKind::Field(_expr_, _name) =>
             {
-                let ast_ty = self.get_id_type(expr_.id);
+                self.expr_to_lvalue(expr).unwrap().to_rvalue()
+            /*let ast_ty = self.get_id_type(expr_.id);
                 let rvalue = self.gen_expr(expr_).clone();
 
                 if ast_ty.is_ptr()
@@ -1066,7 +1070,9 @@ impl<'a> Codegen<'a>
                     let field = cstruct.fields.get(name).unwrap();
 
                     rvalue.access_field(None, *field)
-                }
+                }*/
+
+
             }
             ExprKind::Assign(lval_, rval_) =>
             {
