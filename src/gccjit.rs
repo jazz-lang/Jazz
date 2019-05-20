@@ -20,6 +20,7 @@ use crate::{
 use crate::syntax::interner::Name;
 use std::collections::{HashMap, VecDeque};
 
+/// Create gccjit location from AST location
 fn gccloc_from_loc(
     ctx: &Context,
     loc: &crate::syntax::position::Position,
@@ -28,6 +29,8 @@ fn gccloc_from_loc(
     ctx.new_location(str(loc.file).to_string(), loc.line as _, loc.column as _)
 }
 
+/// This type stores information about function such as gccjit and ast
+/// representation
 #[derive(Clone)]
 pub struct FunctionUnit
 {
@@ -40,6 +43,7 @@ pub struct FunctionUnit
     pub irname: String,
 }
 
+/// Variable info that stores lvalue,type and gccjit type
 #[derive(Clone)]
 pub struct VarInfo
 {
@@ -47,6 +51,7 @@ pub struct VarInfo
     pub ty: Type,
     pub cty: CType,
 }
+/// GccStruct stores gccjit struct type and information about fields
 #[derive(Clone)]
 pub struct GccStruct
 {
@@ -54,7 +59,10 @@ pub struct GccStruct
     pub fields: HashMap<Name, Field>,
     pub types: Vec<Type>,
 }
-
+/// Main unit used in codegeneration.
+///
+/// This unit performs translating AST into GIMPLE tree,after translation GCC
+/// performs translation to RTL and then optimizes it and outputs machine code
 pub struct Codegen<'a>
 {
     pub ctx: Context,
@@ -80,6 +88,7 @@ pub struct Codegen<'a>
 
 impl<'a> Codegen<'a>
 {
+    /// Get type size for sizeof expression
     pub fn ty_size(&self, ty: &Type) -> usize
     {
         match ty
@@ -158,7 +167,7 @@ impl<'a> Codegen<'a>
             }
         }
     }
-
+    /// Convert AST type into GCC type
     pub fn ty_to_ctype(&mut self, ty: &Type) -> CType
     {
         let ctx = self.ctx;
@@ -289,7 +298,7 @@ impl<'a> Codegen<'a>
             }
         }
     }
-
+    /// assign some value to lvalue
     fn assign(&mut self, pos: crate::syntax::position::Position, to: &Expr, from: &Expr) -> RValue
     {
         let lval = self.expr_to_lvalue(to).unwrap();
@@ -329,7 +338,7 @@ impl<'a> Codegen<'a>
 
         rval
     }
-
+    /// Search for func with params and this value
     fn search_for_func(
         &mut self,
         params: &[Type],
@@ -489,7 +498,7 @@ impl<'a> Codegen<'a>
             cur_return: None,
         }
     }
-
+    /// Find struct type
     pub fn find_struct(&self, ty: &Type) -> Option<GccStruct>
     {
         match ty
@@ -527,7 +536,7 @@ impl<'a> Codegen<'a>
             _ => None,
         }
     }
-
+    /// Convert expression to LValue
     pub fn expr_to_lvalue(&mut self, expr: &Expr) -> Option<LValue>
     {
         match &expr.kind
@@ -659,16 +668,16 @@ impl<'a> Codegen<'a>
             _ => None, // unimplemented or impossible to get lval
         }
     }
-
+    /// Get type by expression Id
     fn get_id_type(&self, id: NodeId) -> Type { self.context.types.get(&id).unwrap().clone() }
-
+    /// Create new name for block
     fn block_name_new(&mut self) -> String
     {
         let name = format!("L{}", self.block_id);
         self.block_id += 1;
         name
     }
-
+    /// Generate GIMPLE from statement
     pub fn gen_stmt(&mut self, stmt: &Stmt, init: bool)
     {
         match &stmt.kind
@@ -907,7 +916,7 @@ impl<'a> Codegen<'a>
             }
         }
     }
-
+    /// Generate GIMPLE expression from AST expression
     pub fn gen_expr(&mut self, expr: &Expr) -> RValue
     {
         match &expr.kind
@@ -1985,6 +1994,8 @@ impl<'a> Codegen<'a>
         }
         else
         {
+            // these two calls needed because by default binary don't linked with libc and
+            // libm
             self.ctx.add_driver_option("-lc"); // link libc
             self.ctx.add_driver_option("-lm"); // link libm
             let out_path = if !self.context.output.is_empty()

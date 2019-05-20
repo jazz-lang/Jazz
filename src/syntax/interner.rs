@@ -6,6 +6,7 @@ lazy_static::lazy_static! {
     pub static ref INTERNER: Mutex<Interner> = Mutex::new(Interner::new());
 }
 
+/// Get `Name` from string value
 #[inline]
 pub fn intern(name: &str) -> Name
 {
@@ -14,6 +15,7 @@ pub fn intern(name: &str) -> Name
     lock.intern(name)
 }
 
+/// Get string value from interned name
 #[inline]
 pub fn str(name: Name) -> ArcStr
 {
@@ -22,6 +24,7 @@ pub fn str(name: Name) -> ArcStr
     lock.str(name)
 }
 
+/// This struct represents interned strings
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd)]
 #[repr(C)]
 pub struct Name(pub usize);
@@ -39,6 +42,7 @@ impl fmt::Display for Name
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", str(*self)) }
 }
 
+/// ArcStr used to send string through threads safely
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct ArcStr(pub Arc<String>);
 
@@ -93,6 +97,7 @@ struct Internal
 
 impl Interner
 {
+    /// Create new interner
     pub fn new() -> Interner
     {
         Interner {
@@ -102,7 +107,7 @@ impl Interner
             }),
         }
     }
-
+    /// Intern string
     pub fn intern(&self, name: &str) -> Name
     {
         let mut data = self.data.lock();
@@ -120,7 +125,7 @@ impl Interner
 
         value
     }
-
+    /// Get string from interned name
     pub fn str(&self, name: Name) -> ArcStr
     {
         let data = self.data.lock();

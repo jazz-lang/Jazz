@@ -67,6 +67,7 @@ use ast::Type;
 use std::collections::HashMap;
 use syntax::ast::File;
 
+/// Context stores ifnromation about program
 pub struct Context
 {
     pub file: File,

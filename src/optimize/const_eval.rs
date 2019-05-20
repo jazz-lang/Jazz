@@ -7,22 +7,28 @@ use crate::{
 };
 use std::collections::HashMap;
 /// Constant value that known at compile-time
-///
-/// TODO: Complex values such as structs and strings
 #[derive(Clone, PartialOrd, Debug)]
 enum Const
 {
+    /// Immediate value or just int value
     Imm(i64, IntSuffix, IntBase),
+    /// Float value
     Float(f64, FloatSuffix),
+    /// Boolean value
     Bool(bool),
+    /// Struct value with fields
     Struct(Name, Vec<(Name, Const, NodeId)>),
+    /// Just a void value
     Void,
+    /// Return value
     Ret(Box<Const>),
+    /// If evaluator seen this value then evaluation stops
     None,
 }
 
 impl Const
 {
+    /// Translate Const value into Expression
     fn to_kind(&self) -> ExprKind
     {
         match self
@@ -100,7 +106,7 @@ impl Const
         }
     }
 }
-
+/// return size of type
 fn ty_size(ty: &Type) -> Option<usize>
 {
     match ty
@@ -171,7 +177,9 @@ use crate::{
     syntax::interner::{str, Name},
     Context,
 };
-
+/// Constant evaluator that tries to evaluate code.
+/// If `try_eval_normal` enabled then normal (non-constexpr) function evaluated
+/// if possible too
 pub struct ConstEval<'a>
 {
     /// Variables defined and known in compile-time context
@@ -188,6 +196,7 @@ pub struct ConstEval<'a>
 
 impl<'a> ConstEval<'a>
 {
+    /// Create new constant evaluator
     pub fn new(ctx: &'a mut Context, try_eval_normal: bool) -> ConstEval<'a>
     {
         ConstEval {
@@ -201,7 +210,7 @@ impl<'a> ConstEval<'a>
             id: 0,
         }
     }
-
+    /// try to get variable
     fn try_get_var(&mut self, name: &Name) -> Const
     {
         if self.constexprs.contains_key(name)
@@ -998,6 +1007,7 @@ impl<'a> ConstEval<'a>
 
     pub fn run(&mut self)
     {
+        // Declare functions before uses
         for elem in self.ctx.file.elems.clone().iter()
         {
             if let Elem::Func(func) = elem
