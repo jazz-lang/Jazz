@@ -269,7 +269,7 @@ pub enum InstructionData
     Branch(
         Opcode,
         Block,
-        Option<Value>, /* Some if opcode is BrZ or BrNz*/
+        Option<Value>, /* Some if opcode is BrZ or BrNz */
     ),
 
     IntBinary(Opcode, Value, Value),

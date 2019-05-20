@@ -1,8 +1,7 @@
 pub mod reader;
 pub mod token;
 
-use crate::err::*;
-use crate::syntax::position::Position;
+use crate::{err::*, syntax::position::Position};
 use reader::Reader;
 use std::collections::HashMap;
 use token::*;

@@ -1,6 +1,10 @@
-use crate::intern;
-use crate::syntax::lexer::token::{FloatSuffix, IntBase, IntSuffix};
-use crate::syntax::position::Position;
+use crate::{
+    intern,
+    syntax::{
+        lexer::token::{FloatSuffix, IntBase, IntSuffix},
+        position::Position,
+    },
+};
 use std::collections::HashMap;
 /// Constant value that known at compile-time
 ///
@@ -162,9 +166,11 @@ fn ty_size(ty: &Type) -> Option<usize>
     }
 }
 
-use crate::ast::*;
-use crate::syntax::interner::{str, Name};
-use crate::Context;
+use crate::{
+    ast::*,
+    syntax::interner::{str, Name},
+    Context,
+};
 
 pub struct ConstEval<'a>
 {
@@ -185,13 +191,13 @@ impl<'a> ConstEval<'a>
     pub fn new(ctx: &'a mut Context, try_eval_normal: bool) -> ConstEval<'a>
     {
         ConstEval {
-            ctx: ctx,
+            ctx,
             known_vars: HashMap::new(),
             const_functions: HashMap::new(),
             return_: None,
             constexprs: HashMap::new(),
             functions: HashMap::new(),
-            try_eval_normal: try_eval_normal,
+            try_eval_normal,
             id: 0,
         }
     }
@@ -208,7 +214,8 @@ impl<'a> ConstEval<'a>
 
         var.clone()
     }
-    /// If values of lhs and rhs known at compile time evaluates binary operation
+    /// If values of lhs and rhs known at compile time evaluates binary
+    /// operation
     fn eval_binop(&mut self, op: &str, lhs: &Expr, rhs: &Expr) -> Const
     {
         let c1 = self.eval(&lhs);

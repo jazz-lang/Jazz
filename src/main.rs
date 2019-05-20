@@ -30,14 +30,14 @@ fn main() {
     println!("{}",f);
 }*/
 
-use jazz::err::MsgWithPos;
-use jazz::gccjit::Codegen;
-use jazz::optimize::const_eval;
-use jazz::semantic::*;
-use jazz::syntax::ast::*;
-use jazz::syntax::lexer::reader::Reader;
-use jazz::syntax::parser::*;
-use jazz::Context;
+use jazz::{
+    err::MsgWithPos,
+    gccjit::Codegen,
+    optimize::const_eval,
+    semantic::*,
+    syntax::{ast::*, lexer::reader::Reader, parser::*},
+    Context,
+};
 use structopt::StructOpt;
 
 use std::path::PathBuf;

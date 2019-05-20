@@ -15,11 +15,9 @@ pub mod optimize;
 pub mod semantic;
 pub mod syntax;
 
-pub use syntax::ast;
-pub use syntax::position::Position;
+pub use syntax::{ast, position::Position};
 
-pub use syntax::interner::INTERNER;
-pub use syntax::interner::{intern, str};
+pub use syntax::interner::{intern, str, INTERNER};
 
 use parking_lot::{Mutex, RwLock};
 lazy_static::lazy_static! (
@@ -115,8 +113,7 @@ impl Context
             path: String::new(),
             root: import.clone(),
         };
-        use crate::syntax::lexer;
-        use crate::syntax::parser::Parser;
+        use crate::syntax::{lexer, parser::Parser};
         use lexer::reader::Reader;
         use syntax::ast::Elem;
         let reader = Reader::from_file(&import).expect("File not found");

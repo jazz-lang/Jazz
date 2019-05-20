@@ -1,21 +1,24 @@
 use crate::Context as CContext;
-use gccjit_rs::block::{BinaryOp, Block, ComparisonOp, UnaryOp};
-use gccjit_rs::ctx::{Context, GlobalKind, OutputKind};
-use gccjit_rs::field::Field;
-use gccjit_rs::function::{Function as CFunction, FunctionType};
-use gccjit_rs::lvalue::LValue;
-use gccjit_rs::rvalue::{RValue, ToRValue};
-use gccjit_rs::structs::Struct;
-use gccjit_rs::ty::Type as CType;
+use gccjit_rs::{
+    block::{BinaryOp, Block, ComparisonOp, UnaryOp},
+    ctx::{Context, GlobalKind, OutputKind},
+    field::Field,
+    function::{Function as CFunction, FunctionType},
+    lvalue::LValue,
+    rvalue::{RValue, ToRValue},
+    structs::Struct,
+    ty::Type as CType,
+};
 
-use crate::str;
-use crate::syntax::ast::{
-    Elem, Expr, ExprKind, Function, NodeId, Stmt, StmtKind, StructArg, StructField, Type,
+use crate::{
+    str,
+    syntax::ast::{
+        Elem, Expr, ExprKind, Function, NodeId, Stmt, StmtKind, StructArg, StructField, Type,
+    },
 };
 
 use crate::syntax::interner::Name;
-use std::collections::HashMap;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 
 fn gccloc_from_loc(
     ctx: &Context,
@@ -263,9 +266,9 @@ impl<'a> Codegen<'a>
                     self.structures.insert(
                         struct_.name,
                         GccStruct {
-                            ty: ty,
+                            ty,
                             fields: cfields,
-                            types: types,
+                            types,
                         },
                     );
                     ty.as_type()

@@ -1,6 +1,8 @@
 use super::interner::{str, Name};
-use std::fmt::{Display, Error, Formatter};
-use std::result::Result;
+use std::{
+    fmt::{Display, Error, Formatter},
+    result::Result,
+};
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone, Hash)]
 pub struct Position

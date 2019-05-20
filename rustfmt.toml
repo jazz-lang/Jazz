@@ -1,3 +1,7 @@
 control_brace_style = "AlwaysNextLine"
 brace_style = "AlwaysNextLine"
 fn_single_line = true
+merge_imports = true
+use_field_init_shorthand = true
+#format_code_in_doc_comments = true
+wrap_comments = true

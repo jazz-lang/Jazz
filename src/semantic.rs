@@ -1,7 +1,10 @@
-use super::syntax::interner::Name;
-use super::syntax::lexer::token::{FloatSuffix, IntSuffix};
-use super::Context;
-use super::*;
+use super::{
+    syntax::{
+        interner::Name,
+        lexer::token::{FloatSuffix, IntSuffix},
+    },
+    Context, *,
+};
 use crate::ast::*;
 use colored::Colorize;
 
@@ -20,7 +23,7 @@ pub struct SemCheck<'a>
     aliases: HashMap<Name, Type>,
     imported: HashMap<Name, Elem>,
     imported_funs: HashMap<Name, Vec<Function>>,
-    internal_funs: HashMap<Name, Function>,
+    __internal_funs: HashMap<Name, Function>,
 }
 
 pub fn ty_is_any_int(ty: &Type) -> bool
@@ -143,7 +146,7 @@ impl<'a> SemCheck<'a>
             aliases: HashMap::new(),
             imported: HashMap::new(),
             imported_funs: HashMap::new(),
-            internal_funs: HashMap::new(),
+            __internal_funs: HashMap::new(),
         }
     }
 
@@ -219,8 +222,7 @@ impl<'a> SemCheck<'a>
                         .unwrap()
                         .to_owned(),
                 };
-                use crate::syntax::lexer;
-                use crate::syntax::parser::Parser;
+                use crate::syntax::{lexer, parser::Parser};
                 use lexer::reader::Reader;
 
                 let reader =
@@ -560,7 +562,8 @@ impl<'a> SemCheck<'a>
         Ok(())
     }
 
-    /// Infer type,if some struct type declared in context and @ty is basic then return Type::Struct
+    /// Infer type,if some struct type declared in context and @ty is basic then
+    /// return Type::Struct
     pub fn infer_type(&self, ty: &Type) -> Type
     {
         let pos = ty.pos();
@@ -926,7 +929,8 @@ impl<'a> SemCheck<'a>
                                 if i < sig.params.len()
                                 {
                                     types_good = param == &sig.params[i];
-                                    //if !types_good {types_good = ty_is_any_int(param) && ty_is_any_int(&sig.params[i]);};
+                                    //if !types_good {types_good = ty_is_any_int(param) &&
+                                    // ty_is_any_int(&sig.params[i]);};
                                 }
                             }
                             this_sig = if sig.variadic

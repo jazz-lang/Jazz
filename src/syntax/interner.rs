@@ -1,9 +1,5 @@
-use parking_lot::Mutex;
-use parking_lot::RwLock;
-use std::borrow::Borrow;
-use std::collections::HashMap;
-use std::fmt;
-use std::ops::Deref;
+use parking_lot::{Mutex, RwLock};
+use std::{borrow::Borrow, collections::HashMap, fmt, ops::Deref};
 use wrc::WRC as Arc;
 
 lazy_static::lazy_static! {

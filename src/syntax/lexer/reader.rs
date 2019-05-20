@@ -1,8 +1,9 @@
-use std::fs::File;
-use std::io::{self, Error, Read};
+use std::{
+    fs::File,
+    io::{self, Error, Read},
+};
 
-use crate::syntax::interner::intern;
-use crate::syntax::position::Position;
+use crate::syntax::{interner::intern, position::Position};
 
 pub struct Reader
 {

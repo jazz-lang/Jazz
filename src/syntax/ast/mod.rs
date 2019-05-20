@@ -1,5 +1,4 @@
-use std::fmt;
-use std::ops::Index;
+use std::{fmt, ops::Index};
 
 pub mod display;
 
@@ -552,7 +551,6 @@ impl fmt::Display for Type
 /// }
 ///
 /// "Hello, ".add("World!")
-///
 /// ```
 
 #[derive(Clone, Debug)]

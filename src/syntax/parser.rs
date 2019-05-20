@@ -1,13 +1,15 @@
 use std::mem;
 
-use super::ast::*;
-use super::interner::Name;
-use super::lexer::reader::Reader;
-use super::lexer::token::*;
-use super::lexer::*;
-use super::position::*;
-use crate::err::{Msg, MsgWithPos};
-use crate::*;
+use super::{
+    ast::*,
+    interner::Name,
+    lexer::{reader::Reader, token::*, *},
+    position::*,
+};
+use crate::{
+    err::{Msg, MsgWithPos},
+    *,
+};
 
 use std::collections::HashSet;
 
@@ -290,8 +292,8 @@ impl<'a> Parser<'a>
             id: self.generate_id(),
             name: ident,
             public: false,
-            pos: pos,
-            fields: fields,
+            pos,
+            fields,
         })
     }
 
@@ -306,7 +308,7 @@ impl<'a> Parser<'a>
         Ok(StructField {
             id: self.generate_id(),
             name: ident,
-            pos: pos,
+            pos,
             data_type: ty,
         })
     }
@@ -347,7 +349,7 @@ impl<'a> Parser<'a>
                 self.expect_token(TokenKind::Semicolon)?;
                 Ok(Box::new(Stmt {
                     id: self.generate_id(),
-                    pos: pos,
+                    pos,
                     kind: StmtKind::Return(expr),
                 }))
             }
@@ -374,7 +376,7 @@ impl<'a> Parser<'a>
 
         Ok(Box::new(Stmt {
             id: self.generate_id(),
-            pos: pos,
+            pos,
             kind: StmtKind::Return(expr),
         }))
     }
@@ -394,7 +396,7 @@ impl<'a> Parser<'a>
 
         Ok(Box::new(Stmt {
             id: self.generate_id(),
-            pos: pos,
+            pos,
             kind: StmtKind::Block(stmts),
         }))
     }
@@ -425,7 +427,7 @@ impl<'a> Parser<'a>
 
         Ok(Box::new(Stmt {
             id: self.generate_id(),
-            pos: pos,
+            pos,
             kind: StmtKind::Var(ident, reassignable, data_type, expr),
         }))
     }
@@ -562,7 +564,7 @@ impl<'a> Parser<'a>
             {
                 let expr = Expr {
                     id: self.generate_id(),
-                    pos: pos,
+                    pos,
                     kind: ExprKind::Float(num, suffix),
                 };
                 return Ok(Box::new(expr));
@@ -581,7 +583,7 @@ impl<'a> Parser<'a>
         {
             Ok(Box::new(Expr {
                 id: self.generate_id(),
-                pos: pos,
+                pos,
                 kind: ExprKind::Char(val),
             }))
         }
@@ -607,7 +609,7 @@ impl<'a> Parser<'a>
                 {
                     let expr = Expr {
                         id: self.generate_id(),
-                        pos: pos,
+                        pos,
                         kind: ExprKind::Int(num as i64, base, suffix),
                     };
                     Ok(Box::new(expr))
@@ -651,7 +653,7 @@ impl<'a> Parser<'a>
 
         Ok(Box::new(Stmt {
             id: self.generate_id(),
-            pos: pos,
+            pos,
             kind: StmtKind::Expr(expr),
         }))
     }
@@ -675,7 +677,7 @@ impl<'a> Parser<'a>
 
         Ok(Box::new(Expr {
             id: self.generate_id(),
-            pos: pos,
+            pos,
             kind: ExprKind::Call(path, object, args),
         }))
     }
@@ -695,11 +697,11 @@ impl<'a> Parser<'a>
         // is this a function call?
         if self.token.is(TokenKind::LParen)
         {
-            self.parse_call(pos, None, Path { path: path })
+            self.parse_call(pos, None, Path { path })
         }
         else if self.token.is(TokenKind::LBrace) && opts.parse_struct_lit
         {
-            self.parse_lit_struct(pos, Path { path: path })
+            self.parse_lit_struct(pos, Path { path })
 
         // if not we have a simple identifier
         }
@@ -709,7 +711,7 @@ impl<'a> Parser<'a>
             let name = path[0];
             Ok(Box::new(Expr {
                 id: self.generate_id(),
-                pos: pos,
+                pos,
                 kind: ExprKind::Ident(name),
             }))
         }
@@ -722,7 +724,7 @@ impl<'a> Parser<'a>
 
         Ok(Box::new(Expr {
             id: self.generate_id(),
-            pos: pos,
+            pos,
             kind: ExprKind::Struct(path, args),
         }))
     }
@@ -738,9 +740,9 @@ impl<'a> Parser<'a>
 
         Ok(StructArg {
             id: self.generate_id(),
-            pos: pos,
-            name: name,
-            expr: expr,
+            pos,
+            name,
+            expr,
         })
     }
 
@@ -881,7 +883,8 @@ impl<'a> Parser<'a>
         else
         {
             unimplemented!()
-            //Err(MsgWithPos::new(self.lexer.reader.path().to_owned(),self.src(), self.token.pos,Msg::))
+            //Err(MsgWithPos::new(self.lexer.reader.path().to_owned(),self.src(),
+            // self.token.pos,Msg::))
         }
     }
 
@@ -983,7 +986,7 @@ impl<'a> Parser<'a>
             attributes: Vec::new(),
             this: this_,
             ret: Box::new(ty),
-            params: params,
+            params,
             variadic,
             body,
             ir_temp_id: 0,
@@ -1007,7 +1010,8 @@ impl<'a> Parser<'a>
             if self.token.is(TokenKind::If)
             {
                 let if_block = self.parse_if()?;
-                //let block = Stmt::create_block(self.generate_id(), if_block.pos(), vec![if_block]);
+                //let block = Stmt::create_block(self.generate_id(), if_block.pos(),
+                // vec![if_block]);
                 let block = Stmt {
                     id: self.generate_id(),
                     pos: if_block.pos,
@@ -1026,10 +1030,11 @@ impl<'a> Parser<'a>
         };
         Ok(Box::new(Stmt {
             id: self.generate_id(),
-            pos: pos,
+            pos,
             kind: StmtKind::If(cond, then_block, else_block),
         }))
-        //Ok(Box::new(Stmt::create_if(self.generate_id(), pos, cond, then_block, else_block)))
+        //Ok(Box::new(Stmt::create_if(self.generate_id(), pos, cond, then_block,
+        // else_block)))
     }
     fn parse_while(&mut self) -> StmtResult
     {
@@ -1043,7 +1048,7 @@ impl<'a> Parser<'a>
 
         Ok(Box::new(Stmt {
             id: self.generate_id(),
-            pos: pos,
+            pos,
             kind: StmtKind::While(expr, block),
         }))
     }
@@ -1055,7 +1060,7 @@ impl<'a> Parser<'a>
 
         Ok(Box::new(Stmt {
             id: self.generate_id(),
-            pos: pos,
+            pos,
             kind: StmtKind::Loop(block),
         }))
     }
@@ -1070,7 +1075,7 @@ impl<'a> Parser<'a>
 
         Ok(Box::new(Stmt {
             id: self.generate_id(),
-            pos: pos,
+            pos,
             kind: StmtKind::Break,
         }))
     }
@@ -1085,7 +1090,7 @@ impl<'a> Parser<'a>
 
         Ok(Box::new(Stmt {
             id: self.generate_id(),
-            pos: pos,
+            pos,
             kind: StmtKind::Continue,
         }))
     }
@@ -1147,9 +1152,9 @@ impl<'a> Parser<'a>
             self.expect_token(TokenKind::Gt)?;
             return Ok(Type::Vector(TypeVector {
                 id: self.generate_id(),
-                pos: pos,
+                pos,
                 subtype: box subty,
-                size: size,
+                size,
             }));
         }
 
@@ -1269,7 +1274,7 @@ impl<'a> Parser<'a>
                 let expr = self.parse_primary(opts)?;
 
                 Ok(Box::new(Expr {
-                    pos: pos,
+                    pos,
                     id: self.generate_id(),
                     kind: ExprKind::Deref(expr),
                 }))
@@ -1328,7 +1333,7 @@ impl<'a> Parser<'a>
         self.expect_token(TokenKind::Mul)?;
         let expr = self.parse_expression()?;
         Ok(Box::new(Expr {
-            pos: pos,
+            pos,
             id: self.generate_id(),
             kind: ExprKind::Deref(expr),
         }))
@@ -1340,7 +1345,7 @@ impl<'a> Parser<'a>
         self.expect_token(TokenKind::BitAnd)?;
         let expr = self.parse_expression()?;
         Ok(Box::new(Expr {
-            pos: pos,
+            pos,
             id: self.generate_id(),
             kind: ExprKind::AddressOf(expr),
         }))
