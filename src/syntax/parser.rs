@@ -1130,28 +1130,27 @@ impl<'a> Parser<'a>
 
     fn parse_type(&mut self) -> Result<Type, MsgWithPos>
     {
-
-        if self.token.is(TokenKind::Lt) {
+        if self.token.is(TokenKind::Lt)
+        {
             let pos = self.advance_token()?.position;
             let subty = self.parse_type()?;
             self.expect_semicolon()?;
-            let size = if let TokenKind::LitInt(i,_,_) = &self.token.kind {
+            let size = if let TokenKind::LitInt(i, _, _) = &self.token.kind
+            {
                 i.parse::<i64>().unwrap() as usize
-            } else {
+            }
+            else
+            {
                 panic!()
             };
             self.advance_token()?;
             self.expect_token(TokenKind::Gt)?;
-            return Ok(
-                Type::Vector(
-                    TypeVector {
-                        id: self.generate_id(),
-                        pos: pos,
-                        subtype: box subty,
-                        size: size
-                    }
-                )
-            )
+            return Ok(Type::Vector(TypeVector {
+                id: self.generate_id(),
+                pos: pos,
+                subtype: box subty,
+                size: size,
+            }));
         }
 
         let ty = match self.token.kind

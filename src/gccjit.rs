@@ -161,9 +161,11 @@ impl<'a> Codegen<'a>
         let ctx = self.ctx;
         match ty
         {
-            Type::Vector(v) => {
+            Type::Vector(v) =>
+            {
                 let subname: &str = &str(v.subtype.to_basic().unwrap().name).to_string();
-                match subname {
+                match subname
+                {
                     "u8" => self.ctx.new_vector_type::<u8>(v.size),
                     "i8" => self.ctx.new_vector_type::<i8>(v.size),
                     "char" => self.ctx.new_vector_type::<char>(v.size),
@@ -174,7 +176,7 @@ impl<'a> Codegen<'a>
                     "i64" => self.ctx.new_vector_type::<i64>(v.size),
                     "i32" => self.ctx.new_vector_type::<i32>(v.size),
                     "usize" => self.ctx.new_vector_type::<usize>(v.size),
-                    _ => unimplemented!()
+                    _ => unimplemented!(),
                 }
             }
             Type::Void(_) => ctx.new_type::<()>(),
@@ -597,12 +599,11 @@ impl<'a> Codegen<'a>
                         let lval = self.gen_expr(object);
                         let ast_ty = self.get_id_type(expr.id);
                         let cty = self.ty_to_ctype(&ast_ty);
-                    
+
                         Some(lval.dereference_field(
                             Some(gccloc_from_loc(&self.ctx, &expr.pos)),
                             *cfield,
                         ))
-                        
                     }
                     else if let Type::Basic(basic) = &*ptr.subtype.clone()
                     {
@@ -1035,7 +1036,7 @@ impl<'a> Codegen<'a>
             ExprKind::Field(_expr_, _name) =>
             {
                 self.expr_to_lvalue(expr).unwrap().to_rvalue()
-            /*let ast_ty = self.get_id_type(expr_.id);
+                /*let ast_ty = self.get_id_type(expr_.id);
                 let rvalue = self.gen_expr(expr_).clone();
 
                 if ast_ty.is_ptr()
@@ -1088,8 +1089,6 @@ impl<'a> Codegen<'a>
 
                     rvalue.access_field(None, *field)
                 }*/
-
-
             }
             ExprKind::Assign(lval_, rval_) =>
             {
@@ -1472,8 +1471,9 @@ impl<'a> Codegen<'a>
                         l,
                         r,
                     )
-                } 
-                else if t1.is_vec() && ty_is_any_int(&t2) || ty_is_any_float(&t2) {
+                }
+                else if t1.is_vec() && ty_is_any_int(&t2) || ty_is_any_float(&t2)
+                {
                     let cty = self.ty_to_ctype(&t1);
                     let op: &str = op;
                     let binary = match op
@@ -1696,7 +1696,10 @@ impl<'a> Codegen<'a>
 
                                 match ty
                                 {
-                                    Type::Vector(v) => s.push_str(&format!("vec{}{}",v.subtype,v.size)),
+                                    Type::Vector(v) =>
+                                    {
+                                        s.push_str(&format!("vec{}{}", v.subtype, v.size))
+                                    }
                                     Type::Basic(b) => s.push_str(&str(b.name)),
                                     Type::Ptr(ptr) =>
                                     {

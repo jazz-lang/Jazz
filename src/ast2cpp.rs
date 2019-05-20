@@ -36,7 +36,6 @@ impl Translator
                 let name: &str = &str(basic.name);
                 let s = match name
                 {
-
                     "u8" => "uint8_t",
                     "u16" => "uint16_t",
                     "u32" => "uint32_t",

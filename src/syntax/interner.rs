@@ -7,25 +7,23 @@ use std::ops::Deref;
 use wrc::WRC as Arc;
 
 lazy_static::lazy_static! {
-    pub static ref INTERNER: Mutex<RwLock<Interner>> = Mutex::new(RwLock::new(Interner::new()));
+    pub static ref INTERNER: Mutex<Interner> = Mutex::new(Interner::new());
 }
 
 #[inline]
 pub fn intern(name: &str) -> Name
 {
     let lock = INTERNER.lock();
-    let write = lock.write();
 
-    write.intern(name)
+    lock.intern(name)
 }
 
 #[inline]
 pub fn str(name: Name) -> ArcStr
 {
     let lock = INTERNER.lock();
-    let read = lock.read();
 
-    read.str(name)
+    lock.str(name)
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd)]

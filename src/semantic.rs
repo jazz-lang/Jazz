@@ -23,8 +23,6 @@ pub struct SemCheck<'a>
     internal_funs: HashMap<Name, Function>,
 }
 
-
-
 pub fn ty_is_any_int(ty: &Type) -> bool
 {
     match ty
@@ -569,7 +567,8 @@ impl<'a> SemCheck<'a>
 
         match ty
         {
-            Type::Vector(v) => {
+            Type::Vector(v) =>
+            {
                 let mut v = v.clone();
                 v.subtype = box self.infer_type(&v.subtype);
 
@@ -1062,7 +1061,8 @@ impl<'a> SemCheck<'a>
                         }
                     }
                 }
-                else if t1.is_vec() && t2.is_vec() {
+                else if t1.is_vec() && t2.is_vec()
+                {
                     match op
                     {
                         "<" | ">" | ">=" | "<=" | "!=" | "==" =>
@@ -1078,7 +1078,8 @@ impl<'a> SemCheck<'a>
                         }
                     }
                 }
-                else if t1.is_vec() && ty_is_any_int(&t2) || ty_is_any_float(&t2) {
+                else if t1.is_vec() && ty_is_any_int(&t2) || ty_is_any_float(&t2)
+                {
                     match op
                     {
                         "<" | ">" | ">=" | "<=" | "!=" | "==" =>
@@ -1357,9 +1358,12 @@ impl<'a> SemCheck<'a>
 
                 let result_type = if array_type.is_array() || array_type.is_vec()
                 {
-                    if array_type.is_vec() {
+                    if array_type.is_vec()
+                    {
                         array_type.to_vec().unwrap().subtype.clone()
-                    } else {
+                    }
+                    else
+                    {
                         array_type.to_array().unwrap().subtype.clone()
                     }
                 }
