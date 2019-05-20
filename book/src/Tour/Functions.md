@@ -59,11 +59,19 @@ Constant functions limited to numbers, binary and unary operations, variable dec
 
 To make function constant you need use `constexpr` keyword:
 ```go
-constexpr func add(x: i32,y: i32) i32 {
-    return x + y;
+constexpr func fac(x: i32) i32 {
+    if x == 0 {
+        return 1;
+    } else {
+        return fac(x - 1) * x;
+    }
+
+    return -1;
 }
 
 pub func main() i32 {
-    return add(2,3);
+    var n = fac(5);
+    printf("%i\n",n);
+    return 0;
 }
 ```

@@ -1,21 +1,20 @@
 /// run this example with --consteval or with -O3
 
 
-constexpr func add(x: i32,y: i32) i32 {
-	return x + y;
-	
-}
-
-constexpr X = 40
-
-constexpr func f() i32 {
-	return X;
-} 
-
 import "std/libc.jazz"
 
+constexpr func fac(x: i32) i32 {
+	if x == 0 {
+		return 1;
+	} else {
+		return fac(x - 1) * x;
+	}
+
+	return -1;
+}
+
 pub func main() i32 {
-	var val = add (f(), 2);
-	printf("%i\n",val);
+	var n = fac(5);
+	printf("%i\n",n);
 	return 0;
 }

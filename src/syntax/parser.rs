@@ -36,7 +36,7 @@ impl<'a> Parser<'a>
     fn generate_id(&self) -> NodeId { gen_id() }
     pub fn src(&self) -> String { self.lexer.reader.src.clone() }
 
-    fn parse_statement(&mut self) -> StmtResult
+    pub fn parse_statement(&mut self) -> StmtResult
     {
         match &self.token.kind
         {
@@ -160,12 +160,12 @@ impl<'a> Parser<'a>
         {
             self.ast.src = self.src();
         }
-        self.ast.elems = elements;
+        self.ast.elems.append(&mut elements);
 
         Ok(())
     }
 
-    fn parse_top_level_element(&mut self, elements: &mut Vec<Elem>) -> Result<(), MsgWithPos>
+    pub fn parse_top_level_element(&mut self, elements: &mut Vec<Elem>) -> Result<(), MsgWithPos>
     {
         let mut modifiers = self.parse_modifiers()?;
 
