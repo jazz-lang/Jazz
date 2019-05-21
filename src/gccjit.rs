@@ -2037,8 +2037,8 @@ impl<'a> Codegen<'a>
 
             let main_fn: fn(i32, *const *const i8) -> i32 =
                 unsafe { std::mem::transmute(result.get_function("main")) };
-
-            println!("\nExit value: {}", main_fn(argc, argv_c.as_ptr()));
+		
+            main_fn(argc, argv_c.as_ptr());
         }
         else
         {
