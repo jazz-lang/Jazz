@@ -800,10 +800,11 @@ impl<'a> Codegen<'a>
                 {
                     let expr = init.as_ref().unwrap();
                     let rval = self.gen_expr(expr);
-                    //let ast_ty = self.get_id_type(expr.id);
+                    let ast_ty = self.get_id_type(expr.id);
+                    let cty = self.ty_to_ctype(&ast_ty);
                     let rval = if !ty.is_struct() && !ty.is_array()
                     {
-                        self.ctx.new_cast(None, rval, local.to_rvalue().get_type())
+                        self.ctx.new_cast(None, rval, cty)
                     }
                     else
                     {
@@ -1147,6 +1148,8 @@ impl<'a> Codegen<'a>
                 .new_rvalue_from_int(self.ctx.new_type::<bool>(), *b as i32),
             ExprKind::AddressOf(expr_) =>
             {
+                let ty = self.get_id_type(expr.id);
+                let _cty = self.ty_to_ctype(&ty);
                 let val = self.expr_to_lvalue(expr_);
                 if val.is_none()
                 {
@@ -1164,12 +1167,16 @@ impl<'a> Codegen<'a>
                     );
                     self.tmp_id += 1;
 
-                    tmp.get_address(Some(gccloc_from_loc(&self.ctx, &expr.pos)))
+                    let val = tmp.get_address(Some(gccloc_from_loc(&self.ctx, &expr.pos)));
+                    //self.ctx.new_cast(None,val,cty)
+                    val
                 }
                 else
                 {
-                    val.unwrap()
-                        .get_address(Some(gccloc_from_loc(&self.ctx, &expr.pos)))
+                    let val = val.unwrap()
+                        .get_address(Some(gccloc_from_loc(&self.ctx, &expr.pos)));
+                    //self.ctx.new_cast(None,val,cty)
+                    val
                 }
             }
             ExprKind::Conv(val, to) =>
@@ -1642,7 +1649,10 @@ impl<'a> Codegen<'a>
                         fields: cfields,
                         types,
                     };
-                    self.structures.insert(s.name, cstruct);
+                    if !self.structures.contains_key(&s.name) {
+                        self.structures.insert(s.name, cstruct);
+                    }
+                    
                 }
                 Elem::Link(name) =>
                 {

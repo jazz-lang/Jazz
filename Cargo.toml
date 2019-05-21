@@ -15,5 +15,5 @@ clap = "2.33"
 linked-hash-map = "0.5"
 
 [dev-dependencies]
-lang_tester = {git = "https://github.com/softdevteam/lang_tester",branch = "integer_exit_codes"}
+lang_tester = {git = "https://github.com/softdevteam/lang_tester"}
 tempdir = "0.3"

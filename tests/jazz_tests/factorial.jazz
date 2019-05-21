@@ -1,6 +1,5 @@
 // Compiler:
-//  	stdout: 
-// 			Exit value: 120
+//  	stdout: 120
 
 func factorial(x: i32) i32 {
 	if x == 0 {
@@ -12,7 +11,10 @@ func factorial(x: i32) i32 {
 	return 1;
 }
 
+extern func printf(x: *char,...) void;
 
 pub func main() i32 {
-	return factorial(5);
+
+	printf("%i\n",factorial(5));
+	return 0;
 }

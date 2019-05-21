@@ -1,10 +1,11 @@
 // Compiler:
-//  	stdout: 
-// 			Exit value: 42
+//  	stdout:42
+
 
 constexpr X = 40
 constexpr Y = 2
-
+extern func printf(x: *char,...) void;
 pub func main() i32 {
-	return X + Y;
+	printf("%i\n",X + Y);
+	return 0;
 }

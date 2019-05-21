@@ -7,11 +7,11 @@ use super::{
 };
 use crate::ast::*;
 use colored::Colorize;
-
+use std::cell::RefCell;
 pub struct SemCheck<'a>
 {
     ctx: &'a mut Context,
-    structures: HashMap<Name, Struct>,
+    structures:  RefCell<HashMap<Name, Struct>>,
     functions: HashMap<FuncSig, Function>,
     signatures: HashMap<Name, Vec<FuncSig>>,
     globals: HashMap<Name, Global>,
@@ -134,7 +134,7 @@ impl<'a> SemCheck<'a>
     {
         SemCheck {
             ctx,
-            structures: HashMap::new(),
+            structures: RefCell::new(HashMap::new()),
             functions: HashMap::new(),
             globals: HashMap::new(),
             constants: HashMap::new(),
@@ -248,8 +248,9 @@ impl<'a> SemCheck<'a>
                     {
                         if !self.imported.contains_key(&s.name)
                         {
-                            self.imported.insert(s.name, Elem::Struct(s.clone()));
-                            self.ctx.file.elems.push(Elem::Struct(s.clone()));
+                            let s = self.infer_type(&Type::Struct(s.to_type()));
+                            self.imported.insert(s.to_struct().unwrap().name, Elem::Struct(s.to_struct().unwrap().to_struct()));
+                            self.ctx.file.elems.push(Elem::Struct(s.to_struct().unwrap().to_struct()));
                         }
                     }
                 }
@@ -357,14 +358,7 @@ impl<'a> SemCheck<'a>
         {
             if let Elem::Struct(s) = elem
             {
-                if self.structures.contains_key(&s.name)
-                {
-                    return Err(ErrorWPos::new(
-                        s.pos,
-                        Error::StructureExists(str(s.name).to_string()),
-                        src.clone(),
-                    ));
-                }
+                
                 let _structure = Struct {
                     id: s.id,
                     pos: s.pos,
@@ -372,7 +366,7 @@ impl<'a> SemCheck<'a>
                     public: s.public,
                     fields: s.fields.clone(),
                 };
-                self.structures.insert(s.name, s.clone());
+                self.structures.borrow_mut().insert(s.name, s.clone());
             }
         }
         for elem in self.ctx.file.elems.iter()
@@ -385,7 +379,8 @@ impl<'a> SemCheck<'a>
                 }
                 Elem::Alias(name, ty) =>
                 {
-                    self.aliases.insert(*name, ty.clone());
+                    let ty = self.infer_type(ty);
+                    self.aliases.insert(*name, ty);
                 }
                 Elem::Const(c) =>
                 {
@@ -490,7 +485,7 @@ impl<'a> SemCheck<'a>
                         fields.push(field);
                     }
 
-                    self.structures.get_mut(&s.name).unwrap().fields = fields;
+                    self.structures.borrow_mut().get_mut(&s.name).unwrap().fields = fields;
                 }
 
                 _ => (), // do nothing
@@ -579,6 +574,9 @@ impl<'a> SemCheck<'a>
             }
             Type::Struct(struc) =>
             {
+                if self.structures.borrow().contains_key(&struc.name) {
+                    return Type::Struct(self.structures.borrow().get(&struc.name).unwrap().clone().to_type());
+                }
                 let id = ty.id();
                 let mut fields: Vec<StructField> = vec![];
 
@@ -592,12 +590,16 @@ impl<'a> SemCheck<'a>
                     })
                 }
 
-                Type::Struct(TypeStruct {
+                let ty = TypeStruct {
                     id,
                     pos,
                     fields,
                     name: struc.name,
-                })
+                };
+                self.structures.borrow_mut().insert(ty.name,ty.to_struct());
+                Type::Struct(ty)
+
+               
             }
             Type::Basic(basic) =>
             {
@@ -605,12 +607,13 @@ impl<'a> SemCheck<'a>
                 {
                     return self.infer_type(&ty);
                 }
-                let id = ty.id();
-                if self.structures.contains_key(&basic.name)
+                
+                if self.structures.borrow().contains_key(&basic.name)
                 {
-                    let struc = self.structures.get(&basic.name).unwrap();
+                    let structs = self.structures.borrow();
+                    let struc = structs.get(&basic.name).unwrap();
 
-                    Type::create_struct(id, pos, basic.name, struc.fields.clone())
+                    Type::Struct(struc.to_type())
                 }
                 else
                 {
@@ -1296,7 +1299,8 @@ impl<'a> SemCheck<'a>
             ExprKind::Struct(construct, _) =>
             {
                 let name = construct.name();
-                let struct_ = self.structures.get(&name).expect("struct not found");
+                let structs = self.structures.borrow();
+                let struct_ = structs.get(&name).expect("struct not found");
                 let ty = self.infer_type(&Type::create_struct(
                     expr.id,
                     expr.pos,

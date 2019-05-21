@@ -1,7 +1,5 @@
 // Compiler:
-//  	stdout:			
-// 		 Exit value: 42
-
+//  	stdout:42
 
 extern func exit(code: i32) void;
 extern func printf(c: *char,...) void;
@@ -41,5 +39,7 @@ pub func main() i32 {
 	p.setX(42);
 
 	assert(p.getX() == 42);
-	return p.getX();
+	
+	printf("%i\n",p.x);
+	return 0;	
 }
