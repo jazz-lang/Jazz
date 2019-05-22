@@ -1173,7 +1173,8 @@ impl<'a> Codegen<'a>
                 }
                 else
                 {
-                    let val = val.unwrap()
+                    let val = val
+                        .unwrap()
                         .get_address(Some(gccloc_from_loc(&self.ctx, &expr.pos)));
                     //self.ctx.new_cast(None,val,cty)
                     val
@@ -1470,7 +1471,7 @@ impl<'a> Codegen<'a>
                         ">>" => BinaryOp::RShift,
                         "<<" => BinaryOp::LShift,
 
-                        _ => panic!("{}",op),
+                        _ => panic!("{}", op),
                     };
                     let l = self.gen_expr(e1);
                     let r = self.gen_expr(e2);
@@ -1649,10 +1650,10 @@ impl<'a> Codegen<'a>
                         fields: cfields,
                         types,
                     };
-                    if !self.structures.contains_key(&s.name) {
+                    if !self.structures.contains_key(&s.name)
+                    {
                         self.structures.insert(s.name, cstruct);
                     }
-                    
                 }
                 Elem::Link(name) =>
                 {
@@ -2047,7 +2048,7 @@ impl<'a> Codegen<'a>
 
             let main_fn: fn(i32, *const *const i8) -> i32 =
                 unsafe { std::mem::transmute(result.get_function("main")) };
-		
+
             main_fn(argc, argv_c.as_ptr());
         }
         else

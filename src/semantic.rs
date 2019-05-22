@@ -11,7 +11,7 @@ use std::cell::RefCell;
 pub struct SemCheck<'a>
 {
     ctx: &'a mut Context,
-    structures:  RefCell<HashMap<Name, Struct>>,
+    structures: RefCell<HashMap<Name, Struct>>,
     functions: HashMap<FuncSig, Function>,
     signatures: HashMap<Name, Vec<FuncSig>>,
     globals: HashMap<Name, Global>,
@@ -249,8 +249,14 @@ impl<'a> SemCheck<'a>
                         if !self.imported.contains_key(&s.name)
                         {
                             let s = self.infer_type(&Type::Struct(s.to_type()));
-                            self.imported.insert(s.to_struct().unwrap().name, Elem::Struct(s.to_struct().unwrap().to_struct()));
-                            self.ctx.file.elems.push(Elem::Struct(s.to_struct().unwrap().to_struct()));
+                            self.imported.insert(
+                                s.to_struct().unwrap().name,
+                                Elem::Struct(s.to_struct().unwrap().to_struct()),
+                            );
+                            self.ctx
+                                .file
+                                .elems
+                                .push(Elem::Struct(s.to_struct().unwrap().to_struct()));
                         }
                     }
                 }
@@ -358,7 +364,6 @@ impl<'a> SemCheck<'a>
         {
             if let Elem::Struct(s) = elem
             {
-                
                 let _structure = Struct {
                     id: s.id,
                     pos: s.pos,
@@ -485,7 +490,11 @@ impl<'a> SemCheck<'a>
                         fields.push(field);
                     }
 
-                    self.structures.borrow_mut().get_mut(&s.name).unwrap().fields = fields;
+                    self.structures
+                        .borrow_mut()
+                        .get_mut(&s.name)
+                        .unwrap()
+                        .fields = fields;
                 }
 
                 _ => (), // do nothing
@@ -574,8 +583,16 @@ impl<'a> SemCheck<'a>
             }
             Type::Struct(struc) =>
             {
-                if self.structures.borrow().contains_key(&struc.name) {
-                    return Type::Struct(self.structures.borrow().get(&struc.name).unwrap().clone().to_type());
+                if self.structures.borrow().contains_key(&struc.name)
+                {
+                    return Type::Struct(
+                        self.structures
+                            .borrow()
+                            .get(&struc.name)
+                            .unwrap()
+                            .clone()
+                            .to_type(),
+                    );
                 }
                 let id = ty.id();
                 let mut fields: Vec<StructField> = vec![];
@@ -596,10 +613,8 @@ impl<'a> SemCheck<'a>
                     fields,
                     name: struc.name,
                 };
-                self.structures.borrow_mut().insert(ty.name,ty.to_struct());
+                self.structures.borrow_mut().insert(ty.name, ty.to_struct());
                 Type::Struct(ty)
-
-               
             }
             Type::Basic(basic) =>
             {
@@ -607,7 +622,7 @@ impl<'a> SemCheck<'a>
                 {
                     return self.infer_type(&ty);
                 }
-                
+
                 if self.structures.borrow().contains_key(&basic.name)
                 {
                     let structs = self.structures.borrow();
@@ -721,7 +736,7 @@ impl<'a> SemCheck<'a>
                     let mut t = self.tc_expr(&init);
 
                     t = self.infer_type(&t);
-                    self.types.insert(init.id,t.clone());
+                    self.types.insert(init.id, t.clone());
 
                     self.vars.last_mut().unwrap().insert(*name, t.clone());
                     self.types.insert(stmt.id, t);
@@ -743,7 +758,7 @@ impl<'a> SemCheck<'a>
                     let init = init.clone().unwrap();
                     let mut t = self.tc_expr(&init);
                     t = self.infer_type(&t);
-                    self.types.insert(init.id,t.clone());
+                    self.types.insert(init.id, t.clone());
                     let mut t2 = ty.clone().unwrap();
                     t2 = self.infer_type(&t2);
                     if ty_is_any_int(&t2) && ty_is_any_int(&t)
@@ -788,12 +803,12 @@ impl<'a> SemCheck<'a>
     {
         match &expr.kind
         {
-            ExprKind::New(ty) => {
-
+            ExprKind::New(ty) =>
+            {
                 let infered = self.infer_type(ty);
                 self.ctx.gced.insert(expr.id);
 
-                self.types.insert(expr.id,infered.clone());
+                self.types.insert(expr.id, infered.clone());
                 return infered;
             }
             ExprKind::Int(_, _, suffix) =>

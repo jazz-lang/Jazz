@@ -14,7 +14,7 @@ impl Display for ExprKind
     {
         match self
         {
-            ExprKind::New(val) => write!(f,"new {}",val),
+            ExprKind::New(val) => write!(f, "new {}", val),
             ExprKind::Int(i, base, _) => match base
             {
                 IntBase::Hex => write!(f, "{:x}", i),

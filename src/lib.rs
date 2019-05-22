@@ -64,8 +64,7 @@ impl NodeIdGenerator
 }
 
 use ast::Type;
-use std::collections::HashMap;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use syntax::ast::File;
 
 /// Context stores ifnromation about program

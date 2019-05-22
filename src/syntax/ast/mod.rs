@@ -121,16 +121,15 @@ pub struct Struct
     pub fields: Vec<StructField>,
 }
 
-impl Struct {
-    pub fn to_type(&self) -> TypeStruct {
-
-    
-
+impl Struct
+{
+    pub fn to_type(&self) -> TypeStruct
+    {
         TypeStruct {
             fields: self.fields.clone(),
             name: self.name,
             id: self.id,
-            pos: self.pos
+            pos: self.pos,
         }
     }
 }
@@ -288,14 +287,16 @@ pub struct TypeStruct
     pub fields: Vec<StructField>,
 }
 
-impl TypeStruct {
-    pub fn to_struct(&self) -> Struct {
+impl TypeStruct
+{
+    pub fn to_struct(&self) -> Struct
+    {
         Struct {
             public: true,
             id: self.id,
             pos: self.pos,
             name: self.name,
-            fields: self.fields.clone()
+            fields: self.fields.clone(),
         }
     }
 }
