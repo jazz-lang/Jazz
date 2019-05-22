@@ -1,0 +1,23 @@
+import "libc.jazz"
+
+pub var __state0: u64 = 1 as u64;
+pub var __state1: u64 = 2 as u64;
+
+pub func xorshift128plus() u64 {
+	var s1 = __state0;
+	var s0 = __state1;
+	__state0 = s0;
+	s1 = s1 ^ s1 << 23;
+	s1 = s1 ^ s1 >> 17;
+	s1 = s1 ^ s0;
+	s1 = s1 ^ s0 >> 26;
+	__state1 = s1;
+	return __state0 + __state1;
+}
+
+pub func random() u64 {
+	__state0 = time(null as *u64);
+	__state1 = time(null as *u64) + 1;
+
+	return xorshift128plus();
+}

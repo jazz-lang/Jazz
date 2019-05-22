@@ -1,0 +1,9 @@
+import "ast.jazz"
+import "idgen.jazz"
+import "std/libc.jazz"
+pub func main() i32 {
+	printf("%i\n",next_id());
+	printf("%i\n",next_id());
+	printf("%i\n",next_id());
+	return 0;
+}

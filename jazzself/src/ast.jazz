@@ -1,0 +1,263 @@
+constexpr EXPR_UNARY = 0
+constexpr EXPR_BINARY = 1
+constexpr EXPR_CHAR = 2
+constexpr EXPR_INT = 3
+constexpr EXPR_FLOAT = 4
+constexpr EXPR_STR = 5
+constexpr EXPR_BOOL = 6
+constexpr EXPR_IDENT = 7
+constexpr EXPR_ARRAYIDX = 8
+constexpr EXPR_DEREF = 9
+constexpr EXPR_ARAY = 10
+constexpr EXPR_GET_FUNC = 11
+constexpr EXPR_NULL = 12
+constexpr EXPR_NEW = 13
+constexpr EXPR_CALL = 14
+constexpr EXPR_ASSIGN = 15
+constexpr EXPR_FIELD = 16
+constexpr EXPR_CONV = 17
+constexpr EXPR_STRUCT = 18
+constexpr EXPR_ADDROF = 19
+constexpr EXPR_SIZEOF = 20
+
+constexpr STMT_RETURN = 21
+constexpr STMT_BLOCK = 22
+constexpr STMT_EXPR = 23
+constexpr STMT_LOOP = 24
+constexpr STMT_WHILE = 25
+constexpr STMT_VAR = 26
+constexpr STMT_IF = 27
+constexpr STMT_CONTINUE = 28
+constexpr STMT_BREAK = 29	
+
+constexpr TYPE_BASIC = 30
+constexpr TYPE_PTR = 31
+constexpr TYPE_ARRAY = 32
+constexpr TYPE_FUNC = 33
+constexpr TYPE_STRUCT = 34
+constexpr TYPE_VOID = 35
+constexpr TYPE_VECTOR = 36
+
+
+
+pub struct Pos {
+	col: i32,
+	row: i32,
+	file: *char
+}
+
+pub struct Type {
+	id: i32,
+	ty: i32,
+	pos: Pos
+}
+
+pub struct TypeVector {
+	id: i32,
+	ty: i32,
+	pos: Pos,
+	subtype: *Type,
+	size: i32
+}
+
+pub struct TypeBasic {
+	id: i32,
+	ty: i32,
+	pos: Pos,
+	name: *char
+}
+
+pub struct TypePtr {
+	id: i32,
+	ty: i32,
+	pos: Pos,
+	subtype: *Type 
+}
+
+pub struct TypeArray {
+	id: i32,
+	ty: i32,
+	pos: Pos,
+	subtype: *Type,
+	size: *i32
+}
+
+pub struct StructField {
+	id: i32,
+	pos: Pos,
+	name: *char,
+	ty: *Type
+}
+
+pub struct TypeStruct {
+	id: i32,
+	ty: i32,
+	pos: Pos,
+	name: *char,
+	fields: *StructField,
+	count: i32
+}
+
+pub struct TypeFunc {
+	id: i32,
+	ty: i32,
+	pos: Pos,
+	params: **Type,
+	params_count: i32,
+	ret: *Type,
+	variadic: bool
+}
+
+
+
+pub struct Expr {
+	id: i32,
+	ty: i32,
+	pos: Pos
+}
+
+pub struct ExprUnary {
+	id: i32,
+	ty: i32,
+	pos: Pos,
+	op: *char,
+	expr: *Expr
+}
+
+pub struct ExprBinary {
+	id: i32,
+	ty: i32,
+	pos: Pos,
+	op: *char,
+	lhs: *Expr,
+	rhs: *Expr
+}
+
+pub struct ExprChar {
+	id: i32,
+	ty: i32,
+	pos: Pos,
+	c: char
+}
+
+pub struct ExprInt {
+	id: i32,
+	ty: i32,
+	pos: Pos,
+	imm: i64,
+	base: i32,
+	suffix: i32
+}
+
+pub struct ExprFloat {
+	id: i32,
+	ty: i32,
+	pos: Pos,
+	value: f64,
+	suffix: i32
+}
+
+pub struct ExprStr {
+	id: i32,
+	ty: i32,
+	pos: Pos,
+	value: *char,
+	size: i32
+}
+
+pub struct ExprBool {
+	id: i32,
+	ty: i32,
+	pos: Pos,
+	value: bool
+}
+
+pub struct ExprIdent {
+	id: i32,
+	ty: i32,
+	pos: Pos,
+	name: *char
+}
+
+pub struct ExprArrayIdx {
+	id: i32,
+	ty: i32,
+	pos: Pos,
+	array: *Expr,
+	idx: *Expr
+}
+
+pub struct ExprDeref {
+	id: i32,
+	ty: i32,
+	pos: Pos,
+	value: *Expr
+}
+
+pub struct ExprAddressOf {
+	id: i32,
+	ty: i32,
+	pos: Pos,
+	value: *Expr
+}
+
+pub struct ExprGetFunc {
+	id: i32,
+	ty: i32,
+	pos: Pos,
+	name: *char
+}
+
+pub struct ExprNull {
+	id: i32,
+	ty: i32,
+	pos: Pos
+}
+
+pub struct ExprCall {
+	id: i32,
+	ty: i32,
+	pos: Pos,
+	val: *Expr,
+	this: *Expr,
+	args: **Expr,
+	arity: i32
+}
+
+pub struct ExprAssign {
+	id: i32,
+	ty: i32,
+	pos: Pos,
+	to: *Expr,
+	from: *Expr
+}
+
+pub struct ExprField {
+	id: i32,
+	ty: i32,
+	pos: Pos,
+	object: *Expr,
+	field: *char
+}
+
+pub struct ExprConv {
+	id: i32,
+	ty: i32,
+	pos: Pos,
+	val: *Expr,
+	to: *Type
+}
+
+pub struct StructArg {
+	id: i32,
+	pos: Pos,
+	name: *char,
+	expr: *Expr
+}
+
+pub struct ExprStruct {
+	ty: i32,
+	pos: Pos,
+	args: **StructArg,
+	count: i32
+}

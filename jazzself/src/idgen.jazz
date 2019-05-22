@@ -1,0 +1,9 @@
+pub var __id: i32 = 0;
+
+
+pub inline func next_id() i32 {
+	var id = __id;
+	__id = __id + 1;
+
+	return id;
+}

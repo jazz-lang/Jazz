@@ -1,0 +1,100 @@
+import "libc.jazz"
+
+
+pub func print(c: char) void {
+	printf("%c",c);
+	return;
+}
+
+pub func print(c: *char) void {
+	printf("%s",c);
+	return;
+}
+
+
+
+pub func print(c: *char,size: i32) void {
+	printf("%.*s",size,c);
+	return;
+}
+
+pub func print(i: i32) void {
+	printf("%i",i);
+	return;
+}
+
+pub func print(i: i64) void {
+	printf("%li",i);
+	return;
+}
+
+pub func print(i: i8) void {
+	printf("%i",i);
+	return;
+}
+
+pub func print(i: i16) void {
+	printf("%i",i);
+	return;
+}
+
+pub func print(u: usize) void {
+	printf("%li",u);
+	return;
+}
+
+pub func print(u: u64) void {
+	printf("%lu",u);
+	return;
+}
+
+pub func print(u: u32) void {
+	printf("%u",u);
+	return;
+}
+
+pub func print(f: f64) void {
+	printf("%f",f);
+	return;
+}
+
+pub func print(f: f32) void {
+	printf("%f",f);
+	return;
+}
+
+pub func println(c: *char) void {
+	print(c);
+	print('\n');
+	return;
+}
+
+pub func println(c: *char,size: i32) void {
+	print(c,size);
+	print('\n');
+	return;
+}
+
+pub func println(i: i32) void {
+	print(i);
+	print('\n');
+	return;
+}
+
+pub func println(i: i64) void {
+	print(i);
+	print('\n');
+	return;
+}
+
+pub func println(f: f32) void {
+	print(f);
+	print('\n');
+	return;
+}
+
+pub func println(f: f64) void {
+	print(f);
+	print('\n');
+	return;
+}
