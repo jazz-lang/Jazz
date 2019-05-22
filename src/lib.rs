@@ -65,6 +65,7 @@ impl NodeIdGenerator
 
 use ast::Type;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use syntax::ast::File;
 
 /// Context stores ifnromation about program
@@ -72,6 +73,7 @@ pub struct Context
 {
     pub file: File,
     pub types: HashMap<NodeId, Type>,
+    pub gced: HashSet<NodeId>,
     pub opt: u8,
     pub jit: bool,
     pub emit_asm: bool,
@@ -88,6 +90,7 @@ impl Context
         Context {
             file,
             types: HashMap::new(),
+            gced: HashSet::new(),
             opt: 2,
             emit_asm: false,
             emit_obj: false,

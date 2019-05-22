@@ -1470,7 +1470,7 @@ impl<'a> Codegen<'a>
                         ">>" => BinaryOp::RShift,
                         "<<" => BinaryOp::LShift,
 
-                        _ => unreachable!(),
+                        _ => panic!("{}",op),
                     };
                     let l = self.gen_expr(e1);
                     let r = self.gen_expr(e2);

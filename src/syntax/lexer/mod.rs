@@ -689,6 +689,7 @@ fn keywords_in_map() -> HashMap<&'static str, TokenKind>
     let mut keywords = HashMap::new();
 
     keywords.insert("func", TokenKind::Fun);
+    keywords.insert("new",TokenKind::New);
     keywords.insert("let", TokenKind::Let);
     keywords.insert("constexpr", TokenKind::ConstExpr);
     keywords.insert("var", TokenKind::Var);

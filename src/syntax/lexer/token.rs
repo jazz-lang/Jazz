@@ -54,7 +54,7 @@ pub enum TokenKind
     Underscore,
     Defer,
     Lambda,
-
+    New,
     // Operators
     Add,
     Sub,
@@ -136,6 +136,7 @@ impl TokenKind
             TokenKind::Fun => "func",
             TokenKind::Let => "let",
             TokenKind::Var => "var",
+            TokenKind::New => "new",
             TokenKind::While => "while",
             TokenKind::If => "if",
             TokenKind::Else => "else",

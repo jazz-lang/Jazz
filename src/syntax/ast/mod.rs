@@ -804,6 +804,7 @@ pub enum ExprKind
     Array(Box<Type>, Vec<Box<Expr>>),
     GetFunc(Name),
     Null,
+    New(Box<Type>),
     Call(Path, Option<Box<Expr>>, Vec<Box<Expr>>),
     Assign(Box<Expr>, Box<Expr>),
     Field(Box<Expr>, Name),

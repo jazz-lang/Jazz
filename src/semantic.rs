@@ -719,7 +719,10 @@ impl<'a> SemCheck<'a>
                 {
                     let init = init.clone().unwrap();
                     let mut t = self.tc_expr(&init);
+
                     t = self.infer_type(&t);
+                    self.types.insert(init.id,t.clone());
+
                     self.vars.last_mut().unwrap().insert(*name, t.clone());
                     self.types.insert(stmt.id, t);
                 }
@@ -740,6 +743,7 @@ impl<'a> SemCheck<'a>
                     let init = init.clone().unwrap();
                     let mut t = self.tc_expr(&init);
                     t = self.infer_type(&t);
+                    self.types.insert(init.id,t.clone());
                     let mut t2 = ty.clone().unwrap();
                     t2 = self.infer_type(&t2);
                     if ty_is_any_int(&t2) && ty_is_any_int(&t)
@@ -784,6 +788,14 @@ impl<'a> SemCheck<'a>
     {
         match &expr.kind
         {
+            ExprKind::New(ty) => {
+
+                let infered = self.infer_type(ty);
+                self.ctx.gced.insert(expr.id);
+
+                self.types.insert(expr.id,infered.clone());
+                return infered;
+            }
             ExprKind::Int(_, _, suffix) =>
             {
                 let ty = match suffix
