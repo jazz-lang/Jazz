@@ -5,10 +5,13 @@ use crate::{
         position::Position,
     },
 };
-use std::collections::HashMap;
+
+pub fn rc<T>(v: T) -> Rc<RefCell<T>> { Rc::new(RefCell::new(v)) }
+
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 /// Constant value that known at compile-time
 #[derive(Clone, PartialOrd, Debug)]
-enum Const
+pub enum Const
 {
     /// Immediate value or just int value
     Imm(i64, IntSuffix, IntBase),
@@ -17,17 +20,28 @@ enum Const
     /// Boolean value
     Bool(bool),
     /// Struct value with fields
-    Struct(Name, Vec<(Name, Const, NodeId)>),
+    Struct(Name, Vec<(Name, Rc<RefCell<Const>>, NodeId)>),
     /// Just a void value
     Void,
     /// Return value
-    Ret(Box<Const>),
+    Ret(Rc<RefCell<Const>>),
+    Str(String),
+    Array(Rc<RefCell<Vec<Rc<RefCell<Const>>>>>),
     /// If evaluator seen this value then evaluation stops
     None,
 }
 
 impl Const
 {
+    fn is_void(&self) -> bool
+    {
+        match self
+        {
+            Const::Void => true,
+            _ => false,
+        }
+    }
+
     /// Translate Const value into Expression
     fn to_kind(&self) -> ExprKind
     {
@@ -48,15 +62,15 @@ impl Const
                         expr: box Expr {
                             id: NodeId(0),
                             pos: Position::new(intern(""), 0, 0),
-                            kind: constant.to_kind(),
+                            kind: constant.borrow().to_kind(),
                         },
                     })
                 }
                 ExprKind::Struct(Path::new(*name), args)
             }
-            Const::Ret(c) => c.to_kind(),
-
-            _ => unreachable!(),
+            Const::Ret(c) => c.borrow().to_kind(),
+            Const::Str(s) => ExprKind::Str(s.to_owned()),
+            v => panic!("{:?}", v),
         }
     }
 }
@@ -177,13 +191,15 @@ use crate::{
     syntax::interner::{str, Name},
     Context,
 };
+use std::intrinsics::transmute;
+
 /// Constant evaluator that tries to evaluate code.
 /// If `try_eval_normal` enabled then normal (non-constexpr) function evaluated
 /// if possible too
 pub struct ConstEval<'a>
 {
     /// Variables defined and known in compile-time context
-    known_vars: HashMap<Name, Const>,
+    known_vars: HashMap<Name, Rc<RefCell<Const>>>,
     ctx: &'a mut Context,
     /// All constant functions
     const_functions: HashMap<Name, Vec<Function>>,
@@ -191,7 +207,10 @@ pub struct ConstEval<'a>
     constexprs: HashMap<Name, Expr>,
     functions: HashMap<Name, Vec<Function>>,
     try_eval_normal: bool,
+    builtins: HashMap<Name, *const u8>,
     id: usize,
+    running: bool,
+    normal: bool,
 }
 
 impl<'a> ConstEval<'a>
@@ -206,12 +225,15 @@ impl<'a> ConstEval<'a>
             return_: None,
             constexprs: HashMap::new(),
             functions: HashMap::new(),
+            builtins: super::builtins::builtins(),
             try_eval_normal,
             id: 0,
+            running: false,
+            normal: false,
         }
     }
     /// try to get variable
-    fn try_get_var(&mut self, name: &Name) -> Const
+    fn try_get_var(&mut self, name: &Name) -> Rc<RefCell<Const>>
     {
         if self.constexprs.contains_key(name)
         {
@@ -219,25 +241,29 @@ impl<'a> ConstEval<'a>
             let val = self.eval(&cexpr);
             return val;
         }
-        let var = self.known_vars.get(name).unwrap_or(&Const::None);
-
-        var.clone()
+        let var = self.known_vars.get(name);
+        if var.is_none()
+        {
+            return Rc::new(RefCell::new(Const::None));
+        }
+        var.unwrap().clone()
     }
     /// If values of lhs and rhs known at compile time evaluates binary
     /// operation
-    fn eval_binop(&mut self, op: &str, lhs: &Expr, rhs: &Expr) -> Const
+    fn eval_binop(&mut self, op: &str, lhs: &Expr, rhs: &Expr) -> Rc<RefCell<Const>>
     {
         let c1 = self.eval(&lhs);
         let c2 = self.eval(&rhs);
 
-        if c1.is_none() || c2.is_none()
+        if c1.borrow().is_none() || c2.borrow().is_none()
         {
-            return Const::None;
+            return Rc::new(RefCell::new(Const::None));
         }
-
-        match op
+        let c1: &Const = &c1.borrow();
+        let c2: &Const = &c2.borrow();
+        let val = match op
         {
-            "+" => match (c1, c2)
+            "+" => match (c1.clone(), c2.clone())
             {
                 (Const::Imm(i1, suffix, base), Const::Imm(i2, _, _)) =>
                 {
@@ -250,53 +276,53 @@ impl<'a> ConstEval<'a>
             {
                 (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) =>
                 {
-                    Const::Imm(i1.overflowing_sub(i2).0, s, b)
+                    Const::Imm(i1.overflowing_sub(*i2).0, *s, *b)
                 }
-                (Const::Float(f1, s), Const::Float(f2, _)) => Const::Float(f1 - f2, s),
+                (Const::Float(f1, s), Const::Float(f2, _)) => Const::Float(f1 - f2, *s),
                 _ => Const::None,
             },
             "/" => match (c1, c2)
             {
                 (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) =>
                 {
-                    Const::Imm(i1.overflowing_div(i2).0, s, b)
+                    Const::Imm(i1.overflowing_div(*i2).0, *s, *b)
                 }
-                (Const::Float(f1, s), Const::Float(f2, _)) => Const::Float(f1 / f2, s),
+                (Const::Float(f1, s), Const::Float(f2, _)) => Const::Float(f1 / f2, *s),
                 _ => Const::None,
             },
             "*" => match (c1, c2)
             {
                 (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) =>
                 {
-                    Const::Imm(i1.overflowing_mul(i2).0, s, b)
+                    Const::Imm(i1.overflowing_mul(*i2).0, *s, *b)
                 }
-                (Const::Float(f1, s), Const::Float(f2, _)) => Const::Float(f1 * f2, s),
+                (Const::Float(f1, s), Const::Float(f2, _)) => Const::Float(f1 * f2, *s),
                 _ => Const::None,
             },
             "%" => match (c1, c2)
             {
-                (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) => Const::Imm(i1 % i2, s, b),
-                (Const::Float(f1, s), Const::Float(f2, _)) => Const::Float(f1 % f2, s),
+                (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) => Const::Imm(i1 % i2, *s, *b),
+                (Const::Float(f1, s), Const::Float(f2, _)) => Const::Float(f1 % f2, *s),
                 _ => Const::None,
             },
             "|" => match (c1, c2)
             {
-                (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) => Const::Imm(i1 | i2, s, b),
+                (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) => Const::Imm(i1 | i2, *s, *b),
                 _ => Const::None,
             },
             "&" => match (c1, c2)
             {
-                (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) => Const::Imm(i1 & i2, s, b),
+                (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) => Const::Imm(i1 & i2, *s, *b),
                 _ => Const::None,
             },
             ">>" => match (c1, c2)
             {
-                (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) => Const::Imm(i1 >> i2, s, b),
+                (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) => Const::Imm(i1 >> i2, *s, *b),
                 _ => Const::None,
             },
             "<<" => match (c1, c2)
             {
-                (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) => Const::Imm(i1 << i2, s, b),
+                (Const::Imm(i1, s, b), Const::Imm(i2, _, _)) => Const::Imm(i1 << i2, *s, *b),
                 _ => Const::None,
             },
             /*"==" => Const::Bool(c1 == c2),
@@ -307,12 +333,12 @@ impl<'a> ConstEval<'a>
             "<=" => Const::Bool(c1 <= c2),*/
             "||" => match (c1, c2)
             {
-                (Const::Bool(b1), Const::Bool(b2)) => Const::Bool(b1 || b2),
+                (Const::Bool(b1), Const::Bool(b2)) => Const::Bool(*b1 || *b2),
                 _ => Const::None,
             },
             "&&" => match (c1, c2)
             {
-                (Const::Bool(b1), Const::Bool(b2)) => Const::Bool(b1 && b2),
+                (Const::Bool(b1), Const::Bool(b2)) => Const::Bool(*b1 && *b2),
                 _ => Const::None,
             },
             "<" => match (c1, c2)
@@ -355,7 +381,9 @@ impl<'a> ConstEval<'a>
                 _ => Const::None,
             },
             _ => Const::None,
-        }
+        };
+
+        Rc::new(RefCell::new(val))
     }
     /// if `to` expression is identifier
     ///  and variable with name of identifier known
@@ -370,7 +398,7 @@ impl<'a> ConstEval<'a>
                 {
                     let val = self.eval(from);
 
-                    if !val.is_none()
+                    if !val.borrow().is_none()
                     {
                         self.known_vars.insert(*name, val);
                     }
@@ -387,11 +415,12 @@ impl<'a> ConstEval<'a>
                     if self.known_vars.contains_key(name)
                     {
                         let val = self.eval(from);
-                        if val.is_none()
+                        if val.borrow().is_none()
                         {
                             return;
                         }
-                        let cval = self.known_vars.get_mut(name).unwrap();
+                        let cval = self.known_vars.get(name).unwrap();
+                        let cval: &mut Const = &mut cval.borrow_mut();
                         if let Const::Struct(_, fields) = cval
                         {
                             for (name, val_, id) in fields.iter_mut()
@@ -411,7 +440,7 @@ impl<'a> ConstEval<'a>
         }
     }
     /// Evaluate expression
-    fn eval(&mut self, expr: &Expr) -> Const
+    fn eval(&mut self, expr: &Expr) -> Rc<RefCell<Const>>
     {
         match &expr.kind
         {
@@ -419,110 +448,119 @@ impl<'a> ConstEval<'a>
             {
                 let val = self.eval(expr);
 
-                if !val.is_none()
+                if !val.borrow().is_none()
                 {
                     use crate::semantic::{ty_is_any_float, ty_is_any_int};
+                    let val: &Const = &val.borrow();
                     if ty_is_any_int(to)
                     {
                         match val
                         {
-                            Const::Imm(i, s, b) => Const::Imm(i, s, b),
-                            Const::Float(f, s) => Const::Imm(
-                                f as i64,
+                            Const::Imm(i, s, b) => rc(Const::Imm(*i, *s, *b)),
+                            Const::Float(f, s) => rc(Const::Imm(
+                                *f as i64,
                                 match s
                                 {
                                     FloatSuffix::Float => IntSuffix::Int,
                                     FloatSuffix::Double => IntSuffix::Long,
                                 },
                                 IntBase::Dec,
-                            ),
-                            Const::Bool(b) => Const::Imm(b as i64, IntSuffix::Int, IntBase::Dec),
-                            Const::Ret(val) => match *val
+                            )),
+                            Const::Bool(b) =>
                             {
-                                Const::Imm(i, s, b) => Const::Imm(i, s, b),
-                                Const::Float(f, s) => Const::Imm(
-                                    f as i64,
-                                    match s
-                                    {
-                                        FloatSuffix::Float => IntSuffix::Int,
-                                        FloatSuffix::Double => IntSuffix::Long,
-                                    },
-                                    IntBase::Dec,
-                                ),
-                                Const::Bool(b) =>
+                                rc(Const::Imm(*b as i64, IntSuffix::Int, IntBase::Dec))
+                            }
+                            Const::Ret(val) =>
+                            {
+                                let val: &Const = &val.borrow();
+                                match val
                                 {
-                                    Const::Imm(b as i64, IntSuffix::Int, IntBase::Dec)
-                                }
+                                    Const::Imm(i, s, b) => rc(Const::Imm(*i, *s, *b)),
+                                    Const::Float(f, s) => rc(Const::Imm(
+                                        *f as i64,
+                                        match s
+                                        {
+                                            FloatSuffix::Float => IntSuffix::Int,
+                                            FloatSuffix::Double => IntSuffix::Long,
+                                        },
+                                        IntBase::Dec,
+                                    )),
+                                    Const::Bool(b) =>
+                                    {
+                                        rc(Const::Imm(*b as i64, IntSuffix::Int, IntBase::Dec))
+                                    }
 
-                                Const::Void => Const::Void,
-                                _ => Const::None,
-                            },
-                            _ => Const::None,
+                                    Const::Void => rc(Const::Void),
+                                    _ => rc(Const::None),
+                                }
+                            }
+                            _ => rc(Const::None),
                         }
                     }
                     else if ty_is_any_float(to)
                     {
                         match val
                         {
-                            Const::Float(f, s) => Const::Float(f, s),
-                            Const::Imm(i, s, _) => Const::Float(
-                                i as f64,
+                            Const::Float(f, s) => rc(Const::Float(*f, *s)),
+                            Const::Imm(i, s, _) => rc(Const::Float(
+                                *i as f64,
                                 match s
                                 {
                                     IntSuffix::Int => FloatSuffix::Float,
                                     IntSuffix::Long | IntSuffix::ULong => FloatSuffix::Double,
                                     _ => FloatSuffix::Float,
                                 },
-                            ),
-                            _ => Const::None,
+                            )),
+                            _ => rc(Const::None),
                         }
                     }
                     else
                     {
-                        Const::None
+                        rc(Const::None)
                     }
                 }
                 else
                 {
-                    Const::None
+                    rc(Const::None)
                 }
             }
 
-            ExprKind::Int(i, b, s) => Const::Imm(*i, *s, *b),
-            ExprKind::Float(f, s) => Const::Float(*f, *s),
-            ExprKind::Bool(b) => Const::Bool(*b),
+            ExprKind::Int(i, b, s) => rc(Const::Imm(*i, *s, *b)),
+            ExprKind::Float(f, s) => rc(Const::Float(*f, *s)),
+            ExprKind::Bool(b) => rc(Const::Bool(*b)),
 
             ExprKind::Binary(op, lhs, rhs) => self.eval_binop(op, lhs, rhs),
             ExprKind::Unary(op, expr) =>
             {
                 let op: &str = op;
                 let val = self.eval(expr);
+                let val: &Const = &val.borrow();
                 if val.is_none()
                 {
-                    return Const::None;
+                    return rc(Const::None);
                 }
                 match op
                 {
                     "+" => match val
                     {
-                        Const::Imm(i, s, b) => Const::Imm(i, s, b),
-                        Const::Float(f, s) => Const::Float(f, s),
-                        _ => Const::None,
+                        Const::Imm(i, s, b) => rc(Const::Imm(*i, *s, *b)),
+                        Const::Float(f, s) => rc(Const::Float(*f, *s)),
+                        _ => rc(Const::None),
                     },
                     "-" => match val
                     {
-                        Const::Imm(i, s, b) => Const::Imm(-i, s, b),
-                        Const::Float(f, s) => Const::Float(-f, s),
-                        _ => Const::None,
+                        Const::Imm(i, s, b) => rc(Const::Imm(-i, *s, *b)),
+                        Const::Float(f, s) => rc(Const::Float(-f, *s)),
+                        _ => rc(Const::None),
                     },
                     "!" => match val
                     {
-                        Const::Imm(i, s, b) => Const::Imm(!i, s, b),
+                        Const::Imm(i, s, b) => rc(Const::Imm(!i, *s, *b)),
 
-                        Const::Bool(b) => Const::Bool(!b),
-                        _ => Const::None,
+                        Const::Bool(b) => rc(Const::Bool(!b)),
+                        _ => rc(Const::None),
                     },
-                    _ => Const::None,
+                    _ => rc(Const::None),
                 }
             }
             ExprKind::Struct(name, fields) =>
@@ -531,21 +569,23 @@ impl<'a> ConstEval<'a>
                 for field in fields.iter()
                 {
                     let val = self.eval(&field.expr);
-                    if val.is_none()
+                    if val.borrow().is_none()
                     {
-                        return Const::None;
+                        return rc(Const::None);
                     }
                     new_fields.push((field.name, val, field.expr.id))
                 }
 
-                Const::Struct(name.name(), new_fields)
+                rc(Const::Struct(name.name(), new_fields))
             }
+            ExprKind::Str(s) => rc(Const::Str(s.clone())),
             ExprKind::Field(val, field) =>
             {
                 let val = self.eval(val);
+                let val: &Const = &val.borrow();
                 if val.is_none()
                 {
-                    return Const::None;
+                    return rc(Const::None);
                 }
                 if let Const::Struct(_, fields) = val
                 {
@@ -558,7 +598,7 @@ impl<'a> ConstEval<'a>
                     }
                 }
 
-                return Const::None;
+                return rc(Const::None);
             }
 
             ExprKind::Ident(name) => self.try_get_var(name),
@@ -567,11 +607,40 @@ impl<'a> ConstEval<'a>
                 self.try_assign(to, from);
                 return self.eval(from);
             }
+            ExprKind::ArrayIdx(expr_, id) =>
+            {
+                let id = self.eval(id);
+                let id: &Const = &id.borrow();
+                let array = self.eval(expr_);
+                if array.borrow().is_none() || id.is_none()
+                {
+                    return rc(Const::None);
+                }
+
+                let idx = if let Const::Imm(imm, _, _) = &id
+                {
+                    *imm as usize
+                }
+                else
+                {
+                    unimplemented!()
+                };
+                let array: &Const = &array.borrow();
+                if let Const::Array(array) = array
+                {
+                    return array.borrow()[idx].clone();
+                }
+                else
+                {
+                    return rc(Const::None);
+                }
+            }
+
             ExprKind::Call(name, this, args) =>
             {
                 if this.is_some()
                 {
-                    return Const::None; // we don't support constexpr methods yet
+                    return rc(Const::None); // we don't support constexpr methods yet
                 }
 
                 if self.const_functions.contains_key(&name.name())
@@ -667,6 +736,32 @@ impl<'a> ConstEval<'a>
                         return self.eval_constfn(&params, func.body.as_ref().unwrap(), args);
                     }
                 }
+                else if false
+                {
+                    let builtin = self.builtins.get(&name.name()).unwrap().clone();
+                    let builtin: fn(&[Rc<RefCell<Const>>]) -> Rc<RefCell<Const>> =
+                        unsafe { transmute(builtin) };
+                    let mut params = vec![];
+                    for arg in args.iter()
+                    {
+                        let val = self.eval(arg);
+                        if val.borrow().is_none()
+                        {
+                            return rc(Const::None);
+                        }
+                        params.push(val);
+                    }
+
+                    let val = builtin(&params);
+                    if val.borrow().is_void()
+                    {
+                        return rc(Const::Imm(0, IntSuffix::Int, IntBase::Dec));
+                    }
+                    else
+                    {
+                        return val;
+                    }
+                }
                 else
                 {
                     // try to optimize arguments
@@ -674,9 +769,9 @@ impl<'a> ConstEval<'a>
                     for arg in args.iter()
                     {
                         let val = self.eval(arg);
-                        if val.is_none()
+                        if val.borrow().is_none()
                         {
-                            return Const::None;
+                            return rc(Const::None);
                         }
                         else
                         {
@@ -687,7 +782,7 @@ impl<'a> ConstEval<'a>
                                     Expr {
                                         id: arg.id,
                                         pos: expr.pos,
-                                        kind: val.to_kind(),
+                                        kind: val.borrow().to_kind(),
                                     },
                                 );
                             }
@@ -695,25 +790,30 @@ impl<'a> ConstEval<'a>
                     }
                 }
 
-                Const::None
+                rc(Const::None)
             }
             ExprKind::SizeOf(ty) =>
             {
                 if let Some(size) = ty_size(ty)
                 {
-                    return Const::Imm(size as i64, IntSuffix::Int, IntBase::Dec);
+                    return rc(Const::Imm(size as i64, IntSuffix::Int, IntBase::Dec));
                 }
                 else
                 {
-                    return Const::None;
+                    return rc(Const::None);
                 }
             }
 
-            _ => Const::None,
+            _ => rc(Const::None),
         }
     }
     /// Evaluate constant function
-    fn eval_constfn(&mut self, params: &[Name], body: &Stmt, args: &Vec<Box<Expr>>) -> Const
+    fn eval_constfn(
+        &mut self,
+        params: &[Name],
+        body: &Stmt,
+        args: &Vec<Box<Expr>>,
+    ) -> Rc<RefCell<Const>>
     {
         let old_vars = self.known_vars.clone();
         //self.known_vars.clear();
@@ -723,9 +823,9 @@ impl<'a> ConstEval<'a>
         {
             let val = self.eval(&args[i]);
 
-            if val.is_none()
+            if val.borrow().is_none()
             {
-                return Const::None; // Argument value not known at compile time, return none
+                return rc(Const::None); // Argument value not known at compile time, return none
             }
 
             if let Elem::Func(f) = &mut self.ctx.file.elems[self.id]
@@ -735,7 +835,7 @@ impl<'a> ConstEval<'a>
                     Expr {
                         id: args[i].id,
                         pos: args[i].pos,
-                        kind: val.to_kind(),
+                        kind: val.borrow().to_kind(),
                     },
                 );
             }
@@ -743,26 +843,29 @@ impl<'a> ConstEval<'a>
         }
 
         self.known_vars = new_vars;
+        self.running = true;
         let val = self.eval_stmt(body);
+        self.running = false;
         self.known_vars = old_vars;
         if val.is_some()
         {
-            if let Some(Const::Ret(val)) = val
+            let val: &Const = &val.as_ref().unwrap().borrow();
+            if let Const::Ret(val) = val
             {
-                return *val.clone();
+                return val.clone();
             }
             else
             {
-                return val.unwrap();
+                return rc(val.clone());
             }
         }
         else
         {
-            return Const::None;
+            return rc(Const::None);
         }
     }
     /// Evaluate constant
-    fn eval_stmt(&mut self, stmt: &Stmt) -> Option<Const>
+    fn eval_stmt(&mut self, stmt: &Stmt) -> Option<Rc<RefCell<Const>>>
     {
         match &stmt.kind
         {
@@ -773,10 +876,13 @@ impl<'a> ConstEval<'a>
                 {
                     let val = self.eval_stmt(stmt);
                     last = val;
-
-                    if let Some(Const::Ret(_)) = last
+                    if last.is_some()
                     {
-                        break;
+                        let last: &Const = &last.as_ref().unwrap().borrow();
+                        if let Const::Ret(_) = last
+                        {
+                            break;
+                        }
                     }
                 }
                 return last;
@@ -790,21 +896,21 @@ impl<'a> ConstEval<'a>
                 if expr.is_some()
                 {
                     let val = self.eval(expr.as_ref().unwrap());
-                    if val.is_none()
+                    if val.borrow().is_none()
                     {
                         return None;
                     }
                     else
                     {
-                        return Some(Const::Ret(box val));
+                        return Some(rc(Const::Ret(val)));
                     }
                 }
                 else
                 {
-                    return Some(Const::Ret(box Const::Void));
+                    return Some(rc(Const::Ret(Rc::new(RefCell::new(Const::Void)))));
                 }
             }
-            StmtKind::Var(name, _, _, expr) =>
+            StmtKind::Var(name, _, ty, expr) =>
             {
                 if expr.is_none()
                 {
@@ -813,7 +919,7 @@ impl<'a> ConstEval<'a>
                 else
                 {
                     let val = self.eval(expr.as_ref().unwrap());
-                    if val.is_none()
+                    if val.borrow().is_none()
                     {
                         return None;
                     }
@@ -821,12 +927,12 @@ impl<'a> ConstEval<'a>
                     self.known_vars.insert(*name, val);
                 }
 
-                return Some(Const::Void);
+                return Some(rc(Const::Void));
             }
             StmtKind::If(cond, then_body, else_body) =>
             {
                 let val = self.eval(cond);
-
+                let val: &Const = &val.borrow();
                 if val.is_none()
                 {
                     return None;
@@ -845,28 +951,30 @@ impl<'a> ConstEval<'a>
                     }
                     else
                     {
-                        return Some(Const::Void);
+                        return Some(Rc::new(RefCell::new(Const::Void)));
                     }
                 }
-                return Some(Const::Void);
+                return Some(Rc::new(RefCell::new(Const::Void)));
             }
 
             StmtKind::While(cond, body) =>
             {
-                while let Const::Bool(true) = self.eval(cond)
+                let cond = self.eval(cond);
+                let cond: &Const = &cond.borrow();
+                while let Const::Bool(true) = cond
                 {
-                    let val = self.eval_stmt(body);
+                    let val = &self.eval_stmt(body);
 
                     if val.is_none()
                     {
                         return None;
                     }
-                    else if let Some(Const::None) = val
+                    else if val.as_ref().unwrap().borrow().is_none()
                     {
                         return None;
                     }
                 }
-                return Some(Const::Void);
+                return Some(Rc::new(RefCell::new(Const::Void)));
             }
             _ => panic!("Unsupported statement in constant function"),
         }
@@ -888,7 +996,7 @@ impl<'a> ConstEval<'a>
             {
                 let val = self.eval(expr);
 
-                if !val.is_none()
+                if !val.borrow().is_none()
                 {
                     if let Elem::Func(func) = &mut self.ctx.file.elems[fid]
                     {
@@ -897,7 +1005,7 @@ impl<'a> ConstEval<'a>
                             Expr {
                                 id: expr.id,
                                 pos: expr.pos,
-                                kind: val.to_kind(),
+                                kind: val.borrow().to_kind(),
                             },
                         );
                     }
@@ -906,7 +1014,7 @@ impl<'a> ConstEval<'a>
             StmtKind::If(cond, then, otherwise) =>
             {
                 let val = self.eval(cond);
-                if !val.is_none()
+                if !val.borrow().is_none()
                 {
                     if let Elem::Func(func) = &mut self.ctx.file.elems[fid]
                     {
@@ -915,7 +1023,7 @@ impl<'a> ConstEval<'a>
                             Expr {
                                 id: cond.id,
                                 pos: cond.pos,
-                                kind: val.to_kind(),
+                                kind: val.borrow().to_kind(),
                             },
                         );
                     }
@@ -929,7 +1037,7 @@ impl<'a> ConstEval<'a>
             StmtKind::While(cond, body) =>
             {
                 let val = self.eval(cond);
-                if !val.is_none()
+                if !val.borrow().is_none()
                 {
                     if let Elem::Func(func) = &mut self.ctx.file.elems[fid]
                     {
@@ -938,7 +1046,7 @@ impl<'a> ConstEval<'a>
                             Expr {
                                 id: cond.id,
                                 pos: cond.pos,
-                                kind: val.to_kind(),
+                                kind: val.borrow().to_kind(),
                             },
                         );
                     }
@@ -951,7 +1059,7 @@ impl<'a> ConstEval<'a>
                 {
                     let expr = expr.as_ref().unwrap();
                     let val = self.eval(expr);
-                    if !val.is_none()
+                    if !val.borrow().is_none()
                     {
                         if let Elem::Func(func) = &mut self.ctx.file.elems[fid]
                         {
@@ -960,7 +1068,7 @@ impl<'a> ConstEval<'a>
                                 Expr {
                                     id: expr.id,
                                     pos: expr.pos,
-                                    kind: val.to_kind(),
+                                    kind: val.borrow().to_kind(),
                                 },
                             );
                         }
@@ -974,7 +1082,7 @@ impl<'a> ConstEval<'a>
                     let expr = val.as_ref().unwrap();
                     let val = self.eval(expr);
 
-                    if !val.is_none()
+                    if !val.borrow().is_none()
                     {
                         if let Elem::Func(func) = &mut self.ctx.file.elems[fid]
                         {
@@ -985,7 +1093,7 @@ impl<'a> ConstEval<'a>
                                     Expr {
                                         id: expr.id,
                                         pos: expr.pos,
-                                        kind: val.to_kind(),
+                                        kind: val.borrow().to_kind(),
                                     },
                                 );
                             }
@@ -1061,11 +1169,8 @@ impl<'a> ConstEval<'a>
                         }
                     }*/
                     self.id = i;
-                    //if !func.constant {
-                    self.opt_func(func, i);
-                    //} else {
 
-                    //}
+                    self.opt_func(func, i);
                 }
                 Elem::ConstExpr { name, expr, .. } =>
                 {
