@@ -1,0 +1,51 @@
+link "gc"
+
+
+extern func GC_malloc(size: i32) *u8;
+extern func GC_malloc_ignore_off_page(n: i32) *u8;
+extern func GC_init() void;
+extern func GC_clear_roots() void;
+extern func GC_gcollect() void;
+extern func GC_collect_a_little() void;
+extern var GC_no_dls: i32;
+extern var GC_java_finalization: i32;
+
+
+
+pub func gc_alloc(size: i32) *u8 {
+	if size > 256 {
+		return GC_malloc_ignore_off_page(size);
+	} else {
+		return GC_malloc(size);
+	}
+
+	return null;
+}
+
+
+pub func gc_initialize() void {
+	GC_java_finalization = 1;
+	GC_init();
+	GC_clear_roots();
+
+	return;
+}
+
+pub func gc_collect() void {
+	GC_gcollect();
+	return;
+}
+
+pub func gc_collect_minor() void {
+	GC_collect_a_little();
+	return;
+}
+
+extern func GC_get_heap_size() usize;
+extern func GC_get_free_bytes() usize;
+
+pub func gc_get_stats(heap: *i32,free: *i32) void {
+	*free = GC_get_free_bytes() as i32;
+	*heap = GC_get_heap_size() as i32;
+	return;
+}
