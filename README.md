@@ -2,6 +2,8 @@
 
 Jazz - JIT/AOT compiled programming language that uses gccjit for emitting machine code.
 
+# Roadmap
+You can see roadmap there: [Jazz Roadmap](https://github.com/users/playXE/projects/3)
 
 # TODO
 - ~~constexpr functions~~ DONE!
