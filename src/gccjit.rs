@@ -19,6 +19,7 @@ use crate::{
 
 use crate::syntax::interner::Name;
 use std::collections::{HashMap, VecDeque};
+use std::ffi::CString;
 
 /// Create gccjit location from AST location
 fn gccloc_from_loc(
@@ -2089,10 +2090,16 @@ impl<'a> Codegen<'a>
                 .map(|s| std::ffi::CString::new(s.as_bytes()).unwrap().as_ptr())
                 .collect::<Vec<_>>();
 
-            let main_fn: fn(i32, *const *const i8) -> i32 =
+            let env = std::env::vars();
+            let mut envp = vec![];
+            for (key,val) in env {
+                envp.push(CString::new(format!("{} = {}",key,val)).unwrap().as_ptr());
+            }
+
+            let main_fn: fn(i32, *const *const i8,*const *const i8) -> i32 =
                 unsafe { std::mem::transmute(result.get_function("main")) };
 
-            main_fn(argc, argv_c.as_ptr());
+            main_fn(argc, argv_c.as_ptr(),envp.as_slice().as_ptr());
         }
         else
         {
