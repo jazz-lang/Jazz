@@ -1051,9 +1051,9 @@ impl<'a> Parser<'a>
         let mut opts = ExprParsingOpts::new();
         opts.parse_struct_lit(false);
         let var = self.parse_var()?;
-
+        self.expect_token(TokenKind::Comma)?;
         let cond = self.parse_expression()?;
-
+        self.expect_token(TokenKind::Comma)?;
         let then = self.parse_expression()?;
 
         let body = self.parse_statement()?;
