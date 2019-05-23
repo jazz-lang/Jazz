@@ -617,6 +617,23 @@ impl Function
         {
             match &mut s.kind
             {
+                StmtKind::CFor(var,cond,then,body) => {
+                    if replace_stmt(var,id,to.clone()) == true {
+                        return true;
+                    }
+                    if cond.id == id {
+                        cond.kind = to.kind.clone();
+                        return true;
+                    }
+                    if then.id == id {
+                        then.kind = to.kind.clone();
+                        return true;
+                    }
+                    if replace_stmt(body,id,to.clone()) == true {
+                        return true;
+                    }
+                    false
+                }
                 StmtKind::Continue => false,
                 StmtKind::Break => false,
                 StmtKind::Return(expr) =>
@@ -842,6 +859,7 @@ pub enum StmtKind
     While(Box<Expr>, Box<Stmt>),
     Var(Name, bool, Option<Type>, Option<Box<Expr>>),
     If(Box<Expr>, Box<Stmt>, Option<Box<Stmt>>),
+    CFor(Box<Stmt>,Box<Expr>,Box<Expr>,Box<Stmt>),
     Continue,
     Break,
 }

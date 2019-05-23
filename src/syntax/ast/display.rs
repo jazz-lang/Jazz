@@ -79,6 +79,7 @@ impl Display for StmtKind
     {
         match self
         {
+            StmtKind::CFor(var,cond,then,body) => write!(f,"for {} {} {} {}",var,cond,then,body),
             StmtKind::Continue => write!(f, "continue"),
             StmtKind::Break => write!(f, "break"),
             StmtKind::Block(block) =>

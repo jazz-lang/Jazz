@@ -682,6 +682,23 @@ impl<'a> SemCheck<'a>
         let _id = stmt.id;
         match &stmt.kind
         {
+            StmtKind::CFor(var,cond,then,body) => {
+                let prev;
+                if !self.vars.is_empty()
+                {
+                    prev = self.vars.last().unwrap().clone();
+                }
+                else
+                {
+                    prev = HashMap::new();
+                };
+                self.vars.push(prev);
+                self.tc_stmt(var);
+                self.tc_expr(cond);
+                self.tc_expr(then);
+                self.tc_stmt(body);
+                self.vars.pop();
+            }
             StmtKind::Continue | StmtKind::Break => (),
             StmtKind::Expr(e) =>
             {
@@ -712,8 +729,21 @@ impl<'a> SemCheck<'a>
                 {
                     warn!("Consider using loop instead of `while true`", stmt.pos);
                 }
+                let prev;
+                if !self.vars.is_empty()
+                {
+                    prev = self.vars.last().unwrap().clone();
+                }
+                else
+                {
+                    prev = HashMap::new();
+                };
                 self.tc_expr(e);
+                self.vars.push(prev);
+               
+                
                 self.tc_stmt(s);
+                self.vars.pop();
             }
             StmtKind::If(cond, then, otherwise) =>
             {

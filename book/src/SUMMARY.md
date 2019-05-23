@@ -11,5 +11,6 @@
     - [Variables](./Tour/Variables.md)
     - [Control Flow](./Tour/ControlFlow.md)
     - [Structs](./Tour/Structs.md)
+    - [Unions](./Tour/Unions.md)
     - [Alias](./Tour/Alias.md)
     - [Constexpr](./Tour/Constexpr.md)

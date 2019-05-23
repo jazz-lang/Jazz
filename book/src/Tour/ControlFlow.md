@@ -12,10 +12,10 @@ if cond_a {
 }
 ```
 
-## for(UNIMPLEMENTED)
+## for
 There is C-style for-loop with this syntax:
 ```go
-for var i = 0; i < 42; i = i + 1 {
+for var i = 0, i < 42, i = i + 1 {
     // ...
 }
 ```
@@ -24,10 +24,15 @@ for var i = 0; i < 42; i = i + 1 {
 There is Rust like `for` loop that allows iterating values in types which got `iter` method.
 ```go
 
-foreach val : values {
+for val: *i32 in values {
     // ...
 }
-
+```
+Or you can use `foreach` keyword:
+```go
+foreach val: *i32 in values {
+    
+}
 ```
 
 ## While

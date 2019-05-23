@@ -46,6 +46,7 @@ impl<'a> Parser<'a>
             TokenKind::LBrace => self.parse_block(),
             TokenKind::If => self.parse_if(),
             TokenKind::While => self.parse_while(),
+            TokenKind::For => self.parse_for(),
             TokenKind::Loop => self.parse_loop(),
             TokenKind::Return => self.parse_return(),
             TokenKind::Break => self.parse_break(),
@@ -1043,6 +1044,29 @@ impl<'a> Parser<'a>
         //Ok(Box::new(Stmt::create_if(self.generate_id(), pos, cond, then_block,
         // else_block)))
     }
+
+    fn parse_for(&mut self) -> StmtResult {
+        let pos = self.expect_token(TokenKind::For)?.position;
+
+        let mut opts = ExprParsingOpts::new();
+        opts.parse_struct_lit(false);
+        let var = self.parse_var()?;
+
+        let cond = self.parse_expression()?;
+
+        let then = self.parse_expression()?;
+
+        let body = self.parse_statement()?;
+
+        Ok(Box::new(
+            Stmt {
+                id: self.generate_id(),
+                pos,
+                kind: StmtKind::CFor(var,cond,then,body)
+            }
+        ))
+    }
+
     fn parse_while(&mut self) -> StmtResult
     {
         let pos = self.expect_token(TokenKind::While)?.position;

@@ -82,6 +82,7 @@ pub enum TokenKind
     And,
     Or,
     Internal,
+    For,
 
     Eq,
     EqEq,
@@ -136,6 +137,7 @@ impl TokenKind
             TokenKind::Lambda => "lambda",
             TokenKind::Fun => "func",
             TokenKind::Let => "let",
+            TokenKind::For => "for",
             TokenKind::Var => "var",
             TokenKind::New => "new",
             TokenKind::While => "while",

@@ -976,6 +976,7 @@ impl<'a> ConstEval<'a>
                 }
                 return Some(Rc::new(RefCell::new(Const::Void)));
             }
+
             _ => panic!("Unsupported statement in constant function"),
         }
     }
@@ -985,6 +986,7 @@ impl<'a> ConstEval<'a>
     {
         match &s.kind
         {
+
             StmtKind::Block(block) =>
             {
                 for stmt in block.iter()
@@ -1105,6 +1107,7 @@ impl<'a> ConstEval<'a>
             StmtKind::Loop(stmt) => self.eval_normal_stmt(stmt, fid),
             StmtKind::Continue => (),
             StmtKind::Break => (),
+            _ => (),
         }
     }
 

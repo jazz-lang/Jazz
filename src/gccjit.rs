@@ -700,6 +700,7 @@ impl<'a> Codegen<'a>
     {
         match &stmt.kind
         {
+
             StmtKind::Expr(expr) =>
             {
                 let rval = self.gen_expr(expr);
@@ -888,6 +889,36 @@ impl<'a> Codegen<'a>
                 }
                 self.terminated.pop();
                 self.cur_block = Some(bb_merge);
+            }
+            StmtKind::CFor(var,cond,then,body) => {
+                let func: CFunction = self.cur_func.unwrap();
+
+                let loop_cond: Block = func.new_block(&format!("for_cond:{}",self.block_name_new()));
+                let loop_body: Block = func.new_block(&format!("for_loop_body:{}",self.block_name_new()));
+                let after_loop: Block = func.new_block(&format!("after_for:{}",self.block_name_new()));
+                //let for_body: Block = func.new_block(&format!("for_body:{}",self.block_name_new()));
+                self.break_blocks.push_back(after_loop);
+                self.continue_blocks.push_back(loop_cond);
+                //self.cur_block.unwrap().end_with_jump(None,for_body);
+                //self.cur_block = Some(for_body);
+
+                self.gen_stmt(var,true);
+                self.cur_block.unwrap().end_with_jump(None,loop_cond);
+                self.cur_block = Some(loop_cond);
+                let val = self.gen_expr(cond);
+                self.cur_block.unwrap().end_with_conditional(None,val,loop_body,after_loop);
+                self.cur_block = Some(loop_body);
+                self.terminated.push(false);
+                self.gen_stmt(body,true);
+                self.gen_expr(then);
+                self.cur_block.unwrap().end_with_jump(None,loop_cond);
+
+                self.continue_blocks.pop_back();
+                self.break_blocks.pop_back();
+                self.cur_block = Some(after_loop);
+                self.terminated.pop();
+
+
             }
             StmtKind::While(cond, block_) =>
             {
