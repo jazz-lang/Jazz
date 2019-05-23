@@ -114,6 +114,7 @@ impl PartialEq for Const
 #[derive(Clone, Debug)]
 pub struct Struct
 {
+    pub union: bool,
     pub id: NodeId,
     pub pos: Position,
     pub name: Name,
@@ -126,6 +127,7 @@ impl Struct
     pub fn to_type(&self) -> TypeStruct
     {
         TypeStruct {
+            union: self.union,
             fields: self.fields.clone(),
             name: self.name,
             id: self.id,
@@ -285,6 +287,7 @@ pub struct TypeStruct
     pub pos: Position,
     pub name: Name,
     pub fields: Vec<StructField>,
+    pub union: bool,
 }
 
 impl TypeStruct
@@ -292,6 +295,7 @@ impl TypeStruct
     pub fn to_struct(&self) -> Struct
     {
         Struct {
+            union: self.union,
             public: true,
             id: self.id,
             pos: self.pos,
@@ -336,9 +340,11 @@ impl Type
         pos: Position,
         name: Name,
         fields: Vec<StructField>,
+        union: bool,
     ) -> Type
     {
         Type::Struct(TypeStruct {
+            union,
             id,
             pos,
             fields,

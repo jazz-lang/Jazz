@@ -205,9 +205,15 @@ impl<'a> Parser<'a>
                 let fun = self.parse_function(modifiers)?;
                 elements.push(Elem::Func(fun));
             }
+            TokenKind::Union => {
+                
+                let mut struc = self.parse_struct(true)?;
+                struc.public = modifiers.contains("pub");
+                elements.push(Elem::Struct(struc))
+            }
             TokenKind::Struct =>
             {
-                let mut struc = self.parse_struct()?;
+                let mut struc = self.parse_struct(false)?;
                 struc.public = modifiers.contains("pub");
                 elements.push(Elem::Struct(struc))
             }
@@ -280,15 +286,16 @@ impl<'a> Parser<'a>
         })
     }
 
-    fn parse_struct(&mut self) -> Result<Struct, MsgWithPos>
+    fn parse_struct(&mut self,union: bool) -> Result<Struct, MsgWithPos>
     {
-        let pos = self.expect_token(TokenKind::Struct)?.position;
+        let pos = if !union {self.expect_token(TokenKind::Struct)?.position} else {self.expect_token(TokenKind::Union)?.position};
         let ident = self.expect_identifier()?;
 
         self.expect_token(TokenKind::LBrace)?;
         let fields = self.parse_comma_list(TokenKind::RBrace, |p| p.parse_struct_field())?;
 
         Ok(Struct {
+            union: union,
             id: self.generate_id(),
             name: ident,
             public: false,

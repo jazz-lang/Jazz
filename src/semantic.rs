@@ -365,6 +365,7 @@ impl<'a> SemCheck<'a>
             if let Elem::Struct(s) = elem
             {
                 let _structure = Struct {
+                    union: s.union,
                     id: s.id,
                     pos: s.pos,
                     name: s.name,
@@ -608,6 +609,7 @@ impl<'a> SemCheck<'a>
                 }
 
                 let ty = TypeStruct {
+                    union: struc.union,
                     id,
                     pos,
                     fields,
@@ -1333,6 +1335,7 @@ impl<'a> SemCheck<'a>
                     expr.pos,
                     name,
                     struct_.fields.clone(),
+                    false
                 ));
                 self.types.insert(expr.id, ty.clone());
                 ty

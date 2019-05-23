@@ -36,6 +36,7 @@ pub enum TokenKind
     NextLoop,
     Return,
     True,
+    Union,
     False,
     Null,
     Pub,
@@ -128,7 +129,7 @@ impl TokenKind
             TokenKind::Import => "import",
             TokenKind::Identifier(_) => "identifier",
             TokenKind::End => "<<EOF>>",
-
+            TokenKind::Union => "union",
             TokenKind::LQuote => "<",
             TokenKind::NextLoop => "nextloop",
             TokenKind::RQuote => ">",

@@ -55,7 +55,7 @@ pub struct VarInfo
 #[derive(Clone)]
 pub struct GccStruct
 {
-    pub ty: Struct,
+    pub ty: CType,
     pub fields: HashMap<Name, Field>,
     pub types: Vec<Type>,
 }
@@ -215,7 +215,7 @@ impl<'a> Codegen<'a>
                         let interned = crate::syntax::interner::intern(s);
                         if self.structures.contains_key(&interned)
                         {
-                            self.structures.get(&interned).unwrap().ty.as_type()
+                            self.structures.get(&interned).unwrap().ty
                         }
                         else if let Some(ty) =
                             self.aliases.get(&crate::syntax::interner::intern(s))
@@ -248,7 +248,7 @@ impl<'a> Codegen<'a>
                         .get(&struct_.name)
                         .expect(&format!("Struct {} not found", str(struct_.name)))
                         .ty
-                        .as_type()
+                        
                 }
                 else
                 {
@@ -269,9 +269,14 @@ impl<'a> Codegen<'a>
                         cfields.insert(field.name, cfield);
                         fields.push(cfield);
                     }
-                    let ty =
+                    let ty = if struct_.union {
+                        println!("UNION!");
+                        self.ctx 
+                            .new_union_type(None,&str(struct_.name).to_string(),&fields)
+                    } else {
                         self.ctx
-                            .new_struct_type(None, &str(struct_.name).to_string(), &fields);
+                            .new_struct_type(None, &str(struct_.name).to_string(), &fields).as_type()
+                    };
                     self.structures.insert(
                         struct_.name,
                         GccStruct {
@@ -280,7 +285,7 @@ impl<'a> Codegen<'a>
                             types,
                         },
                     );
-                    ty.as_type()
+                    ty
                 }
             }
             Type::Array(array) =>
@@ -1349,7 +1354,7 @@ impl<'a> Codegen<'a>
                 self.tmp_id += 1;
                 let tmp: LValue = self.cur_func.unwrap().new_local(
                     Some(gccloc_from_loc(&self.ctx, &expr.pos)),
-                    struct_.ty.as_type(),
+                    struct_.ty,
                     &tmp_,
                 );
                 //self.cur_block.unwrap().add_assignment(None, tmp, rval);
@@ -1639,11 +1644,18 @@ impl<'a> Codegen<'a>
                         fields.push(cfield);
                     }
 
-                    let struct_ = self.ctx.new_struct_type(
-                        Some(gccloc_from_loc(&self.ctx, &s.pos)),
-                        &str(s.name).to_string(),
-                        &fields,
-                    );
+                    let struct_ = if s.union {
+                        self.ctx.new_union_type(
+                            Some(gccloc_from_loc(&self.ctx, &s.pos)),
+                            &str(s.name).to_string(),&fields
+                        )
+                    } else {
+                            self.ctx.new_struct_type(
+                            Some(gccloc_from_loc(&self.ctx, &s.pos)),
+                            &str(s.name).to_string(),
+                            &fields,
+                        ).as_type()
+                    };
 
                     let cstruct = GccStruct {
                         ty: struct_,
