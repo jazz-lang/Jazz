@@ -2065,7 +2065,7 @@ impl<'a> Codegen<'a>
 
     pub fn compile(&mut self)
     {
-        if self.context.emit_asm
+        if self.context.emit_asm && self.context.jit
         {
             self.ctx.set_dump_code(true);
         }
@@ -2122,6 +2122,9 @@ impl<'a> Codegen<'a>
             else if self.context.shared
             {
                 OutputKind::DynamicLibrary
+            }
+            else if self.context.emit_asm {
+                OutputKind::Assembler
             }
             else
             {
