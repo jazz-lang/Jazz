@@ -682,8 +682,8 @@ impl<'a> SemCheck<'a>
     {
         let _id = stmt.id;
         match &stmt.kind
+
         {
-            StmtKind::CompTime(stmt) => self.tc_stmt(stmt),
             StmtKind::CFor(var, cond, then, body) =>
             {
                 let prev;
@@ -830,6 +830,7 @@ impl<'a> SemCheck<'a>
                 self.vars.pop();
             }
             StmtKind::Loop(stmt) => self.tc_stmt(stmt),
+            _ => unimplemented!(),
         };
     }
 
@@ -837,8 +838,14 @@ impl<'a> SemCheck<'a>
     {
         match &expr.kind
         {
-            ExprKind::MacroCall(_,_) => unreachable!(),
-            ExprKind::CompTime(c) => self.tc_expr(c),
+            ExprKind::CompTime(e) => {
+                let ty = self.tc_expr(e);
+                let ty = self.infer_type(&ty);
+                self.types.insert(expr.id,ty.clone());
+
+                return ty;
+
+            }
             ExprKind::New(ty) =>
             {
                 let infered = self.infer_type(ty);
@@ -1458,6 +1465,7 @@ impl<'a> SemCheck<'a>
                 result_type
             }
             ExprKind::Array(_, _) => unimplemented!(),
+            _ => unreachable!(),
         }
     }
 }
