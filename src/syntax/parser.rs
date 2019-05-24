@@ -40,8 +40,18 @@ impl<'a> Parser<'a>
 
     pub fn parse_statement(&mut self) -> StmtResult
     {
-        match &self.token.kind
+        match &self.token.kind.clone()
         {
+            TokenKind::ConstExpr =>
+            {
+                let pos = self.advance_token()?.position;
+                let stmt = self.parse_statement()?;
+                Ok(box Stmt {
+                    id: self.generate_id(),
+                    pos,
+                    kind: StmtKind::CompTime(stmt),
+                })
+            }
             TokenKind::Let | TokenKind::Var => self.parse_var(),
             TokenKind::LBrace => self.parse_block(),
             TokenKind::If => self.parse_if(),
@@ -61,6 +71,7 @@ impl<'a> Parser<'a>
             _ => self.parse_expression_statement(),
         }
     }
+
     fn parse_global(
         &mut self,
         modifiers: &HashSet<String>,
@@ -206,8 +217,8 @@ impl<'a> Parser<'a>
                 let fun = self.parse_function(modifiers)?;
                 elements.push(Elem::Func(fun));
             }
-            TokenKind::Union => {
-                
+            TokenKind::Union =>
+            {
                 let mut struc = self.parse_struct(true)?;
                 struc.public = modifiers.contains("pub");
                 elements.push(Elem::Struct(struc))
@@ -243,6 +254,10 @@ impl<'a> Parser<'a>
                         name,
                     })
                 }
+            }
+            TokenKind::Macro =>
+            {
+                elements.push(Elem::Macro(self.parse_macro()?));
             }
             TokenKind::Const =>
             {
@@ -287,16 +302,23 @@ impl<'a> Parser<'a>
         })
     }
 
-    fn parse_struct(&mut self,union: bool) -> Result<Struct, MsgWithPos>
+    fn parse_struct(&mut self, union: bool) -> Result<Struct, MsgWithPos>
     {
-        let pos = if !union {self.expect_token(TokenKind::Struct)?.position} else {self.expect_token(TokenKind::Union)?.position};
+        let pos = if !union
+        {
+            self.expect_token(TokenKind::Struct)?.position
+        }
+        else
+        {
+            self.expect_token(TokenKind::Union)?.position
+        };
         let ident = self.expect_identifier()?;
 
         self.expect_token(TokenKind::LBrace)?;
         let fields = self.parse_comma_list(TokenKind::RBrace, |p| p.parse_struct_field())?;
 
         Ok(Struct {
-            union: union,
+            union,
             id: self.generate_id(),
             name: ident,
             public: false,
@@ -896,6 +918,92 @@ impl<'a> Parser<'a>
         }
     }
 
+    fn eat_macro_tree(
+        &mut self,
+        args: &std::collections::BTreeSet<Name>,
+    ) -> Result<Vec<MacroToken>, MsgWithPos>
+    {
+        let mut tokens = vec![];
+        macro_rules! gen_t_tree {
+            ($l:expr,$r: expr,$t: expr) => {{
+                tokens.push(MacroToken::Token($t));
+
+                while self.token.kind != $r
+                {
+                    tokens.extend(self.eat_macro_tree(args)?.into_iter());
+                }
+                let tok = self.expect_token($r)?;
+                tokens.push(MacroToken::Token(tok));
+            }};
+        }
+
+        let t = self.advance_token()?;
+        match t.kind
+        {
+            TokenKind::LParen => gen_t_tree!(TokenKind::LParen, TokenKind::RParen, t),
+            TokenKind::LBrace => gen_t_tree!(TokenKind::LBrace, TokenKind::RBrace, t),
+            TokenKind::LBracket => gen_t_tree!(TokenKind::LBracket, TokenKind::RBracket, t),
+            TokenKind::Dollar =>
+            {
+                let name = self.expect_identifier()?;
+                if args.contains(&name)
+                {
+                    tokens.push(MacroToken::Var(name));
+                }
+                else
+                {
+                    panic!("No such argument ${}", name);
+                }
+            }
+            TokenKind::DotDotDot => tokens.push(MacroToken::VarArgs),
+            _ => tokens.push(MacroToken::Token(t)),
+        }
+
+        Ok(tokens)
+    }
+
+    fn parse_macro(&mut self) -> Result<Macro, MsgWithPos>
+    {
+        let pos = self.expect_token(TokenKind::Macro)?.position;
+
+        let name = match &self.advance_token()?.kind
+        {
+            TokenKind::Identifier(name) => intern(name),
+            TokenKind::BangIdent(name) => intern(name),
+            tok => panic!("Expected macro identifier,but found {}", tok.name()),
+        };
+
+        self.expect_token(TokenKind::LParen)?;
+
+        let args = self.parse_comma_list(TokenKind::RParen, |p| p.expect_identifier())?;
+
+        let mut args_map = std::collections::BTreeSet::new();
+
+        for elem in args.iter()
+        {
+            args_map.insert(*elem);
+        }
+
+        self.expect_token(TokenKind::RParen)?;
+        self.expect_token(TokenKind::LBrace)?;
+
+        let mut body: Vec<MacroToken> = vec![];
+        while self.token.kind != TokenKind::RBrace
+        {
+            body.extend(self.eat_macro_tree(&args_map)?);
+        }
+
+        self.expect_token(TokenKind::RBrace)?;
+
+        Ok(Macro {
+            name,
+            id: self.generate_id(),
+            pos,
+            args,
+            body,
+        })
+    }
+
     fn parse_function(&mut self, modifiers: HashSet<String>) -> Result<Function, MsgWithPos>
     {
         let pos = self.expect_token(TokenKind::Fun)?.position;
@@ -1045,7 +1153,8 @@ impl<'a> Parser<'a>
         // else_block)))
     }
 
-    fn parse_for(&mut self) -> StmtResult {
+    fn parse_for(&mut self) -> StmtResult
+    {
         let pos = self.expect_token(TokenKind::For)?.position;
 
         let mut opts = ExprParsingOpts::new();
@@ -1058,13 +1167,11 @@ impl<'a> Parser<'a>
 
         let body = self.parse_statement()?;
 
-        Ok(Box::new(
-            Stmt {
-                id: self.generate_id(),
-                pos,
-                kind: StmtKind::CFor(var,cond,then,body)
-            }
-        ))
+        Ok(Box::new(Stmt {
+            id: self.generate_id(),
+            pos,
+            kind: StmtKind::CFor(var, cond, then, body),
+        }))
     }
 
     fn parse_while(&mut self) -> StmtResult
@@ -1407,8 +1514,19 @@ impl<'a> Parser<'a>
 
     fn parse_factor(&mut self, opts: &ExprParsingOpts) -> ExprResult
     {
-        match self.token.kind
+        match self.token.kind.clone()
         {
+            TokenKind::ConstExpr =>
+            {
+                let pos = self.advance_token()?.position;
+                let expr = self.parse_expression()?;
+
+                Ok(box Expr {
+                    id: self.generate_id(),
+                    pos,
+                    kind: ExprKind::CompTime(expr),
+                })
+            }
             TokenKind::Fun => self.parse_func_get(),
             TokenKind::BitAnd => self.parse_addrof(),
             TokenKind::LParen => self.parse_parentheses(),

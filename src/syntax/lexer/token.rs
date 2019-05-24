@@ -1,23 +1,15 @@
-use std::{collections::HashMap, fmt};
-
-pub struct Macro
-{
-    pub name: String,
-    pub public: bool,
-    pub tokens: Vec<Token>,
-    pub arguments: HashMap<String, Vec<(usize, Token)>>, // where arguments used
-}
+use std::fmt;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum TokenKind
 {
-    MacroCall(Box<Token>, Vec<Vec<Token>>),
     At,
     String(String),
     LitChar(char),
     LitInt(String, IntBase, IntSuffix),
     LitFloat(String, FloatSuffix),
     Identifier(String),
+    BangIdent(String),
     End,
 
     LQuote,
@@ -26,6 +18,7 @@ pub enum TokenKind
     // Keywords
     Fun,
     Let,
+    Macro,
     Var,
     While,
     If,
@@ -57,6 +50,7 @@ pub enum TokenKind
     Lambda,
     New,
     // Operators
+    Dollar,
     Add,
     Sub,
     Mul,
@@ -107,7 +101,6 @@ impl TokenKind
     {
         match *self
         {
-            TokenKind::MacroCall(_, _) => "macro call",
             TokenKind::String(_) => "string",
             TokenKind::LitInt(_, _, suffix) => match suffix
             {
@@ -128,9 +121,12 @@ impl TokenKind
                 FloatSuffix::Double => "double number",
             },
             TokenKind::Import => "import",
+            TokenKind::BangIdent(_) => "identifier!",
+            TokenKind::Dollar => "$",
             TokenKind::Identifier(_) => "identifier",
             TokenKind::End => "<<EOF>>",
             TokenKind::Union => "union",
+            TokenKind::Macro => "macro",
             TokenKind::LQuote => "<",
             TokenKind::NextLoop => "nextloop",
             TokenKind::RQuote => ">",

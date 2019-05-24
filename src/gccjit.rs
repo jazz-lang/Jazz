@@ -6,7 +6,6 @@ use gccjit_rs::{
     function::{Function as CFunction, FunctionType},
     lvalue::LValue,
     rvalue::{RValue, ToRValue},
-    structs::Struct,
     ty::Type as CType,
 };
 
@@ -18,8 +17,10 @@ use crate::{
 };
 
 use crate::syntax::interner::Name;
-use std::collections::{HashMap, VecDeque};
-use std::ffi::CString;
+use std::{
+    collections::{HashMap, VecDeque},
+    ffi::CString,
+};
 
 /// Create gccjit location from AST location
 fn gccloc_from_loc(
@@ -60,6 +61,9 @@ pub struct GccStruct
     pub fields: HashMap<Name, Field>,
     pub types: Vec<Type>,
 }
+
+use super::eval::Const;
+use std::{cell::RefCell, rc::Rc};
 /// Main unit used in codegeneration.
 ///
 /// This unit performs translating AST into GIMPLE tree,after translation GCC
@@ -70,13 +74,14 @@ pub struct Codegen<'a>
     context: &'a mut CContext,
     continue_blocks: VecDeque<Block>,
     break_blocks: VecDeque<Block>,
-
+    known_vars: HashMap<Name, Rc<RefCell<Const>>>,
     cur_func: Option<CFunction>,
     cur_block: Option<Block>,
     variables: HashMap<Name, VarInfo>,
     globals: HashMap<Name, (VarInfo, Option<Box<Expr>>)>,
     functions: HashMap<Name, Vec<FunctionUnit>>,
     external_functions: HashMap<Name, FunctionUnit>,
+    const_functions: HashMap<Name, Vec<Function>>,
     structures: HashMap<Name, GccStruct>,
     constants: HashMap<Name, Expr>,
     block_id: usize,
@@ -249,7 +254,6 @@ impl<'a> Codegen<'a>
                         .get(&struct_.name)
                         .expect(&format!("Struct {} not found", str(struct_.name)))
                         .ty
-                        
                 }
                 else
                 {
@@ -270,13 +274,17 @@ impl<'a> Codegen<'a>
                         cfields.insert(field.name, cfield);
                         fields.push(cfield);
                     }
-                    let ty = if struct_.union {
+                    let ty = if struct_.union
+                    {
                         println!("UNION!");
-                        self.ctx 
-                            .new_union_type(None,&str(struct_.name).to_string(),&fields)
-                    } else {
                         self.ctx
-                            .new_struct_type(None, &str(struct_.name).to_string(), &fields).as_type()
+                            .new_union_type(None, &str(struct_.name).to_string(), &fields)
+                    }
+                    else
+                    {
+                        self.ctx
+                            .new_struct_type(None, &str(struct_.name).to_string(), &fields)
+                            .as_type()
                     };
                     self.structures.insert(
                         struct_.name,
@@ -483,6 +491,83 @@ impl<'a> Codegen<'a>
         val
     }
 
+    fn search_for_func_const(
+        &mut self,
+        params: &[Type],
+        this: Option<&Type>,
+        functions: &[Function],
+    ) -> Option<(Function, Vec<Type>)>
+    {
+        let val = None;
+
+        for function in functions.iter()
+        {
+            let function: &Function = function;
+
+            let mut params_okay = false;
+            let mut not_found = false;
+            if function.params.len() > params.len()
+            {
+                continue;
+            }
+
+            if function.params.len() == 0 && params.len() == 0 && this.is_none()
+            {
+                return Some((function.clone(), vec![]));
+            }
+
+            for (index, param) in params.iter().enumerate()
+            {
+                if index < function.params.len()
+                {
+                    params_okay = param == &*function.params[index].1;
+                }
+                else
+                {
+                    if function.variadic && params_okay
+                    {
+                        not_found = false;
+                        break;
+                    }
+                    else
+                    {
+                        params_okay = false;
+                        not_found = true;
+                        break;
+                    }
+                }
+
+                if !params_okay
+                {
+                    not_found = true;
+                    break;
+                }
+            }
+
+            if not_found
+            {
+                continue;
+            }
+
+            if params_okay
+            {
+                return Some((
+                    function.clone(),
+                    function
+                        .params
+                        .iter()
+                        .map(|(_, typ)| *typ.clone())
+                        .collect(),
+                ));
+            }
+            else
+            {
+                continue;
+            }
+        }
+        val
+    }
+
     pub fn new(context: &'a mut CContext, name: &str) -> Codegen<'a>
     {
         let ctx = Context::default();
@@ -496,6 +581,7 @@ impl<'a> Codegen<'a>
         }
         Codegen {
             ctx,
+            known_vars: HashMap::new(),
             context,
             continue_blocks: VecDeque::new(),
             break_blocks: VecDeque::new(),
@@ -512,7 +598,7 @@ impl<'a> Codegen<'a>
             aliases: HashMap::new(),
             tmp_id: 0,
             terminated: vec![],
-
+            const_functions: HashMap::new(),
             cur_return: None,
         }
     }
@@ -701,6 +787,7 @@ impl<'a> Codegen<'a>
     {
         match &stmt.kind
         {
+            StmtKind::CompTime(s) => self.gen_stmt(s, init),
 
             StmtKind::Expr(expr) =>
             {
@@ -891,35 +978,40 @@ impl<'a> Codegen<'a>
                 self.terminated.pop();
                 self.cur_block = Some(bb_merge);
             }
-            StmtKind::CFor(var,cond,then,body) => {
+            StmtKind::CFor(var, cond, then, body) =>
+            {
                 let func: CFunction = self.cur_func.unwrap();
 
-                let loop_cond: Block = func.new_block(&format!("for_cond:{}",self.block_name_new()));
-                let loop_body: Block = func.new_block(&format!("for_loop_body:{}",self.block_name_new()));
-                let after_loop: Block = func.new_block(&format!("after_for:{}",self.block_name_new()));
-                //let for_body: Block = func.new_block(&format!("for_body:{}",self.block_name_new()));
+                let loop_cond: Block =
+                    func.new_block(&format!("for_cond:{}", self.block_name_new()));
+                let loop_body: Block =
+                    func.new_block(&format!("for_loop_body:{}", self.block_name_new()));
+                let after_loop: Block =
+                    func.new_block(&format!("after_for:{}", self.block_name_new()));
+                //let for_body: Block =
+                // func.new_block(&format!("for_body:{}",self.block_name_new()));
                 self.break_blocks.push_back(after_loop);
                 self.continue_blocks.push_back(loop_cond);
                 //self.cur_block.unwrap().end_with_jump(None,for_body);
                 //self.cur_block = Some(for_body);
 
-                self.gen_stmt(var,true);
-                self.cur_block.unwrap().end_with_jump(None,loop_cond);
+                self.gen_stmt(var, true);
+                self.cur_block.unwrap().end_with_jump(None, loop_cond);
                 self.cur_block = Some(loop_cond);
                 let val = self.gen_expr(cond);
-                self.cur_block.unwrap().end_with_conditional(None,val,loop_body,after_loop);
+                self.cur_block
+                    .unwrap()
+                    .end_with_conditional(None, val, loop_body, after_loop);
                 self.cur_block = Some(loop_body);
                 self.terminated.push(false);
-                self.gen_stmt(body,true);
+                self.gen_stmt(body, true);
                 self.gen_expr(then);
-                self.cur_block.unwrap().end_with_jump(None,loop_cond);
+                self.cur_block.unwrap().end_with_jump(None, loop_cond);
 
                 self.continue_blocks.pop_back();
                 self.break_blocks.pop_back();
                 self.cur_block = Some(after_loop);
                 self.terminated.pop();
-
-
             }
             StmtKind::While(cond, block_) =>
             {
@@ -1321,6 +1413,25 @@ impl<'a> Codegen<'a>
                         &params,
                     );
                 }
+                else if self.const_functions.contains_key(&name.name())
+                {
+                    let functions = self.const_functions.get(&name.name()).unwrap().clone();
+
+                    let val = self.search_for_func_const(&param_types, None, &functions);
+
+                    if val.is_none()
+                    {
+                        print!("Constant function {}(", str(name.name()));
+                        for p in param_types.iter()
+                        {
+                            print!(" {} ", p);
+                        }
+                        print!(") not found\n");
+                        std::process::exit(-1);
+                    }
+
+                    return self.ctx.new_rvalue_from_int(self.ctx.new_type::<i32>(), 0);
+                }
                 else if self.external_functions.contains_key(&name.name())
                 {
                     let unit: &FunctionUnit =
@@ -1676,17 +1787,23 @@ impl<'a> Codegen<'a>
                         fields.push(cfield);
                     }
 
-                    let struct_ = if s.union {
+                    let struct_ = if s.union
+                    {
                         self.ctx.new_union_type(
-                            Some(gccloc_from_loc(&self.ctx, &s.pos)),
-                            &str(s.name).to_string(),&fields
-                        )
-                    } else {
-                            self.ctx.new_struct_type(
                             Some(gccloc_from_loc(&self.ctx, &s.pos)),
                             &str(s.name).to_string(),
                             &fields,
-                        ).as_type()
+                        )
+                    }
+                    else
+                    {
+                        self.ctx
+                            .new_struct_type(
+                                Some(gccloc_from_loc(&self.ctx, &s.pos)),
+                                &str(s.name).to_string(),
+                                &fields,
+                            )
+                            .as_type()
                     };
 
                     let cstruct = GccStruct {
@@ -2092,14 +2209,15 @@ impl<'a> Codegen<'a>
 
             let env = std::env::vars();
             let mut envp = vec![];
-            for (key,val) in env {
-                envp.push(CString::new(format!("{} = {}",key,val)).unwrap().as_ptr());
+            for (key, val) in env
+            {
+                envp.push(CString::new(format!("{} = {}", key, val)).unwrap().as_ptr());
             }
 
-            let main_fn: fn(i32, *const *const i8,*const *const i8) -> i32 =
+            let main_fn: fn(i32, *const *const i8, *const *const i8) -> i32 =
                 unsafe { std::mem::transmute(result.get_function("main")) };
 
-            main_fn(argc, argv_c.as_ptr(),envp.as_slice().as_ptr());
+            main_fn(argc, argv_c.as_ptr(), envp.as_slice().as_ptr());
         }
         else
         {
@@ -2123,7 +2241,8 @@ impl<'a> Codegen<'a>
             {
                 OutputKind::DynamicLibrary
             }
-            else if self.context.emit_asm {
+            else if self.context.emit_asm
+            {
                 OutputKind::Assembler
             }
             else

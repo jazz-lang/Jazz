@@ -25,7 +25,7 @@ pub fn str(name: Name) -> ArcStr
 }
 
 /// This struct represents interned strings
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(C)]
 pub struct Name(pub usize);
 

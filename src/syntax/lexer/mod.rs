@@ -164,6 +164,10 @@ impl Lexer
         {
             ttype = TokenKind::Underscore;
         }
+        else if value == "!"
+        {
+            ttype = TokenKind::BangIdent(value);
+        }
         else
         {
             ttype = TokenKind::Identifier(value);
@@ -356,6 +360,7 @@ impl Lexer
                     TokenKind::BitAnd
                 }
             }
+            '$' => TokenKind::Dollar,
 
             '^' => TokenKind::Caret,
             '~' => TokenKind::Tilde,
@@ -690,8 +695,8 @@ fn keywords_in_map() -> HashMap<&'static str, TokenKind>
 
     keywords.insert("func", TokenKind::Fun);
     keywords.insert("new", TokenKind::New);
-    keywords.insert("for",TokenKind::For);
-    keywords.insert("union",TokenKind::Union);
+    keywords.insert("for", TokenKind::For);
+    keywords.insert("union", TokenKind::Union);
     keywords.insert("let", TokenKind::Let);
     keywords.insert("constexpr", TokenKind::ConstExpr);
     keywords.insert("var", TokenKind::Var);
@@ -719,6 +724,7 @@ fn keywords_in_map() -> HashMap<&'static str, TokenKind>
     keywords.insert("lambda", TokenKind::Lambda);
     keywords.insert("as", TokenKind::As);
     keywords.insert("internal", TokenKind::Internal);
+    keywords.insert("macro", TokenKind::Macro);
 
     keywords.insert("pub", TokenKind::Pub);
     keywords.insert("static", TokenKind::Static);

@@ -164,7 +164,7 @@ fn main() -> Result<(), MsgWithPos>
     let err = parser.parse();
     if err.is_err()
     {
-        eprintln!("{}", err.clone().err().unwrap());
+        println!("{}", err.clone().err().unwrap());
         std::process::exit(-1);
     }
 
@@ -186,11 +186,9 @@ fn main() -> Result<(), MsgWithPos>
     let mut semantic = SemCheck::new(&mut ctx);
 
     semantic.run();
-    if opts.const_eval || opts.aggressive_eval
-    {
-        let mut eval = const_eval::ConstEval::new(&mut ctx, opts.aggressive_eval);
-        eval.run();
-    }
+    use jazz::eval::EvalCtx;
+    /*let mut eval = EvalCtx::new(&mut ctx);
+    eval.run();*/
     if opts.print_ast
     {
         for elem in ctx.file.elems.iter()

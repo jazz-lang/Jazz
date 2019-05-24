@@ -172,7 +172,7 @@ impl Translator
                 self.gen_stmt(block);
                 self.code.push_str("\n");
             }
-            _ => unimplemented!()
+            _ => unimplemented!(),
         }
     }
 

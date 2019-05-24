@@ -8,6 +8,7 @@ use super::{
 use crate::ast::*;
 use colored::Colorize;
 use std::cell::RefCell;
+
 pub struct SemCheck<'a>
 {
     ctx: &'a mut Context,
@@ -682,7 +683,9 @@ impl<'a> SemCheck<'a>
         let _id = stmt.id;
         match &stmt.kind
         {
-            StmtKind::CFor(var,cond,then,body) => {
+            StmtKind::CompTime(stmt) => self.tc_stmt(stmt),
+            StmtKind::CFor(var, cond, then, body) =>
+            {
                 let prev;
                 if !self.vars.is_empty()
                 {
@@ -740,8 +743,7 @@ impl<'a> SemCheck<'a>
                 };
                 self.tc_expr(e);
                 self.vars.push(prev);
-               
-                
+
                 self.tc_stmt(s);
                 self.vars.pop();
             }
@@ -835,6 +837,7 @@ impl<'a> SemCheck<'a>
     {
         match &expr.kind
         {
+            ExprKind::CompTime(c) => self.tc_expr(c),
             ExprKind::New(ty) =>
             {
                 let infered = self.infer_type(ty);
@@ -1365,7 +1368,7 @@ impl<'a> SemCheck<'a>
                     expr.pos,
                     name,
                     struct_.fields.clone(),
-                    false
+                    false,
                 ));
                 self.types.insert(expr.id, ty.clone());
                 ty

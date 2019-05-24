@@ -4,15 +4,18 @@
 #![allow(clippy::vec_box)]
 #![feature(const_fn)]
 #![feature(box_syntax)]
-
+#![allow(dead_code)]
+#![allow(unused_variables)]
 #[macro_use]
 pub mod macros;
 pub mod ast2cpp;
 pub mod err;
+pub mod eval;
 pub mod gccjit;
 pub mod ir;
 pub mod optimize;
 pub mod semantic;
+pub mod semck;
 pub mod syntax;
 
 pub use syntax::{ast, position::Position};
@@ -63,6 +66,7 @@ impl NodeIdGenerator
     }
 }
 
+use crate::syntax::ast::Function;
 use ast::Type;
 use std::collections::{HashMap, HashSet};
 use syntax::ast::File;
@@ -155,6 +159,18 @@ impl Context
                 _ => (),
             }
         }
+    }
+
+    pub fn get_func_mut(&mut self, id: NodeId) -> Option<&mut Function>
+    {
+        for elem in self.file.elems.iter_mut()
+        {
+            if let syntax::ast::Elem::Func(f) = elem
+            {
+                return Some(f);
+            }
+        }
+        None
     }
 
     pub fn imports(&mut self)

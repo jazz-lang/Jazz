@@ -43,6 +43,7 @@ pub enum Elem
     Struct(Struct),
     Const(Const),
     Enum, // todo
+    Macro(Macro),
     Global(Global),
     Link(Name),
     Import(String),
@@ -70,10 +71,31 @@ impl PartialEq for Elem
             (Elem::Global(g), Elem::Global(g2)) => g.name == g2.name,
             (Elem::Import(s), Elem::Import(s2)) => s == s2,
             (Elem::Link(l), Elem::Link(l2)) => l == l2,
+            (Elem::Macro(m1), Elem::Macro(m2)) => m1.name == m2.name,
 
             _ => false,
         }
     }
+}
+
+use crate::syntax::lexer::token::Token;
+
+#[derive(Clone, Debug)]
+pub enum MacroToken
+{
+    Token(Token),
+    Var(Name),
+    VarArgs,
+}
+
+#[derive(Debug, Clone)]
+pub struct Macro
+{
+    pub id: NodeId,
+    pub pos: Position,
+    pub name: Name,
+    pub args: Vec<Name>,
+    pub body: Vec<MacroToken>,
 }
 
 #[derive(Clone, Debug)]
@@ -617,19 +639,25 @@ impl Function
         {
             match &mut s.kind
             {
-                StmtKind::CFor(var,cond,then,body) => {
-                    if replace_stmt(var,id,to.clone()) == true {
+                StmtKind::CompTime(s) => replace_stmt(s, id, to),
+                StmtKind::CFor(var, cond, then, body) =>
+                {
+                    if replace_stmt(var, id, to.clone()) == true
+                    {
                         return true;
                     }
-                    if cond.id == id {
+                    if cond.id == id
+                    {
                         cond.kind = to.kind.clone();
                         return true;
                     }
-                    if then.id == id {
+                    if then.id == id
+                    {
                         then.kind = to.kind.clone();
                         return true;
                     }
-                    if replace_stmt(body,id,to.clone()) == true {
+                    if replace_stmt(body, id, to.clone()) == true
+                    {
                         return true;
                     }
                     false
@@ -815,6 +843,7 @@ impl Expr
 #[derive(Clone, Debug)]
 pub enum ExprKind
 {
+    CompTime(Box<Expr>),
     Unary(String, Box<Expr>),
     Binary(String, Box<Expr>, Box<Expr>),
     Char(char),
@@ -852,6 +881,7 @@ impl Stmt
 #[derive(Clone, Debug)]
 pub enum StmtKind
 {
+    CompTime(Box<Stmt>),
     Return(Option<Box<Expr>>),
     Block(Vec<Box<Stmt>>),
     Expr(Box<Expr>),
@@ -859,7 +889,7 @@ pub enum StmtKind
     While(Box<Expr>, Box<Stmt>),
     Var(Name, bool, Option<Type>, Option<Box<Expr>>),
     If(Box<Expr>, Box<Stmt>, Option<Box<Stmt>>),
-    CFor(Box<Stmt>,Box<Expr>,Box<Expr>,Box<Stmt>),
+    CFor(Box<Stmt>, Box<Expr>, Box<Expr>, Box<Stmt>),
     Continue,
     Break,
 }

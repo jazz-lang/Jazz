@@ -14,6 +14,7 @@ impl Display for ExprKind
     {
         match self
         {
+            ExprKind::CompTime(e) => write!(f, "constexpr {}", e),
             ExprKind::New(val) => write!(f, "new {}", val),
             ExprKind::Int(i, base, _) => match base
             {
@@ -79,7 +80,10 @@ impl Display for StmtKind
     {
         match self
         {
-            StmtKind::CFor(var,cond,then,body) => write!(f,"for {} {} {} {}",var,cond,then,body),
+            StmtKind::CFor(var, cond, then, body) =>
+            {
+                write!(f, "for {} {} {} {}", var, cond, then, body)
+            }
             StmtKind::Continue => write!(f, "continue"),
             StmtKind::Break => write!(f, "break"),
             StmtKind::Block(block) =>
@@ -105,6 +109,7 @@ impl Display for StmtKind
                 }
                 write!(f, "\n")
             }
+            StmtKind::CompTime(s) => write!(f, "constexpr {}", s),
             StmtKind::While(cond, body) => write!(f, "while {} \n {{\n {} \n}}", cond, body),
             StmtKind::Loop(body) => write!(f, "{{\n{}\n}}", body),
             StmtKind::Return(ret) =>

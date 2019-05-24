@@ -986,7 +986,6 @@ impl<'a> ConstEval<'a>
     {
         match &s.kind
         {
-
             StmtKind::Block(block) =>
             {
                 for stmt in block.iter()
