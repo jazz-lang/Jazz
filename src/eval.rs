@@ -877,21 +877,30 @@ impl<'a> EvalCtx<'a>
         }
         else
         {
-            match &stmt.kind {
-                StmtKind::CompTime(s) => return self.eval_stmt(s,true),
-                StmtKind::Block(b) => {
-                    for s in b.iter() {self.eval_stmt(s,false);}
-                    return Some(rc(Const::Void))
+            match &stmt.kind
+            {
+                StmtKind::CompTime(s) => return self.eval_stmt(s, true),
+                StmtKind::Block(b) =>
+                {
+                    for s in b.iter()
+                    {
+                        self.eval_stmt(s, false);
+                    }
+                    return Some(rc(Const::Void));
                 }
-                StmtKind::Expr(e) => {
-                    if let ExprKind::CompTime(s) = &e.kind { return Some(self.expr(s,true))}
-                    else {
+                StmtKind::Expr(e) =>
+                {
+                    if let ExprKind::CompTime(s) = &e.kind
+                    {
+                        return Some(self.expr(s, true));
+                    }
+                    else
+                    {
                         return None;
                     }
                 }
-                _ => None
+                _ => None,
             }
-
         }
     }
 

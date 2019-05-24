@@ -65,7 +65,8 @@ impl Lexer
             {
                 return self.read_identifier();
             }
-            else if ch == Some('$') {
+            else if ch == Some('$')
+            {
                 self.read_char();
                 return Ok(self.build_token(TokenKind::Dollar));
             }

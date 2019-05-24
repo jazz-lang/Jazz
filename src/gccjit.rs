@@ -276,7 +276,6 @@ impl<'a> Codegen<'a>
                     }
                     let ty = if struct_.union
                     {
-
                         self.ctx
                             .new_union_type(None, &str(struct_.name).to_string(), &fields)
                     }
@@ -1376,7 +1375,6 @@ impl<'a> Codegen<'a>
 
                     if this.is_some()
                     {
-
                         let expr = this.clone().unwrap().clone();
                         let ty = self.get_id_type(expr.id);
                         let val = if !ty.is_ptr()
@@ -1387,7 +1385,7 @@ impl<'a> Codegen<'a>
                                 id: expr.id,
                                 kind: ExprKind::AddressOf(expr),
                             });
-                            let val = self.ctx.new_cast(None,val,cty);
+                            let val = self.ctx.new_cast(None, val, cty);
                             val
                         }
                         else
@@ -1461,12 +1459,10 @@ impl<'a> Codegen<'a>
                         &params,
                     );
                 }
-
                 else if let Some(var) = self.variables.get(&name.name())
                 {
                     var.lval
                 }
-
                 else
                 {
                     panic!();

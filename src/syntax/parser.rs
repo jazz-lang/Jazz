@@ -945,7 +945,6 @@ impl<'a> Parser<'a>
             TokenKind::LBracket => gen_t_tree!(TokenKind::LBracket, TokenKind::RBracket, t),
             TokenKind::Dollar =>
             {
-
                 let name = self.expect_identifier()?;
                 if args.contains(&name)
                 {
@@ -990,8 +989,8 @@ impl<'a> Parser<'a>
         let mut body: Vec<MacroToken> = vec![];
         loop
         {
-
-            if self.token.is(TokenKind::RBrace) {
+            if self.token.is(TokenKind::RBrace)
+            {
                 self.advance_token()?;
                 break;
             }

@@ -843,7 +843,7 @@ impl Expr
 #[derive(Clone, Debug)]
 pub enum ExprKind
 {
-    MacroCall(Name,Vec<Vec<Token>>),
+    MacroCall(Name, Vec<Vec<Token>>),
     CompTime(Box<Expr>),
     Unary(String, Box<Expr>),
     Binary(String, Box<Expr>, Box<Expr>),

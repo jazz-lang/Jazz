@@ -682,7 +682,6 @@ impl<'a> SemCheck<'a>
     {
         let _id = stmt.id;
         match &stmt.kind
-
         {
             StmtKind::CFor(var, cond, then, body) =>
             {
@@ -838,13 +837,13 @@ impl<'a> SemCheck<'a>
     {
         match &expr.kind
         {
-            ExprKind::CompTime(e) => {
+            ExprKind::CompTime(e) =>
+            {
                 let ty = self.tc_expr(e);
                 let ty = self.infer_type(&ty);
-                self.types.insert(expr.id,ty.clone());
+                self.types.insert(expr.id, ty.clone());
 
                 return ty;
-
             }
             ExprKind::New(ty) =>
             {
