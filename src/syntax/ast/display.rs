@@ -3,6 +3,8 @@ use crate::syntax::lexer::token::IntBase;
 use fmt::Display;
 use std::fmt;
 
+use std::intrinsics::write_bytes;
+
 impl Display for Expr
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.kind) }
@@ -14,6 +16,7 @@ impl Display for ExprKind
     {
         match self
         {
+            ExprKind::MacroCall(name,_) => write!(f,"{}!()",name),
             ExprKind::CompTime(e) => write!(f, "constexpr {}", e),
             ExprKind::New(val) => write!(f, "new {}", val),
             ExprKind::Int(i, base, _) => match base
@@ -213,6 +216,28 @@ impl Display for Global
     }
 }
 
+impl Display for Macro {
+    fn fmt(&self,f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,"macro {}!(",self.name)?;
+        for (i,var) in self.args.iter().enumerate() {
+            write!(f,"{}",var)?;
+            if i != self.args.len() - 1 {
+                write!(f,",")?;
+            }
+        }
+        write!(f,") ")?;
+        write!(f,"{{\n")?;
+        for tok in self.body.iter() {
+            match tok {
+                MacroToken::Token(tok) => write!(f,"   {}",tok.name())?,
+                MacroToken::Var(var) => write!(f,"   ${}",var)?,
+                MacroToken::VarArgs => write!(f,"...")?,
+            }
+        }
+        write!(f,"\n}}")
+    }
+}
+
 impl Display for Elem
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
@@ -226,6 +251,7 @@ impl Display for Elem
             Elem::ConstExpr { name, expr, .. } => write!(f, "constexpr {} = {}", name, expr),
             Elem::Global(g) => write!(f, "{}", g),
             Elem::Link(l) => write!(f, "link \"{}\" ", l),
+            Elem::Macro(m) => write!(f,"{}",m),
             _ => write!(f, ""),
         }
     }

@@ -837,6 +837,7 @@ impl<'a> SemCheck<'a>
     {
         match &expr.kind
         {
+            ExprKind::MacroCall(_,_) => unreachable!(),
             ExprKind::CompTime(c) => self.tc_expr(c),
             ExprKind::New(ty) =>
             {

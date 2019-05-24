@@ -945,6 +945,7 @@ impl<'a> Parser<'a>
             TokenKind::LBracket => gen_t_tree!(TokenKind::LBracket, TokenKind::RBracket, t),
             TokenKind::Dollar =>
             {
+
                 let name = self.expect_identifier()?;
                 if args.contains(&name)
                 {
@@ -976,7 +977,7 @@ impl<'a> Parser<'a>
         self.expect_token(TokenKind::LParen)?;
 
         let args = self.parse_comma_list(TokenKind::RParen, |p| p.expect_identifier())?;
-
+        //self.advance_token()?;
         let mut args_map = std::collections::BTreeSet::new();
 
         for elem in args.iter()
@@ -984,16 +985,18 @@ impl<'a> Parser<'a>
             args_map.insert(*elem);
         }
 
-        self.expect_token(TokenKind::RParen)?;
         self.expect_token(TokenKind::LBrace)?;
 
         let mut body: Vec<MacroToken> = vec![];
-        while self.token.kind != TokenKind::RBrace
+        loop
         {
+
+            if self.token.is(TokenKind::RBrace) {
+                self.advance_token()?;
+                break;
+            }
             body.extend(self.eat_macro_tree(&args_map)?);
         }
-
-        self.expect_token(TokenKind::RBrace)?;
 
         Ok(Macro {
             name,
