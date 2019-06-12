@@ -353,7 +353,7 @@ void Typechecker::typecheckField(FieldDecl& decl) {
     inferType(decl.getType(), std::min(decl.getAccessLevel(), decl.getParent()->getAccessLevel()));
 }
 
-void Typechecker::typecheckImport(ImportDecl& decl, const PackageManifest* manifest, llvm::ArrayRef<std::string> importPaths,
+void Typechecker::typecheckImport(ImportDecl& decl, const Manifest* manifest, llvm::ArrayRef<std::string> importPaths,
                                       llvm::ArrayRef<std::string> frameworkSearchPaths) {
     if (importJazzModule(currentSourceFile, manifest, importPaths, frameworkSearchPaths, decl.getTarget())) {
         return;
@@ -364,7 +364,7 @@ void Typechecker::typecheckImport(ImportDecl& decl, const PackageManifest* manif
     }
 }
 
-void Typechecker::typecheckDecl(Decl& decl, const PackageManifest* manifest, llvm::ArrayRef<std::string> importPaths,
+void Typechecker::typecheckDecl(Decl& decl, const Manifest* manifest, llvm::ArrayRef<std::string> importPaths,
                                         llvm::ArrayRef<std::string> frameworkSearchPaths) {
     switch (decl.getKind()) {
         case DeclKind::ParamDecl:

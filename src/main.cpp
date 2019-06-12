@@ -30,7 +30,7 @@
 #include <llvm/InitializePasses.h>
 #include <llvm/Support/CodeGen.h>
 #include <llvm/Transforms/InstCombine/InstCombine.h>
-#include <llvm/Transforms/Vectorize/LoadStoreVectorizer.h>
+//#include <llvm/Transforms/Vectorize/LoadStoreVectorizer.h> This file doesn't exists in LLVM from Guix packages
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <llvm/Transforms/IPO/AlwaysInliner.h>
 #include <llvm/Transforms/IPO.h>
@@ -68,11 +68,11 @@ class ArrayRef;
 class StringRef;
 } // namespace llvm
 
-class PackageManifest;
+class Manifest;
 
 bool checkFlag(llvm::StringRef flag, std::vector<llvm::StringRef>& args);
 int buildProject(llvm::StringRef packageRoot, const char* argv0, std::vector<llvm::StringRef>& args, bool run);
-int buildExe(llvm::ArrayRef<std::string> files, const jazz::PackageManifest* manifest, const char* argv0,
+int buildExe(llvm::ArrayRef<std::string> files, const jazz::Manifest* manifest, const char* argv0,
                     std::vector<llvm::StringRef>& args, llvm::StringRef outputDirectory, llvm::StringRef outputFileName, bool run);
 
 
@@ -392,8 +392,8 @@ void emitLLVMBitcode(const llvm::Module& module, llvm::StringRef fileName) {
 
 
 int buildProject(llvm::StringRef packageRoot, const char* argv0, std::vector<llvm::StringRef>& args, bool run) {
-    auto manifestPath = (packageRoot + "/" + jazz::PackageManifest::manifestFileName).str();
-    jazz::PackageManifest manifest(packageRoot);
+    auto manifestPath = (packageRoot + "/" + jazz::Manifest::manifestFileName).str();
+    jazz::Manifest manifest(packageRoot);
     fetchDependencies(packageRoot);
 
     printColored("\tCompiling ",llvm::raw_ostream::GREEN);
@@ -459,7 +459,7 @@ void diagfun(const llvm::DiagnosticInfo& info) {
 
 }
 
-int buildExe(llvm::ArrayRef<std::string> files, const jazz::PackageManifest* manifest, const char* argv0,
+int buildExe(llvm::ArrayRef<std::string> files, const jazz::Manifest* manifest, const char* argv0,
                            std::vector<llvm::StringRef>& args, llvm::StringRef outputDirectory, llvm::StringRef outputFileName, bool run) {
     bool parse = checkFlag("-parse", args);
     bool typecheck = checkFlag("-typecheck", args);

@@ -23,8 +23,9 @@ class SmallVector;
 namespace jazz {
 
 class Module;
-class PackageManifest;
+class Manifest;
 class SourceFile;
+
 struct Position;
 struct Type;
 
@@ -38,15 +39,14 @@ public:
     void setCurrentModule(Module* module) { currentModule = module; }
     const SourceFile* getCurrentSourceFile() const { return currentSourceFile; }
 
-    void typecheckModule(Module& module, const PackageManifest* manifest, llvm::ArrayRef<std::string> importPaths,
+    void typecheckModule(Module& module, const Manifest* manifest, llvm::ArrayRef<std::string> importPaths,
                          llvm::ArrayRef<std::string> frameworkSearchPaths);
     Type typecheckExpr(Expr& expr, bool useIsWriteOnly = false);
     void typecheckVar(VarDecl& decl, bool isGlobal);
     void typecheckField(FieldDecl& decl);
-    void typecheckDecl(Decl& decl, const PackageManifest* manifest, llvm::ArrayRef<std::string> importPaths,
-                               llvm::ArrayRef<std::string> frameworkSearchPaths);
+    void typecheckDecl(Decl& decl, const Manifest* manifest, llvm::ArrayRef<std::string> importPaths,
+                        llvm::ArrayRef<std::string> frameworkPaths);
     void postProcess();
-
 private:
     void typecheckParameters(llvm::MutableArrayRef<ParamDecl> params, AccessLevel userAccessLevel);
     void typecheckFunction(FunctionDecl& decl);
@@ -68,7 +68,7 @@ private:
     void inferTypedef(TypeDecl& decl);
     void inferTypeTemplate(TypeTemplate& decl);
     void typecheckEnum(EnumDecl& decl);
-    void typecheckImport(ImportDecl& decl, const PackageManifest* manifest, llvm::ArrayRef<std::string> importPaths,
+    void typecheckImport(ImportDecl& decl, const Manifest* manifest, llvm::ArrayRef<std::string> importPaths,
                              llvm::ArrayRef<std::string> frameworkSearchPaths);
 
     Type typecheckVarExpr(VarExpr& expr, bool useIsWriteOnly);
@@ -109,7 +109,7 @@ private:
     void checkReturnPointerToLocal(const ReturnStmt& stmt) const;
     static void checkHasAccess(const Decl& decl, Position location, AccessLevel userAccessLevel);
 
-    llvm::ErrorOr<const Module&> importJazzModule(SourceFile* importer, const PackageManifest* manifest, llvm::ArrayRef<std::string> importPaths,
+    llvm::ErrorOr<const Module&> importJazzModule(SourceFile* importer, const Manifest* manifest, llvm::ArrayRef<std::string> importPaths,
                                                   llvm::ArrayRef<std::string> frameworkSearchPaths, llvm::StringRef moduleName);
 
 

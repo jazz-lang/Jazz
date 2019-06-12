@@ -4,7 +4,7 @@ cxx = meson.get_compiler('cpp')
 
 
 
-llvm =  meson.get_compiler('cpp').find_library('LLVM')
+llvm =  dependency('llvm')
 
 deps = [
     llvm,
@@ -12,11 +12,13 @@ deps = [
     cxx.find_library('clangAST'),
     cxx.find_library('clangAnalysis'),
     cxx.find_library('clangBasic'),
+    cxx.find_library('clangDriver'),
     cxx.find_library('clangEdit'),
     cxx.find_library('clangFrontend'),
     cxx.find_library('clangIndex'),
     cxx.find_library('clangLex'),
     cxx.find_library('clangParse'),
+    cxx.find_library('clangRewrite'),
     cxx.find_library('clangSema'),
     cxx.find_library('clangSerialization')
 ]

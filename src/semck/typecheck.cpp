@@ -275,7 +275,7 @@ static std::error_code parseSourcesInDirectoryRecursively(llvm::StringRef direct
     return error;
 }
 
-llvm::ErrorOr<const Module&> Typechecker::importJazzModule(SourceFile* importer, const PackageManifest* manifest, llvm::ArrayRef<std::string> importPaths,
+llvm::ErrorOr<const Module&> Typechecker::importJazzModule(SourceFile* importer, const Manifest* manifest, llvm::ArrayRef<std::string> importPaths,
                                                            llvm::ArrayRef<std::string> frameworkSearchPaths, llvm::StringRef moduleName) {
     auto it = Module::getAllImportedModulesMap().find(moduleName);
     if (it != Module::getAllImportedModulesMap().end()) {
@@ -359,7 +359,7 @@ static void checkUnusedDecls(const Module& module) {
     }
 }
 
-void Typechecker::typecheckModule(Module& module, const PackageManifest* manifest, llvm::ArrayRef<std::string> importPaths,
+void Typechecker::typecheckModule(Module& module, const Manifest* manifest, llvm::ArrayRef<std::string> importPaths,
                                   llvm::ArrayRef<std::string> frameworkSearchPaths) {
     auto stdModule = importJazzModule(nullptr, nullptr, importPaths, frameworkSearchPaths, "std");
     
