@@ -54,7 +54,7 @@ static void checkoutGitRevision(const std::string& path, const std::string& revi
 }
 
 void jazz::fetchDependencies(llvm::StringRef packageRoot) {
-    PackageManifest manifest(packageRoot);
+    Manifest manifest(packageRoot);
 
     for (auto& dependency : manifest.getDeclaredDependencies()) {
         auto path = dependency.getFileSystemPath();
@@ -66,7 +66,7 @@ void jazz::fetchDependencies(llvm::StringRef packageRoot) {
     }
 }
 
-std::vector<std::string> jazz::getSourceFiles(llvm::StringRef rootDirectory, llvm::StringRef packageManifestPath) {
+std::vector<std::string> jazz::getSourceFiles(llvm::StringRef rootDirectory, llvm::StringRef ManifestPath) {
     std::vector<std::string> sourceFiles;
     std::error_code error;
 
@@ -76,7 +76,7 @@ std::vector<std::string> jazz::getSourceFiles(llvm::StringRef rootDirectory, llv
             break;
         }
 
-        if (llvm::sys::path::extension(it->path()) == ".jazz" && it->path() != packageManifestPath) {
+        if (llvm::sys::path::extension(it->path()) == ".jazz" && it->path() != ManifestPath) {
             sourceFiles.push_back(it->path());
         }
     }

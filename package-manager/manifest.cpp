@@ -9,13 +9,13 @@
 
 using namespace jazz;
 
-const char PackageManifest::manifestFileName[] = "build.jazz";
+const char Manifest::manifestFileName[] = "build.jazz";
 
-std::string PackageManifest::Dependency::getGitRepositoryUrl() const {
+std::string Manifest::Dependency::getGitRepositoryUrl() const {
     return "https://github.com/" + packageIdentifier + ".git";
 }   
 
-std::string PackageManifest::Dependency::getFileSystemPath() const {
+std::string Manifest::Dependency::getFileSystemPath() const {
     const char* home = std::getenv("HOME");
     if (!home) {
         errorExit("environment variable HOME not set");
@@ -28,7 +28,7 @@ static auto getConfigValue(Decl* decl, DefaultValueT defaultValue) {
     return decl ? llvm::cast<DeclT>(llvm::cast<VarDecl>(decl)->getInitializer())->getValue() : defaultValue;
 }
 
-PackageManifest::PackageManifest(std::string&& packageRoot) : packageRoot(std::move(packageRoot)) {
+Manifest::Manifest(std::string&& packageRoot) : packageRoot(std::move(packageRoot)) {
     linkLibraries = std::vector<std::string>();
     auto manifestPath = this->packageRoot + "/" + manifestFileName;
     Module module(manifestFileName);
@@ -59,7 +59,7 @@ PackageManifest::PackageManifest(std::string&& packageRoot) : packageRoot(std::m
     }
 }
 
-std::vector<std::string> PackageManifest::getTargetRootDirectories() const {
+std::vector<std::string> Manifest::getTargetRootDirectories() const {
     if (!isMultiTarget()) return { packageRoot };
 
     std::string sourceDir = packageRoot;

@@ -6,7 +6,7 @@
 
 namespace jazz {
 
-class PackageManifest {
+class Manifest {
 public:
     class Dependency {
     public:
@@ -23,7 +23,7 @@ public:
     };
 
 public:
-    PackageManifest(std::string&& packageRoot);
+    Manifest(std::string&& packageRoot);
     llvm::StringRef getPackageName() const { return packageName; }
     llvm::ArrayRef<Dependency> getDeclaredDependencies() const { return declaredDependencies; }
     llvm::ArrayRef<std::string> getLinkLibraries() const {return linkLibraries;}
