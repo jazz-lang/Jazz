@@ -1,0 +1,64 @@
+interface Iterator<T> {
+    fun hasValue(): bool;
+    fun value(): T;
+    mut fun increment();
+}
+
+struct ByteIterator<Stream: Read>: Copy, Iterator<uint8> {
+
+    var stream: Stream*;
+    var next: int;
+
+    init(stream: Stream*) {
+        this.stream = stream;
+        next = undefined;
+        increment();
+    }
+
+    fun hasValue(): bool {
+        return !stream.eof() || next >= 0;
+    }
+
+    fun value(): uint8 {
+        return uint8(next);
+    }
+
+    mut fun increment() {
+        next = stream.readByte();
+    }
+
+    fun iterator(): ByteIterator<Stream> {
+        return this;
+    }
+
+}
+
+struct LineIterator<Stream: Read>: Iterator<ArrayRef<uint8>> {
+
+    var stream: Stream*;
+    var next: ArrayRef<uint8>;
+
+    init(stream: Stream*) {
+        this.stream = stream;
+        next = undefined;
+        increment();
+    }
+
+    fun hasValue(): bool {
+        return !stream.eof() || !(next.size() == 0);
+    }
+
+    fun value(): ArrayRef<uint8> {
+        return next;
+    }
+
+    mut fun increment() {
+        var next = stream.readLine();
+        this.next = next;
+    }
+
+    fun iterator(): LineIterator<Stream> {
+        return this;
+    }
+
+}

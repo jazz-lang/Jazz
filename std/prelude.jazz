@@ -1,0 +1,325 @@
+interface Copy {}
+interface Clone {
+    fun clone(): This;
+}
+
+
+
+fun ptr_copy(dst: mut void*,src: void*,count: int): mut void* {
+    var pszDest = cast<mut uint8*>(dst);
+    var pszSrc  = cast<uint8*>(src);
+    for (var i in 0..count) {
+        var ptr = pszDest + i;
+        *ptr = *(pszSrc + i);
+    }
+    return dst;
+}
+
+inline fun uninitialized<T>(): T {
+    var x: T = undefined;
+    return x;
+}
+
+inline fun zeroed<T>(): T {
+    var x_ptr: mut T* = cast<mut T*>(calloc(sizeof(T),1));
+
+    return *x_ptr;
+}
+
+/// Cast from T to U,this cast ensures that size of two values equal.
+inline fun bit_cast<T,U>(val: T): U {
+    comptime assert(sizeof(T) == sizeof(U));
+    
+
+    var x = val;
+    var value: U = undefined;
+    ptr_copy(&value,&x,int(sizeof(T)));
+    return value;
+}
+
+
+fun getBytes<T>(value: T): Array<uint8> {
+    var bytes = calloc(sizeof(T),sizeof(uint8));
+    ptr_copy(cast<mut T*>(bytes),value,sizeof(T));
+    var array = Array<uint8>(ptr: cast<uint8*>(bytes),int(sizeof(T)));
+    return array;
+}
+
+
+const int_max = 2147483647;
+const int8_max = 127;
+const int16_max = 32767;
+const int32_max = 2147483647;
+const int64_max = 9223372036854775807;
+
+const int_min = -2147483648;
+const int8_min = -128;
+const int16_min = -32768;
+const int32_min = -2147483648;
+// TODO: Fix "error: integer literal is too large"
+// const int64_min = -9223372036854775808;
+
+const uint_max = 4294967295;
+const uint8_max = 255;
+const uint16_max = 65535;
+const uint32_max = 4294967295;
+// TODO: Fix "error: integer literal is too large"
+// const uint64_max = 18446744073709551615;
+
+const uint_min = 0;
+const uint8_min = 0;
+const uint16_min = 0;
+const uint32_min = 0;
+const uint64_min = 0;
+
+
+interface Numeric {}
+
+private fun printSigned<T>(value: T,stream: mut String*) {
+    var result: char[22] = undefined;
+    sprintf(result, "%lld", value);
+    stream.format(StringRef(result));
+}
+
+private fun printUnsigned<T>(value: T, stream: mut String*) {
+    var result: char[22] = undefined;
+    sprintf(result, "%llu", value);
+    stream.format(StringRef(result));
+}
+
+struct int: Copy, Clone, Cmp, Hash, Display, Numeric {
+    inline fun clone(): int {
+        return this;
+    }
+
+    init() {
+        this = 0;
+    }
+
+    inline fun abs(): int {
+        if (this < 0) {
+            return -this;
+        } else {
+            return this;
+        }
+    }
+
+    inline fun pow(exp: int32): int {
+        return ipow(this,int(exp));
+    }
+
+
+
+    inline fun compare(other: int*): Ordering {
+        return (this < other) ? Ordering.Less : (this > other) ? Ordering.Greater : Ordering.Equal;
+    }
+
+    fun format(stream: mut String*) {
+        printSigned(this,stream);
+    }
+
+    inline fun hash(): uint64 {
+        return uint64(this);
+    }
+}
+
+struct int8: Copy, Clone, Cmp, Hash, Display,Numeric {
+    inline fun clone(): int8 {
+        return this;
+    }
+
+    inline fun compare(other: int8*): Ordering {
+        return (this < other) ? Ordering.Less : (this > other) ? Ordering.Greater : Ordering.Equal;
+    }
+
+    fun format(stream: mut String*) {
+        printSigned(this,stream);
+    }
+
+    inline fun hash(): uint64 {
+        return uint64(this);
+    }
+}
+
+struct int16: Copy,Clone, Cmp, Hash, Display,Numeric {
+    inline fun clone(): int16 {
+        return this;
+    }
+    
+    inline fun compare(other: int16*): Ordering {
+        return (this < other) ? Ordering.Less : (this > other) ? Ordering.Greater : Ordering.Equal;
+    }
+
+    fun format(stream: mut String*) {
+        printSigned(this,stream);
+    }
+
+    inline fun hash(): uint64 {
+        return uint64(this);
+    }
+}
+
+struct int32: Copy,Clone, Cmp, Hash, Display,Numeric {
+    inline fun clone(): int32 {
+        return this;
+    }
+
+
+    inline fun compare(other: int32*): Ordering {
+        return (this < other) ? Ordering.Less : (this > other) ? Ordering.Greater : Ordering.Equal;
+    }
+
+    fun format(stream: mut String*) {
+        printSigned(this,stream);
+    }
+
+    inline fun hash(): uint64 {
+        return uint64(this);
+    }
+}
+
+struct int64: Copy, Clone, Cmp, Hash, Display,Numeric {
+    inline fun clone(): int64 {
+        return this;
+    }
+    inline fun compare(other: int64*): Ordering {
+        return (this < other) ? Ordering.Less : (this > other) ? Ordering.Greater : Ordering.Equal;
+    }
+
+    fun format(stream: mut String*) {
+        printSigned(this,stream);
+    }
+
+    inline fun hash(): uint64 {
+        return uint64(this);
+    }
+}
+
+struct uint: Copy, Clone, Cmp, Hash, Display, Numeric {
+    inline fun clone(): uint {
+        return this;
+    }
+
+    inline fun compare(other: uint*): Ordering {
+        return (this < other) ? Ordering.Less : (this > other) ? Ordering.Greater : Ordering.Equal;
+    }
+
+    fun format(stream: mut String*) {
+        printUnsigned(this,stream);
+    }
+
+    inline fun hash(): uint64 {
+        return uint64(this);
+    }
+}
+
+struct uint8: Copy, Clone, Cmp, Hash, Display, Numeric {
+    inline fun clone(): uint8 {
+        return this;
+    }
+
+    inline fun compare(other: uint8*): Ordering {
+        return (this < other) ? Ordering.Less : (this > other) ? Ordering.Greater : Ordering.Equal;
+    }
+
+    fun format(stream: mut String*) {
+        printUnsigned(this,stream);
+    }
+
+    inline fun hash(): uint64 {
+        return uint64(this);
+    }
+}
+
+struct uint16: Copy,Clone, Cmp, Hash, Display, Numeric {
+    inline fun clone(): uint16 {
+        return this;
+    }
+
+    inline fun compare(other: uint16*): Ordering {
+        return (this < other) ? Ordering.Less : (this > other) ? Ordering.Greater : Ordering.Equal;
+    }
+
+    fun format(stream: mut String*) {
+        printUnsigned(this,stream);
+    }
+
+    inline fun hash(): uint64 {
+        return uint64(this);
+    }
+}
+
+struct uint32: Copy, Clone, Cmp, Hash,Display, Numeric {
+    inline fun clone(): uint32 {
+        return this;
+    }
+
+    inline fun compare(other: uint32*): Ordering {
+        return (this < other) ? Ordering.Less : (this > other) ? Ordering.Greater : Ordering.Equal;
+    }
+
+    fun format(stream: mut String*) {
+        printUnsigned(this,stream);
+    }
+
+    inline fun hash(): uint64 {
+        return uint64(this);
+    }
+}
+
+struct uint64: Copy, Clone, Cmp, Hash,Display, Numeric {
+    inline fun clone(): uint64 {
+        return this;
+    }
+
+    inline fun compare(other: uint64*): Ordering {
+        return (this < other) ? Ordering.Less : (this > other) ? Ordering.Greater : Ordering.Equal;
+    }
+
+    fun format(stream: mut String*) {
+        printUnsigned(this,stream);
+    }
+
+    inline fun hash(): uint64 {
+        return this;
+    }
+}
+
+struct float: Copy, Cmp, Numeric {
+    inline fun compare(other: float*): Ordering {
+        return (this < other) ? Ordering.Less : (this > other) ? Ordering.Greater : Ordering.Equal;
+    }
+
+}
+
+struct float32: Copy, Cmp, Numeric {
+    inline fun compare(other: float32*): Ordering {
+        return (this < other) ? Ordering.Less : (this > other) ? Ordering.Greater : Ordering.Equal;
+    }
+
+    inline fun toBits(): uint32 {
+        return bit_cast<float32,uint32>(this);
+    }
+
+}
+
+struct float64: Copy, Cmp, Numeric {
+    inline fun compare(other: float64*): Ordering {
+        return (this < other) ? Ordering.Less : (this > other) ? Ordering.Greater : Ordering.Equal;
+    }
+
+    inline fun toBits(): uint64 {
+        return bit_cast<float64,uint64>(this);
+    }
+
+}
+
+struct float80: Copy, Cmp, Numeric {
+    inline fun compare(other: float80*): Ordering {
+        return (this < other) ? Ordering.Less : (this > other) ? Ordering.Greater : Ordering.Equal;
+    }
+
+    // todo: somehow cast this value to bits
+}
+
+

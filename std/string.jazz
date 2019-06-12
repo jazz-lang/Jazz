@@ -1,0 +1,364 @@
+struct StringRef: Copy, Cmp, Hash,Display,Clone {
+    var characters: ArrayRef<char>;
+
+    init(pointer: char*, length: int) {
+        characters = ArrayRef<char>(pointer, length);
+    }
+
+    fun format(stream: mut String*) {
+        stream.format(this);
+    }
+
+    fun clone(): StringRef {
+        return StringRef(this.str());
+    }
+
+    fun str(): String {
+        return String(this);
+    }
+
+    init() {
+        var array = Array<char>();
+        array.push('\0');
+        characters = ArrayRef(array);
+    }
+
+    /// Initializes a StringRef referring to a null-terminated C-style string.
+    ///
+    /// __Note:__ This initializer has a time complexity of O(n) because it has to calculate the
+    /// length of the argument string. If you know the length beforehand, consider using
+    /// `StringRef.init(pointer: char*, length: uint)` instead.
+    ///
+    init(cString: char*) {
+        characters = ArrayRef<char>(cString, int(strlen(cString)));
+    }
+
+    init (string: String*) {
+        characters = ArrayRef<char>(string.data(), string.size());
+    }
+
+    fun size(): int {
+        return characters.size();
+    }
+
+    /// Returns the character at the given index.
+    fun [](index: int): char {
+        return characters[index];
+    }
+
+    fun data(): char[?]* {
+        return characters.data();
+    }
+
+    fun contains(c: char): bool {
+        return find(c, 0) != -1;
+    }
+
+    /// Returns the index of the given character, or -1 if it's not found
+    fun find(c: char): int {
+        return find(c, 0);
+    }
+
+    /// Returns the index of the given character, or -1 if it's not found.
+    /// Starts from start
+    fun find(c: char, start: int): int {
+        for (var i in start..size()) {
+            if (characters[i] == c) {
+                return int(i);
+            }
+        }
+        return -1;
+    }
+
+    
+    fun hash(): uint64 {
+        var hashValue: uint64 = 5381;
+
+        for (var index in 0..characters.size()) {
+            hashValue = ((hashValue << 5) + hashValue) + uint64(this[index]);
+        }
+
+        return hashValue;
+    }
+
+    fun iterator(): StringIterator {
+        return StringIterator(this);
+    }
+
+    /*fun fmt(stream: mut String*): mut String* {
+        stream.write(this);
+        return stream;
+    }*/
+
+    fun compare(other: StringRef*): Ordering {
+        for (var index in 0..min(size(), other.size())) {
+            if (this[index] < other[index]) { return Ordering.Less; }
+            if (this[index] > other[index]) { return Ordering.Greater; }
+        }
+        if (size() < other.size()) { return Ordering.Less; }
+        if (size() > other.size()) { return Ordering.Greater; }
+        return Ordering.Equal;
+    }
+}
+
+fun ==(a: StringRef, b: StringRef): bool {
+    if (a.size() != b.size()) {
+        return false;
+    }
+
+    for (var index in 0..a.size()) {
+        if (a[index] != b[index]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
+struct String: Cmp, Display,Write,Clone {
+    var characters: Array<char>;
+
+    fun clone(): String {
+        return String(StringRef(this));
+    }
+
+    fun format(stream: mut String*) {
+        stream.format(StringRef(this));
+    }
+
+    mut fun write(value: StringRef): bool {
+        format(value);
+        return true;
+    }
+
+    mut fun write(value: String): bool {
+        format(StringRef(value));
+        return true;
+    }
+
+
+    /// Initializes an empty string.
+    init() {
+        characters = Array<char>();
+        characters.push('\0');
+    }
+
+    init(string: StringRef) {
+        characters = Array<char>(cap: string.size() + 1);
+
+        for (var ch in string) {
+            characters.push(ch);
+        }
+
+        characters.push('\0');
+    }
+
+    /// Initializes a string with the characters from a character array of known length.
+    init(pointer: char*, length: int) {
+        init(StringRef(pointer, length));
+    }
+
+    /// Initializes a string with the contents of a null-terminated C-style string.
+    ///
+    /// __Note:__ This initializer has a time complexity of O(n) because it has to calculate the
+    /// length of the argument string. If you know the length beforehand, consider using
+    /// `String.init(pointer: char*, length: uint)` instead.
+    ///
+    init(cString: char*) {
+        init(StringRef(cString, int(strlen(cString))));
+    }
+
+    fun size(): int {
+        return characters.size() - 1;
+    }
+
+    /// Returns the character at the given index.
+    fun [](index: int): char {
+        return characters[index];
+    }
+
+    /// Returns the string as a C-style, i.e. null-terminated, string.
+    /// Modifying `this` after calling this function invalidates the returned pointer.
+    fun cString(): char* {
+        return data();
+    }
+
+    /// Returns a pointer to the first character in the string.
+    fun data(): char[?]* {
+        return characters.data();
+    }
+
+    fun empty(): bool {
+        return size() == 0;
+    }
+
+    /// Returns a pointer to the first character in the string.
+    mut fun data(): mut char[?]* {
+        return characters.data();
+    }
+
+    mut fun push(character: char) {
+        characters[size()] = character;
+        characters.push('\0');
+    }
+
+    mut fun format(string: StringRef): bool {
+        for (var ch in string) {
+            push(ch);
+        }
+        return true;
+    }
+
+    /// Removes the first character from the string.
+    /// Other characters are moved towards the beginning of the string by one index.
+    mut fun removeFirst() {
+        characters.removeFirst();
+    }
+
+    /// Removes the last character from the string.
+    mut fun removeLast() {
+        characters.removeAt(characters.size() - 2);
+    }
+
+    /// Supports using strings with sets and dicts
+    fun hash(): uint64 {
+        return StringRef(this).hash();
+    }
+
+    fun iterator(): StringIterator {
+        // TODO: When implicit initializers have been implemented, remove the StringRef() call below.
+        return StringIterator(StringRef(this));
+    }
+
+    fun contains(c: char): bool {
+        return find(c, 0) != -1;
+    }
+
+    /// Returns the index of the given character, or -1 if it's not found
+    fun find(c: char): int {
+        return find(c, 0);
+    }
+
+    /// Returns the index of the given character, or -1 if it's not found.
+    /// Starts from start
+    fun find(c: char, start: int): int {
+        for (var i in start..size()) {
+            if (characters[i] == c) {
+                return int(i);
+            }
+        }
+        return -1;
+    }
+
+    // Returns the substring of the string in the given range, [inclusive, exclusive]
+    fun substr(range: Range<int>): StringRef {
+        if (range.end > size()) {
+            indexOutOfBounds(range.end);
+        }
+        return StringRef(characters[range.start], range.size());
+    }
+
+    // Splits the string by the given delimiter
+    fun split(delim: char): Array<StringRef> {
+        var tokens = Array<StringRef>();
+
+        var prev = 0;
+        var pos = 0;
+
+        while (true) {
+            pos = find(delim, prev);
+
+            if (pos == -1) {
+                pos = size();
+            }
+
+            var token = substr(prev..pos);
+            tokens.push(token);
+
+            prev = pos + 1;
+
+            if (pos > size() || prev > size()) {
+                break;
+            }
+        }
+        return tokens;
+    }
+
+    // Splits the string by whitespace
+    fun split(): Array<StringRef> {
+        return split(' ');
+    }
+
+    fun fmt(stream: mut String*): mut String* {
+        stream.format(StringRef(this));
+        return stream;
+    }
+
+    fun compare(other: String*): Ordering {
+        return StringRef(this).compare(StringRef(other));
+    }
+
+    private fun indexOutOfBounds(index: int) {
+        printf("Range index %d is out of bounds, size is %d\n", index, size());
+        panic();
+    }
+}
+
+fun +(a: StringRef, b: StringRef): String {
+    var result = String();
+
+    for (var ch in a) {
+        result.push(ch);
+    }
+
+    for (var ch in b) {
+        result.push(ch);
+    }
+
+    return result;
+}
+
+fun +(a: String, b: StringRef): String {
+    var result = a;
+
+    for (var ch in b) {
+        result.push(ch);
+    }
+
+    return result;
+}
+
+fun ==(a: String*, b: String*): bool {
+    return StringRef(a) == StringRef(b);
+}
+
+fun ==(a: String*, b: StringRef): bool {
+    return StringRef(a) == b;
+}
+
+fun ==(a: StringRef, b: String*): bool {
+    return a == StringRef(b);
+}
+
+struct StringIterator: Copy, Iterator<char> {
+    var current: char[?]*;
+    var end: char[?]*;
+
+    init(string: StringRef) {
+        current = string.data();
+        end = &string.data()[string.size()];
+    }
+
+    fun hasValue(): bool {
+        return current !== end;
+    }
+
+    fun value(): char {
+        return *current;
+    }
+
+    mut fun increment() {
+        current++;
+    }
+}

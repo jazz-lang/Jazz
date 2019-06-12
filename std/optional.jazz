@@ -1,0 +1,34 @@
+struct Optional<Value> {
+    var value: Value?;
+    var is_some: bool;
+
+    init(value: Value) {
+        this.value = value;
+        is_some = true;
+    }
+
+    init() {
+        value = null;
+        is_some = false;
+    }
+
+    fun some(): bool {
+        return is_some;
+    }
+
+    fun get(): Value {
+        if (!is_some) {
+            printf("None value\n");
+            panic();
+        }
+        return value!;
+    }
+
+    mut fun get(): Value {
+        if (!is_some) {
+            printf("None value\n");
+            panic();
+        }
+        return value!;
+    }
+}

@@ -1,22 +1,18 @@
-import "libc.jazz"
-import "atomic.jazz"
-
-pub func alloc(size: i32) *u8 {
-	return malloc(size as usize);
+fun alloc<T>(value: T): mut T* {
+    var ptr = cast<mut T*>(malloc(sizeof(T))!);
+    ptr.init(value);
+    return ptr;
 }
 
-pub func alloc(size: usize) *u8 {
-	return malloc(size);
+fun allocArray<T>(size: int): mut T[?]* {
+    return cast<mut T[?]*>(malloc(sizeof(T) * uint64(size))!);
 }
 
-pub func alloc(size: i64) *u8 {
-	return malloc(size as usize);
+fun delete<T>(ptr: mut T*) {
+    free(ptr);
 }
 
-pub func alloc(size: u32) *u8 {
-	return malloc(size as usize);
+fun delete<T>(ptr: mut T*?) {
+    free(ptr);
 }
 
-pub func alloc(size: u64) *u8 {
-	return malloc(size as usize);
-}

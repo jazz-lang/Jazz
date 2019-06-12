@@ -1,0 +1,58 @@
+struct Range<T>: Copy {
+    var start: T;
+    var end: T;
+
+    init(start: T, end: T) {
+        this.start = start;
+        this.end = end;
+    }
+
+    init (end: T) {
+        init(0, end);
+    }
+
+    // Returns the number of elements this range contains.
+    fun size(): T {
+        return end - start;
+    }
+
+    // Alias for size
+    fun length(): T {
+        return size();
+    }
+
+    fun start(): T {
+        return start;
+    }
+
+    fun end(): T {
+        return end;
+    }
+
+    fun iterator(): RangeIterator<T> {
+        return RangeIterator(this);
+    }
+}
+
+
+struct RangeIterator<T>: Copy, Iterator<T> {
+    var current: T;
+    var end: T;
+
+    init(range: Range<T>) {
+        current = range.start();
+        end = range.end();
+    }
+
+    fun hasValue(): bool {
+        return current != end;
+    }
+
+    fun value(): T {
+        return current;
+    }
+
+    mut fun increment() {
+        current++;
+    }
+}

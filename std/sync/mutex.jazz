@@ -1,0 +1,140 @@
+
+
+private struct rwlock_t {
+   var size: uint8[56];
+   init() {
+      // we never use `size` in rwlock_t, mutex_t and mutexattr_t so we can set `size` to undefined.
+      size = undefined;
+   }
+} 
+
+private struct mutex_t {
+   var size: uint8[40];
+   init() {
+      size = undefined;
+   }
+}
+
+private struct mutexattr_t {
+   var size: uint8[4];
+
+   init()  {
+      size = undefined;
+   }
+}
+
+extern fun calloc(arg1: uint64,arg2: uint64): mut void*;
+
+extern fun pthread_mutexattr_init(attr: mut mutexattr_t*): int;
+extern fun pthread_mutexattr_settype(attr: mut mutexattr_t*,type: int): int;
+extern fun pthread_mutex_init(mutex: mut mutex_t*,attr: mut mutexattr_t*): int;
+extern fun pthread_mutexattr_destroy(attr: mut mutexattr_t*): int;
+extern fun pthread_mutex_lock(mutex: mut mutex_t*): int;
+extern fun pthread_mutex_unlock(mutex: mut mutex_t*): int;
+extern fun pthread_mutex_destroy(mutex: mut mutex_t*): int;
+extern fun pthread_mutex_trylock(mutext: mut mutex_t*): int;
+
+const PTHREAD_MUTEX_NORMAL: int = 0;
+struct MutexImpl {
+   private var inner: mut mutex_t*;
+
+   init() {
+      inner = cast<mut mutex_t*>(calloc(1,sizeof(mutex_t)));
+   }
+
+   inline fun lock() {
+      assert(pthread_mutex_lock(inner) == 0);
+   }
+
+   inline fun unlock() {
+      assert(pthread_mutex_unlock(inner) == 0);
+   }
+
+   inline fun destroy() {
+      assert(pthread_mutex_destroy(inner) == 0);
+   }
+
+   inline fun initialize() {
+      var attr: mut mutexattr_t* = cast<mut mutexattr_t*>(calloc(1,sizeof(mutexattr_t)));
+      var r = pthread_mutexattr_init(attr);
+      assert(r == 0);
+      r = pthread_mutexattr_settype(attr,PTHREAD_MUTEX_NORMAL);
+      assert(r == 0);
+      r = pthread_mutex_init(inner,attr);
+      assert(r == 0);
+      r = pthread_mutexattr_destroy(attr);
+      assert(r == 0);
+   }
+
+   inline fun tryLock(): bool {
+      return pthread_mutex_trylock(inner) == 0;
+   }
+}
+
+
+struct LockResult<T> {
+   var data: mut T*?;
+   var __mutex: Mutex<T>*;
+   init(mutex: Mutex<T>*,data: mut T*?) {
+      this.data = data;
+      this.__mutex = mutex;
+   }
+
+   deinit() {
+      __mutex.inner.unlock();
+   }
+
+   fun get(): mut T* {
+      if (!data) {
+         printf("Lock failed\n");
+         panic();
+      }
+
+      return data!;
+   }
+
+   
+
+   fun isOk(): bool {
+      return data != null;
+   }
+
+   fun isErr(): bool {
+      return data == null;
+   }
+}
+
+struct Mutex<T> {
+   var inner: mut MutexImpl*;
+   var data: mut T*;
+
+   init() {
+      inner = alloc<MutexImpl>(MutexImpl());
+      data = undefined;
+   }
+
+   init(t: T) {
+      inner = alloc<MutexImpl>(MutexImpl());
+      data = alloc<T>(t);
+   } 
+
+   deinit() {
+      pthread_mutex_destroy(inner.inner);
+   }
+
+
+
+   fun lock(): LockResult<T> {
+      if (inner.tryLock() == false) {
+         return LockResult(this,null);
+      } else {
+         return LockResult(this,data);
+      }
+   }
+}
+
+
+fun initialize_global_mutex<T>(mutex: mut Mutex<T>*,value: T) {
+   var __value__to__assign__ = mutex; // parameters by default immutable so ve assign parameter to mutable variable.
+   __value__to__assign__ = alloc<Mutex<T>>(Mutex<T>(value));
+}

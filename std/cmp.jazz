@@ -1,0 +1,36 @@
+
+
+enum Ordering {
+    case Less;
+    case Equal;
+    case Greater;
+}
+
+
+interface Cmp {
+    fun compare(other: This*): Ordering;
+}
+
+fun == <T: Cmp>(a: T*, b: T*): bool {
+    return a.compare(b) == Ordering.Equal;
+}
+
+fun != <T: Cmp>(a: T*, b: T*): bool {
+    return a.compare(b) != Ordering.Equal;
+}
+
+fun < <T: Cmp>(a: T*, b: T*): bool {
+    return a.compare(b) == Ordering.Less;
+}
+
+fun > <T: Cmp>(a: T*, b: T*): bool {
+    return a.compare(b) == Ordering.Greater;
+}
+
+fun >= <T: Cmp>(a: T*, b: T*): bool {
+    return a.compare(b) != Ordering.Less;
+}
+
+fun <= <T: Cmp>(a: T*, b: T*): bool {
+    return a.compare(b) != Ordering.Greater;
+}

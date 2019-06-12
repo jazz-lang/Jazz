@@ -1,0 +1,155 @@
+/// base^exponent
+/// This function can be evaluated at compile-time.
+/// Example:
+/// ```
+/// var x = comptime ipow(2,8); // <- 256
+/// ```
+fun ipow<T>(base_: T,exp_: int): T { 
+    assert(exp_ >= 0);
+    var result = cast<T>(1);
+    var base = base_;
+    var exp = cast<T>(exp_);
+    while (true) {
+        if ((exp & cast<T>(1)) != cast<T>(0)) {
+            result = result * base;
+        }
+
+        exp = exp >> cast<T>(1);
+        if (exp == cast<T>(0)) {
+            break;
+        }
+        base = base * base;
+    }
+    return result;
+}
+
+/// Compares and returns the maximum of two values.
+/// Returns the second argument if the comparison determines them to be equal.
+/// This function can be evaluated at compile time
+
+fun max<T: Copy>(a: T,b: T): T {
+    if (a >= b) {
+        return a;
+    }
+    return b;
+}
+
+/// Compares and returns the minimum of two values.
+/// Returns the first argument if the comparison determines them to be equal.
+/// This function can be evaluated at compile time
+fun min<T: Copy>(a: T,b: T): T {
+    if (a < b) {
+        return a;
+    }
+    return b;
+}
+
+fun max<T>(a: T*,b: T*): T {
+    if (a >= b) {
+        return a;
+    }
+    return b;
+}
+
+/// Compares and returns the minimum of two values.
+/// Returns the first argument if the comparison determines them to be equal.
+/// This function can be evaluated at compile time
+fun min<T>(a: T*,b: T*): T {
+    if (a < b) {
+        return a;
+    }
+    return b;
+}
+
+/// Gives the minimum of the two elements
+
+/// Swaps two items in place
+fun swap<E>(a: mut E*, b: mut E*) {
+    var t = *a;
+    *a = *b;
+    *b = t;
+}
+
+/// Sorts an array. Uses insertion sort if the array is small enough, and quickSort otherwise.
+fun sort<E: Cmp>(array: mut Array<E>*) {
+    if (array.size() <= 32) {
+        insertionSort(array);
+    } else {
+        quickSort(array, 0, array.size() - 1);
+    }
+}
+
+/// Private members
+
+private fun partition<E: Cmp>(arr: mut Array<E>*, low: int, high: int): int {
+    var pivot = arr[high];
+    var i = low - 1;
+
+    for (var j in low..high) {
+        if (arr[j] < pivot) {
+            i++;
+            swap(arr[i], arr[j]);
+        }
+    }
+    if (arr[high] < arr[i+1]) {
+        swap(arr[i + 1], arr[high]);
+    }
+    return i + 1;
+}
+
+/// Quicksorts the given array, in place. Not stable.
+private fun quickSort<E: Cmp>(arr: mut Array<E>*, low: int, high: int) {
+    if (low < high) {
+        var index = partition(arr, low, high);
+
+        if (low < index) {
+            quickSort(arr, low, index - 1);
+        }
+        if (index < high) {
+            quickSort(arr, index + 1, high);
+        }
+    }
+}
+
+/// Insertion sorts the given array, in place. Good for small arrays
+private fun insertionSort<E: Cmp>(arr: mut Array<E>*) {
+    var i = 1;
+    while (i < arr.size()) {
+        var j = i;
+        while (j > 0 && arr[j-1] > arr[j]) {
+            swap(arr[j], arr[j-1]);
+            j--;
+        }
+        i++;
+    }
+}
+
+
+fun factorial<T>(x: T): T {
+   if (x < cast<T>(2)) {
+      return cast<T>(1);
+   } else {
+      return factorial(x - cast<T>(1)) * x;
+   }
+
+   return cast<T>(-1);
+}
+
+fun abs<T>(x: T): T {
+    if (x < cast<T>(0)) {
+        return -x;
+    } else {
+        return x;
+    }
+}
+
+extern fun cos(x: float64);
+extern fun cosf(x: float);
+extern fun cosl(x: int64);
+extern fun sin(x: float64);
+extern fun sinf(x: float);
+extern fun sinl(x: int64);
+
+extern fun tan(x: float64);
+extern fun tanf(x: float);
+extern fun tanl(x: int64);

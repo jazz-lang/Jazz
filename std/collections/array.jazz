@@ -1,0 +1,290 @@
+struct Array<T> {
+    var buffer: mut T[?]*;
+    var size: int;
+    var cap: int;
+
+    init() {
+        buffer = undefined;
+        size = 0;
+        cap = 0;
+    }
+
+    init(cap: int) {
+        init();
+        reserve(cap);
+
+    }
+
+    init(cap: int,def: T) {
+        init(cap: cap);
+        for (var i in 0..cap) {
+            push(def);
+        }
+    }
+
+    init(ptr: T*,size: int) {
+        init(cap: size);
+        memcpy(buffer,ptr,size);
+    }
+
+    init(elements: T[]*) {
+        init(cap: elements.size());
+    }
+
+    deinit() {
+        if (cap != 0) {
+            delete(buffer);
+        }
+    }
+
+    fun size(): int {
+        return size;
+    }
+
+    fun capacity(): int {
+        return cap;
+    }
+
+
+    fun iterator(): ArrayIterator<T> {
+        return ArrayIterator(ArrayRef(this));
+    }
+
+    mut fun iterator(): MutableArrayIterator<T> {
+        return MutableArrayIterator(this);
+    }
+
+    fun [](idx: int): T* {
+        if (idx >= size) {
+            indexOutOfBounds(idx);
+        }
+
+        return buffer[idx];
+    }
+    mut fun [](idx: int): mut T* {
+        if (idx >= size) {
+            indexOutOfBounds(idx);
+        }
+        return buffer[idx];
+    }
+
+    fun begin(): T* {
+        return buffer[0];
+    }
+
+    fun end(): T* {
+        return buffer[size - 1];
+    }
+
+    fun data(): T[?]* {
+        return buffer;
+    }
+
+    mut fun data(): mut T[?]* {
+        return buffer;
+    }
+
+    mut fun data_as_void(): mut void* {
+        return buffer;
+    }
+    fun data_as_void(): void* {
+        return buffer;
+    }
+
+    mut fun reserve(minimumCapacity: int) {
+        if (minimumCapacity > cap) {
+            var newBuffer = allocArray<T>(size: minimumCapacity);
+
+            for (var index in 0..size) {
+                var source = &buffer[index];
+                var target = &newBuffer[index];
+                target.init(*source);
+            }
+
+            if (cap != 0) {
+                delete(buffer);
+            }
+
+            buffer = newBuffer;
+            cap = minimumCapacity;
+        }
+    }
+
+    private mut fun grow() {
+        if (cap == 0) {
+            reserve(1);
+        } else {
+            reserve(cap * 2);
+        }
+    }
+    mut fun push(newElement: T) {
+        if (size == cap) {
+            grow();
+        }
+
+        
+        (&buffer[size]).init(newElement);
+        size++;
+    }
+
+    mut fun removeFirst() {
+        if (size == 0) {
+            emptyArrayRemoveFirst();
+        }
+
+        unsafeRemoveAt(0);
+    }
+
+    /// Removes the last element from the array.
+    mut fun removeLast() {
+        if (size == 0) {
+            emptyArrayRemoveLast();
+        }
+
+        size--;
+        buffer[size].deinit();
+    }
+
+    /// Removes and returns the last element.
+    mut fun pop(): T {
+        if (size == 0) {
+            emptyArrayRemoveLast();
+        }
+
+        size--;
+        return buffer[size];
+    }
+
+    /// Removes the element at the given index from the array.
+    /// Elements following the removed element are moved towards the beginning of the array by one index.
+    mut fun removeAt(index: int) {
+        if (index >= size) {
+            indexOutOfBounds(index);
+        }
+
+        unsafeRemoveAt(index);
+    }
+
+    mut private fun unsafeRemoveAt(index: int) {
+        buffer[index].deinit();
+
+        for (var i in (index + 1)..size) {
+            var source = &buffer[i];
+            var target = &buffer[i - 1];
+            target.init(*source);
+        }
+
+        size--;
+    }
+
+
+
+    private fun indexOutOfBounds(index: int) {
+        printf("Array index %d is out of bounds, size is %d\n", index, size());
+        panic();
+    }
+
+    private fun emptyArrayFirst() {
+        printf("Called first() on empty Array\n");
+        panic();
+    }
+
+    private fun emptyArrayLast() {
+        printf("Called last() on empty Array\n");
+        panic();
+    }
+
+    private fun emptyArrayRemoveFirst() {
+        printf("Called removeFirst() on empty Array\n");
+        panic();
+    }
+
+    private fun emptyArrayRemoveLast() {
+        printf("Called removeLast() on empty Array\n");
+        panic();
+    }
+}
+
+struct ArrayRef<T>: Copy {
+    var data: T[?]*;
+    var size: int;
+
+    /// Initializes an ArrayRef referring to an empty array.
+    init() {
+        data = undefined;
+        size = 0;
+    }
+
+    /// Initializes an ArrayRef referring to the elements of the given Array.
+    init(array: Array<T>* ) {
+        data = array.data();
+        size = array.size();
+    }
+
+    init(data: T*, size: int) {
+        this.data = data;
+        this.size = size;
+    }
+
+    fun size(): int {
+        return size;
+    }
+
+    
+    fun [](index: int): T* {
+        return &data[index];
+    }
+
+    fun data(): T[?]* {
+        return data;
+    }
+
+
+    
+}
+
+struct ArrayIterator<Element>: Copy, Iterator<Element*> {
+    var current: Element[?]*;
+    var end: Element[?]*;
+
+    // TODO: Fix bug that prevents writing 'Element[]*' here.
+    init(array: ArrayRef<Element>) {
+        current = array.data();
+        end = &array.data()[array.size()];
+    }
+
+    fun hasValue(): bool {
+        return current !== end;
+    }
+
+    fun value(): Element* {
+        return current;
+    }
+
+    mut fun increment() {
+        current++;
+    }
+}
+
+struct MutableArrayIterator<Element>: Copy {
+    var current: mut Element[?]*;
+    var end: mut Element[?]*;
+
+    init(array: mut Array<Element>*) {
+        current = array.data();
+        end = &array.data()[array.size()];
+    }
+
+    fun hasValue(): bool {
+        return current !== end;
+    }
+
+    fun value(): mut Element* {
+        return current;
+    }
+
+    mut fun increment() {
+        current++;
+    }
+}
+

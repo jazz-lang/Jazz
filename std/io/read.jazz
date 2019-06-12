@@ -1,0 +1,5 @@
+interface Read {
+    fun readByte(): int;
+    fun readLine(): ArrayRef<uint8>;
+    fun eof(): bool;
+}

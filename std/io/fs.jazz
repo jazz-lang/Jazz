@@ -1,0 +1,113 @@
+struct FileStream: Write, Read {
+
+    var file: void*?;
+    var descriptor: bool;
+    init(filename: StringRef) {
+        file = fopen(String(filename).cString(), "a+");
+
+        if (file != null) {
+            rewind(file);
+        }
+        descriptor = false;
+    }
+
+    init(filename: StringRef, destroyContents: bool) {
+        if (destroyContents) {
+            file = fopen(String(filename).cString(), "w+");
+        } else {
+            init(filename);
+        }
+        this.descriptor = false;
+    }
+
+    init(filename: StringRef, readOnly: bool) {
+        file = fopen(String(filename).cString(), "r");
+        descriptor = false;
+    }
+    init(fileDescriptor: int, readOnly: bool) {
+        if (readOnly) {
+            file = fdopen(fileDescriptor, "r");
+        } else {
+            file = fdopen(fileDescriptor, "w");
+        }
+        this.descriptor = true;
+    }
+
+    deinit() {
+        if (file != null && !descriptor) {
+            fclose(file!);
+        }
+    }
+
+    mut fun close() {
+        if (file != null) {
+            fclose(file);
+            file = null;
+        }
+    }
+
+    /// Returns true if the file is open for reading or writing
+    fun isOpen(): bool {
+        return file != null;
+    }
+    
+    /// Returns an iterator that can be used to iterate over lines in the file
+    fun lines(): LineIterator<FileStream> {
+        return LineIterator(this);
+    }
+
+    /// Returns an iterator that can be used to iterate over each byte in the file
+    fun bytes(): ByteIterator<FileStream> {
+        return ByteIterator(this);
+    }
+
+    /// Reads one byte from the file
+    fun readByte(): int {
+        return fgetc(file!);
+    }
+
+    /// Reads one line from the file, separated by \n
+    fun readLine(): ArrayRef<uint8> {
+        var ret = Array<uint8>();
+        for (var c in bytes()) {
+            var char = cast<char>(c);
+            if (char == '\n' || char == '\0') {
+                break;
+            }
+            ret.push(c);
+        }
+        return ArrayRef(ret);
+    }
+
+    /// Returns true if we have reached the end of the file
+    fun eof(): bool {
+        var ret = fgetc(file!);
+        if (ret < 0) {
+            return true;
+        }
+        ungetc(ret, file!);
+        return false;
+    }
+
+    /// Writes the given string into the file. Returns true on success, false on failure
+    mut fun write(value: StringRef): bool {
+        for (var c in value) {
+            var ret = fputc(int(c), file!);
+            if (ret <= 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+    /// Writes the given string into the file. Returns true on success, false on failure
+    mut fun write(value: String): bool {
+        for (var c in value) {
+            var ret = fputc(int(c),file!);
+            if (ret <= 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+

@@ -1,17 +1,14 @@
-import "libc.jazz"
+interface Hash {
+    fun hash(): uint64;
+}
 
-alias HashFunc = (*u8) -> u32
+interface Hasher {
+    mut fun write_u8(val: uint8);
+    mut fun write_u16(val: uint16);
+    mut fun write_u32(val: uint32);
+    mut fun write_u64(val: uint64);
+    
+    mut fun write_bytes(val: Array<uint8>);
 
-pub struct HashTable {
-	size: usize,
-	mod: i32,
-	mask: u32,
-	nnodes: i32,
-	noccupied: i32,
-	have_big_keys: u32,
-	have_big_values: u32,
-	keys: *u8,
-	hashes: *u32,
-	values: *u8
-	
+    fun finish(): uint64;
 }

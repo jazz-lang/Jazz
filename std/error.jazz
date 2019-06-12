@@ -1,0 +1,44 @@
+fun panic() {
+    printStackTrace();
+    setAbortBehavior();
+    abort();
+}
+
+
+#if !Windows
+
+#if hasInclude("execinfo.h")
+
+extern fun backtrace(array: mut void mut**, size: int): int;
+extern fun backtrace_symbols(array: mut void**, size: int): mut char mut**?;
+
+fun printStackTrace() {
+    var callstack: mut void*[128] = undefined;
+
+    var frames = backtrace(&callstack[0], callstack.size());
+    var strings = backtrace_symbols(&callstack[0], frames);
+
+    if (strings == null) {
+        return;
+    }
+
+    for (var i in 0..frames) {
+        var s = (strings!);
+        memcpy(s,s,i);
+        printf("%s\n",*s);
+    }
+
+    free(cast<mut void*>(strings!));
+}
+
+#else
+
+fun printStackTrace() {
+}
+
+#endif
+
+fun setAbortBehavior() {
+}
+
+#endif

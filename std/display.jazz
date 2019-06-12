@@ -1,100 +1,38 @@
-import "libc.jazz"
-
-
-pub func print(c: char) void {
-	printf("%c",c);
-	return;
+interface Display {
+    fun format(stream: mut String*);
 }
 
-pub func print(c: *char) void {
-	printf("%s",c);
-	return;
+interface ToString {
+    fun toString();
 }
 
-
-
-pub func print(c: *char,size: i32) void {
-	printf("%.*s",size,c);
-	return;
+fun << <T: Display,OUT: Write>(stream: mut OUT*,other: T*): mut OUT* {
+    var string = String();
+    other.format(string);
+    var written = stream.write(StringRef(string));
+    return stream;
 }
 
-pub func print(i: i32) void {
-	printf("%i",i);
-	return;
+fun << <T: Display,OUT: Write>(stream: mut OUT*,other: T): mut OUT* {
+    var string = String();
+    other.format(string);
+    var written = stream.write(StringRef(string));
+    return stream;
 }
 
-pub func print(i: i64) void {
-	printf("%li",i);
-	return;
+fun print<T: Display>(value: T) {
+    var string = String();
+    string.format(value);
+    var stdout = getStdout();
+
+    stdout << string;
 }
 
-pub func print(i: i8) void {
-	printf("%i",i);
-	return;
-}
+fun println<T: Display>(value: T) {
+    var string = String();
+    string.format(value);
+    var stdout = getStdout();
 
-pub func print(i: i16) void {
-	printf("%i",i);
-	return;
-}
-
-pub func print(u: usize) void {
-	printf("%li",u);
-	return;
-}
-
-pub func print(u: u64) void {
-	printf("%lu",u);
-	return;
-}
-
-pub func print(u: u32) void {
-	printf("%u",u);
-	return;
-}
-
-pub func print(f: f64) void {
-	printf("%f",f);
-	return;
-}
-
-pub func print(f: f32) void {
-	printf("%f",f);
-	return;
-}
-
-pub func println(c: *char) void {
-	print(c);
-	print('\n');
-	return;
-}
-
-pub func println(c: *char,size: i32) void {
-	print(c,size);
-	print('\n');
-	return;
-}
-
-pub func println(i: i32) void {
-	print(i);
-	print('\n');
-	return;
-}
-
-pub func println(i: i64) void {
-	print(i);
-	print('\n');
-	return;
-}
-
-pub func println(f: f32) void {
-	print(f);
-	print('\n');
-	return;
-}
-
-pub func println(f: f64) void {
-	print(f);
-	print('\n');
-	return;
+    stdout << string;
+    stdout << "\n";
 }

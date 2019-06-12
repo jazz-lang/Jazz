@@ -1,0 +1,89 @@
+
+struct InputStream: Read {
+    var fs: FileStream;
+
+    init(filename: StringRef) {
+        fs = FileStream(filename,readOnly: true);
+    }
+
+    init(fileDescriptor: int) {
+        fs = FileStream(fileDescriptor, readOnly: true);
+    }
+
+    mut fun close() {
+        fs.close();
+    }
+
+    fun isOpen(): bool {
+        return fs.isOpen();
+    }
+
+    fun lines(): LineIterator<InputStream> {
+        return LineIterator(this);
+    }
+
+    fun bytes(): ByteIterator<InputStream> {
+        return ByteIterator(this);
+    }
+
+    fun readByte(): int {
+        return fs.readByte();
+    }
+
+    fun readLine(): ArrayRef<uint8> {
+        return fs.readLine();
+    }
+
+    fun eof(): bool {
+        return fs.eof();
+    }
+
+}
+
+struct OutputStream: Write {
+
+    var fs: FileStream;
+
+    /// Initiates a stream that can only write to files
+    init(filename: StringRef) {
+        init(filename, false);
+    }
+    init(filename: StringRef, destroyContents: bool) {
+        fs = FileStream(filename, destroyContents);
+    }
+
+    init(fileDescriptor: int) {
+        fs = FileStream(fileDescriptor, readOnly: false);
+    }
+
+    mut fun close() {
+        fs.close();
+    }
+
+    /// Returns true if the file is open for writing
+    fun isOpen(): bool {
+        return fs.isOpen();
+    }
+
+    /// Writes the given string into the file. Returns true on success, false on failure
+    mut fun write(value: StringRef): bool {
+        return fs.write(value);
+    }
+    /// Writes the given string into the file. Returns true on success, false on failure
+    mut fun write(value: String): bool {
+        return fs.write(value);
+    }
+}
+
+fun getStdin(): InputStream {
+    return InputStream(fileDescriptor: 0);
+}
+
+fun getStdout(): OutputStream {
+    return OutputStream(fileDescriptor: 1);
+}
+
+fun getStderr(): OutputStream {
+    return OutputStream(fileDescriptor: 2);
+}
+

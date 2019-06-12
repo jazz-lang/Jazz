@@ -1,0 +1,4 @@
+interface Write {
+    mut fun write(value: StringRef): bool;
+    mut fun write(value: String): bool;
+}
