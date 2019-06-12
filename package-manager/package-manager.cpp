@@ -15,7 +15,7 @@
 
 using namespace jazz;
 
-static std::string getGitPath() {
+static std::string getGitExecutablePath() {
     llvm::ErrorOr<std::string> gitPath = llvm::sys::findProgramByName("git");
 
     if (!gitPath) {
@@ -26,11 +26,11 @@ static std::string getGitPath() {
 }
 
 static void cloneGitRepository(const std::string& repositoryUrl, const std::string& path) {
-    auto gitPath = getGitPath();
-    llvm::StringRef args[] = { gitPath, "clone", repositoryUrl, path };
+    auto git = getGitExecutablePath();
+    llvm::StringRef args[] = { git, "clone", repositoryUrl, path };
 
     std::string error;
-    int status = llvm::sys::ExecuteAndWait(gitPath, args, llvm::None, {}, 0, 0, &error);
+    int status = llvm::sys::ExecuteAndWait(git, args, llvm::None, {}, 0, 0, &error);
 
     if (status != 0 || !error.empty()) {
         if (!error.empty()) error.insert(0, ": ");
@@ -39,13 +39,13 @@ static void cloneGitRepository(const std::string& repositoryUrl, const std::stri
 }
 
 static void checkoutGitRevision(const std::string& path, const std::string& revision) {
-    auto gitPath = getGitPath();
+    auto git = getGitExecutablePath();
     auto gitDir = "--git-dir=" + path + "/.git";
     auto workTree = "--work-tree=" + path;
-    llvm::StringRef args[] = { gitPath, gitDir, workTree, "checkout", revision, "--quiet" };
+    llvm::StringRef args[] = { git, gitDir, workTree, "checkout", revision, "--quiet" };
 
     std::string error;
-    int status = llvm::sys::ExecuteAndWait(gitPath, args, llvm::None, {}, 0, 0, &error);
+    int status = llvm::sys::ExecuteAndWait(git, args, llvm::None, {}, 0, 0, &error);
 
     if (status != 0 || !error.empty()) {
         if (!error.empty()) error.insert(0, ": ");
