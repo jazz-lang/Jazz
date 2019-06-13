@@ -1,0 +1,17 @@
+fun factorial(x: int): int {
+    if x < 2 {
+        return 1;    
+    } else {
+        return factorial(x - 1) * x;    
+    }
+}
+
+fun main() {
+    var x = comptime factorial(5);
+    comptime {
+        assert(factorial(5) == 120);    
+    }
+
+    printf("%i\n",x);
+    
+}

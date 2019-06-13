@@ -1,0 +1,5 @@
+fun main() {
+    var stdout = getStdout();
+
+    stdout << "Hello,world!\r\n";
+}

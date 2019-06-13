@@ -3,35 +3,41 @@
 #include <string>
 #include <vector>
 #ifndef _WIN32
+#include <cstring>
 #include <execinfo.h>
 #include <unistd.h>
-#include <cstring>
 #endif
 #include <llvm/ADT/ArrayRef.h>
-#include <llvm/ADT/SmallVector.h>
-#include <llvm/ADT/StringRef.h>
-#include <llvm/ADT/StringSet.h>
-#include <llvm/Analysis/TargetTransformInfo.h>
-#include <llvm/Bitcode/BitcodeWriter.h>
-#include <llvm/IR/LegacyPassManager.h>
-#include <llvm/IR/Module.h>
-#include <llvm/InitializePasses.h>
-#include <llvm/LTO/Config.h>
-#include <llvm/LTO/LTO.h>
-#include <llvm/Linker/Linker.h>
-#include <llvm/Support/CodeGen.h>
-#include <llvm/Support/TargetParser.h>
-#include <llvm/Transforms/InstCombine/InstCombine.h>
 #include <cstdio>
-#include <filesystem>
 #include <iostream>
 #include <ostream>
 #include <string>
 #include <system_error>
+#include <filesystem>
 #include <vector>
-//#include <llvm/Transforms/Vectorize/LoadStoreVectorizer.h> This file doesn't
-// exists in LLVM from Guix packages
+#include <llvm/Analysis/TargetTransformInfo.h>
+#include <llvm/Analysis/TargetTransformInfo.h>
+#include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/StringRef.h>
+#include <llvm/ADT/StringSet.h>
+#include <llvm/Bitcode/BitcodeWriter.h>
+#include <llvm/IR/LegacyPassManager.h>
+#include <llvm/IR/Module.h>
+#include <llvm/Linker/Linker.h>
+#include <llvm/LTO/LTO.h>
+#include <llvm/LTO/Config.h>
+#include <llvm/Support/TargetParser.h>
+#include <llvm/InitializePasses.h>
+#include <llvm/Support/CodeGen.h>
+#include <llvm/Transforms/InstCombine/InstCombine.h>
+//#include <llvm/Transforms/Vectorize/LoadStoreVectorizer.h> This file doesn't exists in LLVM from Guix packages
+#include <llvm/Transforms/IPO/PassManagerBuilder.h>
+#include <llvm/Transforms/IPO/AlwaysInliner.h>
+#include <llvm/Transforms/IPO.h>
+#include <llvm/Transforms/Scalar.h>
+#include <llvm/Transforms/Utils.h>
+#include <llvm/Transforms/Vectorize/LoopVectorize.h>
+#include <llvm/Transforms/IPO/AlwaysInliner.h>
 #include <llvm/Support/ErrorOr.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Path.h>
@@ -40,75 +46,64 @@
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Target/TargetMachine.h>
-#include <llvm/Transforms/IPO.h>
-#include <llvm/Transforms/IPO/AlwaysInliner.h>
-#include <llvm/Transforms/IPO/PassManagerBuilder.h>
-#include <llvm/Transforms/Scalar.h>
-#include <llvm/Transforms/Utils.h>
-#include <llvm/Transforms/Vectorize/LoopVectorize.h>
+#include <llvm/ADT/StringRef.h>
+#include <llvm/Support/FileSystem.h>
+#include <llvm/Support/raw_ostream.h>
 #include "ast/dump-ast.h"
 #include "ast/module.h"
-#include "eval/eval.h"
-#include "jit/jit_backend.h"
 #include "llvm/llvm.h"
 #include "package-manager/manifest.h"
 #include "package-manager/package-manager.h"
 #include "parse.h"
 #include "semck/typecheck.h"
 #include "utils.h"
+#include "eval/eval.h"
+#include "jit/jit_backend.h"
 
 using namespace jazz;
 
 namespace llvm {
-template <typename T>
+template<typename T>
 class ArrayRef;
 class StringRef;
-}  // namespace llvm
+} // namespace llvm
 
 class Manifest;
 
 bool checkFlag(llvm::StringRef flag, std::vector<llvm::StringRef>& args);
-int buildProject(llvm::StringRef packageRoot, const char* argv0,
-                 std::vector<llvm::StringRef>& args, bool run);
-int buildExe(llvm::ArrayRef<std::string> files, const jazz::Manifest* manifest,
-             const char* argv0, std::vector<llvm::StringRef>& args,
-             llvm::StringRef outputDirectory, llvm::StringRef outputFileName,
-             bool run);
+int buildProject(llvm::StringRef packageRoot, const char* argv0, std::vector<llvm::StringRef>& args, bool run);
+int buildExe(llvm::ArrayRef<std::string> files, const jazz::Manifest* manifest, const char* argv0,
+                    std::vector<llvm::StringRef>& args, llvm::StringRef outputDirectory, llvm::StringRef outputFileName, bool run);
+
 
 static void printHelp() {
-    llvm::outs()
-        << "OVERVIEW: Jazz compiler\n"
-           "\n"
-           "USAGE: Jazz [options] <inputs>\n"
-           "\n"
-           "OPTIONS:\n"
-           "  new                   - Create new empty project\n"
-           "  build                 - Compile some file or project\n"
-           "  run                   - Run file or project\n"
-           "  -c                    - Output .o file without linking\n"
-           "  -emit=<>              - Emit <assembly, llvm ir,llvm bitcode>\n"
-           "  -O<level>             - Set optimization level,possible values: "
-           "fast,release,debug,Less\n"
-           "  -F<directory>         - Add a search path for C framework header "
-           "import\n"
-           "  -fPIC                 - Emit position-independent code\n"
-           "  -fLTO                 - Enable link-time optimizations\n"
-           "  -shared               - Create shared library\n"
-           "  -static               - Create statically linked binary\n"
-           "  -musl                 - Use musl libc (no backtraces and may not "
-           "work on windows)\n"
-           "  -help                 - Display this help\n"
-           "  -I<directory>         - Add a search path for modules and C "
-           "headers import\n"
-           "  -o<filename>          - Set output file name\n"
-           "  -parse                - Only parse file/project\n"
-           "  -v                    - Verbose output\n"
-           "  -no-std               - Compile without standart library\n"
-           "  -dump-ast             - Print the AST to stdout\n"
-           "  -dump-ir              - Print LLVM IR to stdout\n"
-           "  -typecheck            - Only parse and typecheck given "
-           "code/project\n"
-           "  -Werror               - Make all warning errors\n";
+    llvm::outs() << "OVERVIEW: Jazz compiler\n"
+                    "\n"
+                    "USAGE: Jazz [options] <inputs>\n"
+                    "\n"
+                    "OPTIONS:\n"
+                    "  new                   - Create new empty project\n"
+                    "  build                 - Compile some file or project\n"
+                    "  run                   - Run file or project\n"
+                    "  -c                    - Output .o file without linking\n"
+                    "  -emit=<>              - Emit <assembly, llvm ir,llvm bitcode>\n"
+                    "  -O<level>             - Set optimization level,possible values: fast,release,debug,Less\n"
+                    "  -F<directory>         - Add a search path for C framework header import\n"
+                    "  -fPIC                 - Emit position-independent code\n"
+                    "  -fLTO                 - Enable link-time optimizations\n"
+                    "  -shared               - Create shared library\n"
+                    "  -static               - Create statically linked binary\n"
+                    "  -musl                 - Use musl libc (no backtraces and may not work on windows)\n"
+                    "  -help                 - Display this help\n"
+                    "  -I<directory>         - Add a search path for modules and C headers import\n"
+                    "  -o<filename>          - Set output file name\n"
+                    "  -parse                - Only parse file/project\n"
+                    "  -v                    - Verbose output\n"
+                    "  -no-std               - Compile without standart library\n"
+                    "  -dump-ast             - Print the AST to stdout\n"
+                    "  -dump-ir              - Print LLVM IR to stdout\n"
+                    "  -typecheck            - Only parse and typecheck given code/project\n"
+                    "  -Werror               - Make all warning errors\n";
 }
 
 extern "C" void signalHandler(int signal) {
@@ -136,6 +131,7 @@ int main(int argc, const char** argv) {
     --argc;
     ++argv;
 
+
     llvm::StringRef command = argv[0];
     bool build = command == "build";
     bool run = command == "run";
@@ -145,6 +141,8 @@ int main(int argc, const char** argv) {
         --argc;
         ++argv;
     }
+
+
 
     std::vector<std::string> inputs;
     std::vector<llvm::StringRef> args;
@@ -170,23 +168,20 @@ int main(int argc, const char** argv) {
                 return 0;
             }
 
-            error =
-                llvm::sys::fs::create_directory(std::string(argv[0]) + "/src");
+            error = llvm::sys::fs::create_directory(std::string(argv[0]) + "/src");
             if (error) {
                 std::cout << error;
                 return 0;
             }
 
+            
             std::stringstream ss = std::stringstream();
             ss << "var name = \"" << argv[0] << "\"" << std::endl;
             ss << "var version = \"0.1.0\"" << std::endl;
             ss << std::endl;
-            ss << "//uncomment next declaration to declare dependencies "
-               << std::endl
-               << "// var dependencies = [ /* your dependencies here */]; "
-               << std::endl;
+            ss << "//uncomment next declaration to declare dependencies "<<  std::endl << "// var dependencies = [ /* your dependencies here */]; " << std::endl;
             std::ofstream path_build(std::string(argv[0]) + "/build.jazz");
-            path_build.write(ss.str().c_str(), ss.str().size());
+            path_build.write(ss.str().c_str(),ss.str().size());
             path_build.close();
             ss = std::stringstream();
             ss << "fun main() {" << std::endl;
@@ -195,7 +190,7 @@ int main(int argc, const char** argv) {
             ss << "}" << std::endl;
 
             std::ofstream path_main(std::string(argv[0]) + "/src/main.jazz");
-            path_main.write(ss.str().c_str(), ss.str().size());
+            path_main.write(ss.str().c_str(),ss.str().size());
             path_main.close();
             return 1;
         }
@@ -215,6 +210,7 @@ int main(int argc, const char** argv) {
     }
 }
 
+
 bool checkFlag(llvm::StringRef flag, std::vector<llvm::StringRef>& args) {
     const auto it = std::find(args.begin(), args.end(), flag);
     const bool contains = it != args.end();
@@ -222,8 +218,8 @@ bool checkFlag(llvm::StringRef flag, std::vector<llvm::StringRef>& args) {
     return contains;
 }
 
-std::vector<std::string> getOptionValues(llvm::StringRef flagPrefix,
-                                         std::vector<llvm::StringRef>& args) {
+
+std::vector<std::string> getOptionValues(llvm::StringRef flagPrefix, std::vector<llvm::StringRef>& args) {
     std::vector<std::string> values;
     for (auto arg = args.begin(); arg != args.end();) {
         if (arg->startswith(flagPrefix)) {
@@ -236,8 +232,7 @@ std::vector<std::string> getOptionValues(llvm::StringRef flagPrefix,
     return values;
 }
 
-std::string getOptionValue(llvm::StringRef flagPrefix,
-                           std::vector<llvm::StringRef>& args) {
+std::string getOptionValue(llvm::StringRef flagPrefix, std::vector<llvm::StringRef>& args) {
     auto values = getOptionValues(flagPrefix, args);
     if (values.empty()) {
         return "";
@@ -246,12 +241,10 @@ std::string getOptionValue(llvm::StringRef flagPrefix,
     }
 }
 
-void addHeadersSearchFromEnv(std::vector<std::string>& importPaths,
-                             const char* name) {
+void addHeadersSearchFromEnv(std::vector<std::string>& importPaths, const char* name) {
     if (const char* pathList = std::getenv(name)) {
         llvm::SmallVector<llvm::StringRef, 16> paths;
-        llvm::StringRef(pathList).split(paths, llvm::sys::EnvPathSeparator, -1,
-                                        false);
+        llvm::StringRef(pathList).split(paths, llvm::sys::EnvPathSeparator, -1, false);
 
         for (llvm::StringRef path : paths) {
             importPaths.push_back(path);
@@ -266,8 +259,7 @@ void addHeadersSearchFromCC(std::vector<std::string>& importPaths) {
     if (llvm::StringRef(compilerPath).endswith_lower("cl.exe")) {
         addHeadersSearchFromEnv(importPaths, "INCLUDE");
     } else {
-        std::string command =
-            "echo | " + compilerPath + " -E -v - 2>&1 | grep '^ /'";
+        std::string command = "echo | " + compilerPath + " -E -v - 2>&1 | grep '^ /'";
         std::shared_ptr<FILE> process(popen(command.c_str(), "r"), pclose);
 
         while (!std::feof(process.get())) {
@@ -279,7 +271,7 @@ void addHeadersSearchFromCC(std::vector<std::string>& importPaths) {
                 if (ch == EOF || ch == '\n') {
                     break;
                 } else if (!path.empty() || ch != ' ') {
-                    path += (char)ch;
+                    path += (char) ch;
                 }
             }
 
@@ -290,8 +282,7 @@ void addHeadersSearchFromCC(std::vector<std::string>& importPaths) {
     }
 }
 
-void addBuiltinImportPaths(std::vector<std::string>& importPaths,
-                           llvm::ArrayRef<std::string> inputFiles) {
+void addBuiltinImportPaths(std::vector<std::string>& importPaths, llvm::ArrayRef<std::string> inputFiles) {
     llvm::StringSet<> relativeImportSearchPaths;
 
     for (llvm::StringRef filePath : inputFiles) {
@@ -314,19 +305,16 @@ void addBuiltinImportPaths(std::vector<std::string>& importPaths,
     addHeadersSearchFromEnv(importPaths, "CPATH");
     addHeadersSearchFromEnv(importPaths, "C_INCLUDE_PATH");
     addHeadersSearchFromCC(importPaths);
+
+
 }
 using namespace llvm::CodeGenOpt;
 
-static void addDiscriminatorsPass(const llvm::PassManagerBuilder& Builder,
-                                  llvm::legacy::PassManagerBase& PM) {
+static void addDiscriminatorsPass(const llvm::PassManagerBuilder& Builder,llvm::legacy::PassManagerBase &PM) {
     PM.add(llvm::createAddDiscriminatorsPass());
 }
 
-void emitCode(llvm::Module& module,
-              llvm::ArrayRef<std::unique_ptr<llvm::Module>> modules,
-              llvm::StringRef fileName,
-              llvm::TargetMachine::CodeGenFileType fileType,
-              llvm::Reloc::Model relocModel, Level opt_level, bool isDebug) {
+void emitCode(llvm::Module& module, llvm::StringRef fileName, llvm::TargetMachine::CodeGenFileType fileType, llvm::Reloc::Model relocModel,Level opt_level,bool isDebug) {
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
     llvm::InitializeNativeTargetAsmParser();
@@ -336,14 +324,12 @@ void emitCode(llvm::Module& module,
     module.setTargetTriple(targetTriple);
 
     std::string errorMessage;
-    auto* target =
-        llvm::TargetRegistry::lookupTarget(targetTriple, errorMessage);
+    auto* target = llvm::TargetRegistry::lookupTarget(targetTriple, errorMessage);
     if (!target) errorExit(errorMessage);
 
     llvm::TargetOptions options;
 
-    auto* targetMachine = target->createTargetMachine(targetTriple, "generic",
-                                                      "", options, relocModel);
+    auto* targetMachine = target->createTargetMachine(targetTriple, "generic", "", options, relocModel);
     targetMachine->setOptLevel(opt_level);
 
     module.setDataLayout(targetMachine->createDataLayout());
@@ -368,39 +354,29 @@ void emitCode(llvm::Module& module,
         PMBuilder.Inliner = llvm::createAlwaysInlinerLegacyPass(false);
     } else {
         targetMachine->adjustPassManager(PMBuilder);
-        PMBuilder.addExtension(llvm::PassManagerBuilder::EP_EarlyAsPossible,
-                               addDiscriminatorsPass);
-        PMBuilder.Inliner = llvm::createFunctionInliningPass(
-            PMBuilder.OptLevel, PMBuilder.SizeLevel, false);
+        PMBuilder.addExtension(llvm::PassManagerBuilder::EP_EarlyAsPossible,addDiscriminatorsPass);
+        PMBuilder.Inliner = llvm::createFunctionInliningPass(PMBuilder.OptLevel,PMBuilder.SizeLevel,false);
     }
 
-    llvm::legacy::FunctionPassManager FPM =
-        llvm::legacy::FunctionPassManager(&module);
+    llvm::legacy::FunctionPassManager FPM = llvm::legacy::FunctionPassManager(&module);
     auto tliwp = new llvm::TargetLibraryInfoWrapperPass(tlii);
 
     FPM.add(tliwp);
-    FPM.add(llvm::createTargetTransformInfoWrapperPass(
-        targetMachine->getTargetIRAnalysis()));
+    FPM.add(llvm::createTargetTransformInfoWrapperPass(targetMachine->getTargetIRAnalysis()));
 
     PMBuilder.populateFunctionPassManager(FPM);
     llvm::legacy::PassManager passManager;
-    passManager.add(llvm::createTargetTransformInfoWrapperPass(
-        targetMachine->getTargetIRAnalysis()));
+    passManager.add(llvm::createTargetTransformInfoWrapperPass(targetMachine->getTargetIRAnalysis()));
     PMBuilder.populateModulePassManager(passManager);
 
-    if (targetMachine->addPassesToEmitFile(passManager, file, nullptr,
-                                           fileType)) {
+    if (targetMachine->addPassesToEmitFile(passManager, file, nullptr, fileType)) {
         errorExit("TargetMachine can't emit a file of this type");
     }
 
     FPM.doInitialization();
-    for (auto& module_ : modules) {
-        for (llvm::Function& F : *module_) {
-            if (!(F.isDeclaration())) FPM.run(F);
-        }
-    }
     for (llvm::Function& F : module) {
-        if (!F.isDeclaration()) FPM.run(F);
+        if (!F.isDeclaration()) 
+            FPM.run(F);
     }
     FPM.doFinalization();
     passManager.run(module);
@@ -415,16 +391,14 @@ void emitLLVMBitcode(const llvm::Module& module, llvm::StringRef fileName) {
     file.flush();
 }
 
-int buildProject(llvm::StringRef packageRoot, const char* argv0,
-                 std::vector<llvm::StringRef>& args, bool run) {
-    auto manifestPath =
-        (packageRoot + "/" + jazz::Manifest::manifestFileName).str();
+
+int buildProject(llvm::StringRef packageRoot, const char* argv0, std::vector<llvm::StringRef>& args, bool run) {
+    auto manifestPath = (packageRoot + "/" + jazz::Manifest::manifestFileName).str();
     jazz::Manifest manifest(packageRoot);
     fetchDependencies(packageRoot);
 
-    printColored("\tCompiling ", llvm::raw_ostream::GREEN);
-    std::cout << "" << manifest.getPackageName() << " (" << packageRoot << ")"
-              << std::endl;
+    printColored("\tCompiling ",llvm::raw_ostream::GREEN);
+    std::cout << "" << manifest.getPackageName() << " (" << packageRoot << ")" << std::endl;
     for (auto& targetRootDir : manifest.getTargetRootDirectories()) {
         llvm::StringRef outputFileName;
         if (manifest.isMultiTarget() || manifest.getPackageName().empty()) {
@@ -432,18 +406,16 @@ int buildProject(llvm::StringRef packageRoot, const char* argv0,
         } else {
             outputFileName = manifest.getPackageName();
         }
-        int exitStatus = buildExe(
-            getSourceFiles(targetRootDir, manifestPath), &manifest, argv0, args,
-            manifest.getOutputDirectory(), outputFileName, run);
+        int exitStatus = buildExe(getSourceFiles(targetRootDir, manifestPath), &manifest, argv0, args, manifest.getOutputDirectory(),
+                                         outputFileName, run);
         if (exitStatus != 0) return exitStatus;
     }
 
     return 0;
 }
 
-int invokeLinker(std::vector<std::string> args,
-                 std::vector<std::string> linkLibraries, bool static_link,
-                 bool musl) {
+int invokeLinker(std::vector<std::string> args,std::vector<std::string> linkLibraries,bool static_link,bool musl) {
+
     std::string command;
     if (musl) {
         command = "musl-clang ";
@@ -458,6 +430,8 @@ int invokeLinker(std::vector<std::string> args,
     if (static_link) {
         command = (command + "-static ");
     }
+
+
 
     args.erase(args.begin());
 
@@ -482,24 +456,25 @@ int invokeLinker(std::vector<std::string> args,
     return system(command.c_str());
 }
 
-void diagfun(const llvm::DiagnosticInfo& info) {}
+void diagfun(const llvm::DiagnosticInfo& info) {
 
-int buildExe(llvm::ArrayRef<std::string> files, const jazz::Manifest* manifest,
-             const char* argv0, std::vector<llvm::StringRef>& args,
-             llvm::StringRef outputDirectory, llvm::StringRef outputFileName,
-             bool run) {
+}
+
+int buildExe(llvm::ArrayRef<std::string> files, const jazz::Manifest* manifest, const char* argv0,
+                           std::vector<llvm::StringRef>& args, llvm::StringRef outputDirectory, llvm::StringRef outputFileName, bool run) {
     bool parse = checkFlag("-parse", args);
     bool typecheck = checkFlag("-typecheck", args);
     bool compileOnly = checkFlag("-c", args);
     bool printAST = checkFlag("-dump-ast", args);
-
+    
+    
     bool emitPositionIndependentCode = checkFlag("-fPIC", args);
-    bool no_std = checkFlag("-no-std", args);
-    bool static_link = checkFlag("-static", args);
-
-    bool shared = checkFlag("-shared", args);
-    bool use_musl = checkFlag("-musl", args);
-    verbose = checkFlag("-v", args);
+    bool no_std = checkFlag("-no-std",args);
+    bool static_link = checkFlag("-static",args);
+    
+    bool shared = checkFlag("-shared",args);
+    bool use_musl = checkFlag("-musl",args);
+    verbose = checkFlag("-v",args);
 #ifdef __linux__
     emitPositionIndependentCode = true;
 #endif
@@ -507,11 +482,11 @@ int buildExe(llvm::ArrayRef<std::string> files, const jazz::Manifest* manifest,
     if (checkFlag("-Werror", args)) warningMode = WarningMode::TreatAsErrors;
     auto disabledWarnings = getOptionValues("-Wno-", args);
     auto defines = getOptionValues("-D", args);
-    std::string emit = getOptionValue("-emit=", args);
+    std::string emit = getOptionValue("-emit=",args);
     bool emitAssembly = emit == "assembly" || checkFlag("-S", args);
     bool emitLLVMBitcode = emit == "llvm-bitcode";
     bool dumpIR = checkFlag("-dump-ir", args) || emit == "llvm";
-    auto opt_level = getOptionValue("-O", args);
+    auto opt_level = getOptionValue("-O",args);
 #ifdef _WIN32
     defines.push_back("Windows");
 #endif
@@ -521,9 +496,10 @@ int buildExe(llvm::ArrayRef<std::string> files, const jazz::Manifest* manifest,
     auto importPaths = getOptionValues("-I", args);
     auto frameworkSearchPaths = getOptionValues("-F", args);
     auto specifiedOutputFileName = getOptionValue("-o", args);
-    auto linkLibraries = getOptionValues("-l", args);
+    auto linkLibraries = getOptionValues("-l",args);
 
     Level level = Less;
+
 
     bool isDebug = opt_level == "debug";
     if (opt_level == "release") {
@@ -556,6 +532,7 @@ int buildExe(llvm::ArrayRef<std::string> files, const jazz::Manifest* manifest,
         errorExit("no input files");
     }
 
+
     addBuiltinImportPaths(importPaths, files);
     Module module("main", std::move(defines));
     for (llvm::StringRef filePath : files) {
@@ -571,13 +548,11 @@ int buildExe(llvm::ArrayRef<std::string> files, const jazz::Manifest* manifest,
 
     if (parse) return 0;
 
-    Typechecker typechecker(std::move(disabledWarnings), no_std);
+    Typechecker typechecker(std::move(disabledWarnings),no_std);
     for (auto& importedModule : module.getImportedModules()) {
-        typechecker.typecheckModule(*importedModule, nullptr, importPaths,
-                                    frameworkSearchPaths);
+        typechecker.typecheckModule(*importedModule, nullptr, importPaths, frameworkSearchPaths);
     }
-    typechecker.typecheckModule(module, manifest, importPaths,
-                                frameworkSearchPaths);
+    typechecker.typecheckModule(module, manifest, importPaths, frameworkSearchPaths);
 
     bool treatAsLibrary = !module.getSymbolTable().contains("main") && !run;
     if (treatAsLibrary) {
@@ -588,9 +563,12 @@ int buildExe(llvm::ArrayRef<std::string> files, const jazz::Manifest* manifest,
 
     Codegen irGenerator;
 
-    for (auto* module_ : Module::getAllImportedModules()) {
-        irGenerator.compile(*module_);
+    for (auto* module : Module::getAllImportedModules()) {
+        irGenerator.compile(*module);
     }
+
+
+
 
     auto& mainModule = irGenerator.compile(module);
 
@@ -603,20 +581,29 @@ int buildExe(llvm::ArrayRef<std::string> files, const jazz::Manifest* manifest,
     llvm::Module linkedModule("", irGenerator.getLLVMContext());
     llvm::Linker linker(linkedModule);
 
-    if (verbose) std::cout << "Started linking procedure" << std::endl;
+    llvm::StringSet linked;
+    if (verbose)
+        std::cout << "Started linking procedure" << std::endl;
 
     for (auto& module : irGenerator.getGeneratedModules()) {
         if (verbose)
-            std::cout << "Linking '" << module->getName() << "' module"
-                      << std::endl;
+            std::cout << "Linking '" << module->getName() << "' module" << std::endl;
+        auto pos = linked.find(module->getName());
 
-        bool error = linker.linkInModule(std::move(module));
+        if (pos == linked.end()) {
+            linked.insert(module->getName());
+            bool error = linker.linkInModule(std::move(module));
 
-        if (error) {
-            printf("FAIL\n");
-            errorExit("LLVM module linking failed");
+            if (error)
+            {
+                printf("FAIL\n");
+                errorExit("LLVM module linking failed");
+            }
+
         }
     }
+
+
     if (emitLLVMBitcode) {
         ::emitLLVMBitcode(linkedModule, "output.bc");
         return 0;
@@ -627,17 +614,13 @@ int buildExe(llvm::ArrayRef<std::string> files, const jazz::Manifest* manifest,
 
     llvm::SmallString<128> temporaryOutputFilePath;
     auto* outputFileExtension = emitAssembly ? "s" : msvc ? "obj" : "o";
-    if (auto error = llvm::sys::fs::createTemporaryFile(
-            "jazz", outputFileExtension, temporaryOutputFilePath)) {
+    if (auto error = llvm::sys::fs::createTemporaryFile("jazz", outputFileExtension, temporaryOutputFilePath)) {
         errorExit(error.message());
     }
 
-    auto fileType = emitAssembly ? llvm::TargetMachine::CGFT_AssemblyFile
-                                 : llvm::TargetMachine::CGFT_ObjectFile;
-    auto relocModel = emitPositionIndependentCode ? llvm::Reloc::Model::PIC_
-                                                  : llvm::Reloc::Model::Static;
-    emitCode(linkedModule, irGenerator.getGeneratedModules(),
-             temporaryOutputFilePath, fileType, relocModel, level, isDebug);
+    auto fileType = emitAssembly ? llvm::TargetMachine::CGFT_AssemblyFile : llvm::TargetMachine::CGFT_ObjectFile;
+    auto relocModel = emitPositionIndependentCode ? llvm::Reloc::Model::PIC_ : llvm::Reloc::Model::Static;
+    emitCode(linkedModule, temporaryOutputFilePath, fileType, relocModel,level,isDebug);
 
     if (!outputDirectory.empty()) {
         auto error = llvm::sys::fs::create_directories(outputDirectory);
@@ -646,21 +629,17 @@ int buildExe(llvm::ArrayRef<std::string> files, const jazz::Manifest* manifest,
 
     if (compileOnly || emitAssembly) {
         llvm::SmallString<128> outputFilePath = outputDirectory;
-        llvm::sys::path::append(outputFilePath,
-                                llvm::Twine("output.") + outputFileExtension);
+        llvm::sys::path::append(outputFilePath, llvm::Twine("output.") + outputFileExtension);
         auto command = std::string("mv ");
-        command =
-            (command + temporaryOutputFilePath + " " + outputFilePath).str();
+        command = (command + temporaryOutputFilePath + " " + outputFilePath).str();
         system(command.c_str());
         return 0;
     }
 
     llvm::SmallString<128> temporaryExecutablePath;
-    const char* executableNamePattern =
-        msvc ? "jazz-%%%%%%%%.exe" : "jazz-%%%%%%%%.out";
+    const char* executableNamePattern = msvc ? "jazz-%%%%%%%%.exe" : "jazz-%%%%%%%%.out";
 
-    if (auto error = llvm::sys::fs::createUniqueFile(executableNamePattern,
-                                                     temporaryExecutablePath)) {
+    if (auto error = llvm::sys::fs::createUniqueFile(executableNamePattern, temporaryExecutablePath)) {
         errorExit(error.message());
     }
 
@@ -669,8 +648,7 @@ int buildExe(llvm::ArrayRef<std::string> files, const jazz::Manifest* manifest,
         temporaryOutputFilePath.c_str(),
     };
 
-    std::string outputPathFlag =
-        ((msvc ? "-Fe" : "-o") + temporaryExecutablePath).str();
+    std::string outputPathFlag = ((msvc ? "-Fe" : "-o") + temporaryExecutablePath).str();
     ccArgs.push_back(outputPathFlag.c_str());
     ccArgs.push_back("-lc");
     ccArgs.push_back("-lpthread");
@@ -689,33 +667,29 @@ int buildExe(llvm::ArrayRef<std::string> files, const jazz::Manifest* manifest,
         ccArgs.push_back("msvcrt.lib");
     }
 
+
     llvm::StringRef out = "c-compiler-stdout.txt";
     llvm::StringRef err = "c-compiler-stderr.txt";
 
-    llvm::Optional<llvm::StringRef> redirects[3] = {llvm::None, out, err};
+    llvm::Optional<llvm::StringRef> redirects[3] = { llvm::None, out, err };
 
     std::vector<llvm::StringRef> ccArgStringRefs(ccArgs.begin(), ccArgs.end());
 
-    int ccExitStatus =
-        msvc ? llvm::sys::ExecuteAndWait(ccArgs[0], ccArgStringRefs, llvm::None,
-                                         redirects)
-             : invokeLinker(ccArgs, linkLibraries, static_link, use_musl);
+    int ccExitStatus = msvc ? llvm::sys::ExecuteAndWait(ccArgs[0], ccArgStringRefs, llvm::None, redirects) : invokeLinker(ccArgs,linkLibraries,static_link,use_musl);
 
     llvm::sys::fs::remove(temporaryOutputFilePath);
     uint64_t fileSize;
-    if (!llvm::sys::fs::file_size(out, fileSize) && fileSize == 0)
-        llvm::sys::fs::remove(out);
-    if (!llvm::sys::fs::file_size(err, fileSize) && fileSize == 0)
-        llvm::sys::fs::remove(err);
+    if (!llvm::sys::fs::file_size(out, fileSize) && fileSize == 0) llvm::sys::fs::remove(out);
+    if (!llvm::sys::fs::file_size(err, fileSize) && fileSize == 0) llvm::sys::fs::remove(err);
     if (ccExitStatus != 0) return ccExitStatus;
 
     if (run) {
+
         std::string error;
-        llvm::StringRef executableArgs[] = {temporaryExecutablePath};
-        printColored("\tRunning ", llvm::raw_ostream::GREEN);
+        llvm::StringRef executableArgs[] = { temporaryExecutablePath };
+        printColored("\tRunning ",llvm::raw_ostream::GREEN);
         std::cout << "'" << executableArgs[0] << "'" << std::endl;
-        int executableExitStatus = llvm::sys::ExecuteAndWait(
-            executableArgs[0], executableArgs, llvm::None, {}, 0, 0, &error);
+        int executableExitStatus = llvm::sys::ExecuteAndWait(executableArgs[0], executableArgs, llvm::None, {}, 0, 0, &error);
         llvm::sys::fs::remove(temporaryExecutablePath);
 
         if (msvc) {
@@ -742,17 +716,13 @@ int buildExe(llvm::ArrayRef<std::string> files, const jazz::Manifest* manifest,
         outputFileName = "a";
         auto command = std::string("mv  ");
         command = (command + temporaryExecutablePath).str();
-        command = (command + " " + outputPathPrefix + outputFileName +
-                   (msvc ? ".exe" : ".out"))
-                      .str();
+        command = (command + " " + outputPathPrefix + outputFileName + (msvc ? ".exe" : ".out")).str();
 
         std::system(command.c_str());
     } else {
         auto command = std::string("mv  ");
         command = (command + temporaryExecutablePath).str();
-        command = (command + " " + outputPathPrefix + outputFileName +
-                   (msvc ? ".exe" : ""))
-                      .str();
+        command = (command + " " + outputPathPrefix + outputFileName + (msvc ? ".exe" : "")).str();
         std::system(command.c_str());
     }
     if (msvc) {
