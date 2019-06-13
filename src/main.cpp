@@ -174,7 +174,8 @@ int main(int argc, const char** argv) {
                 return 0;
             }
 
-            std::stringstream ss;
+            
+            std::stringstream ss = std::stringstream();
             ss << "var name = \"" << argv[0] << "\"" << std::endl;
             ss << "var version = \"0.1.0\"" << std::endl;
             ss << std::endl;

@@ -170,6 +170,36 @@ Value* jazz::Codegen::evalLvalueExpr(const Expr& expr) {
 
             return &(*value.tuple_value)[fieldName];
         }
+
+        case ExprKind::SubscriptExpr: {
+            auto& subscriptExpr = llvm::cast<SubscriptExpr>(expr);
+
+            if (subscriptExpr.getBaseExpr()->getType().isArrayType()) {
+                auto value = evalExpr(*subscriptExpr.getBaseExpr());
+
+                auto idx = evalExpr(*subscriptExpr.getIndexExpr());
+
+                if (idx.i32 >= value.array->size()) {
+                    error(expr.getLocation(), "Array index ", idx.i32,
+                          " out of bouds");
+                } else {
+                    return &(*value.array)[idx.i32];
+                }
+            }
+        }
+
+        /*case ExprKind::ArrayLiteralExpr: {
+            auto& arrayExpr = llvm::cast<ArrayLiteralExpr>(expr);
+            val->array = new std::vector<Value>();
+            for (auto& element : arrayExpr.getElements()) {
+                auto value = evalExpr(*element);
+                val->array->push_back(value);
+            }
+
+            val->type = arrayExpr.getType();
+            return val;
+            break;
+        }*/
         case ExprKind::UnaryExpr: {
             auto& unaryExpr = llvm::cast<UnaryExpr>(expr);
             auto value = evalExpr(unaryExpr.getOperand());
@@ -252,6 +282,38 @@ Value jazz::Codegen::evalExpr(const Expr& expr) {
             }
             val.type = expr.getType();
             break;
+        }
+
+        case ExprKind::SubscriptExpr: {
+            auto& subscriptExpr = llvm::cast<SubscriptExpr>(expr);
+
+            if (subscriptExpr.getBaseExpr()->getType().isArrayType()) {
+                auto value = evalExpr(*subscriptExpr.getBaseExpr());
+
+                auto index = evalExpr(*subscriptExpr.getIndexExpr());
+
+                if (index.i32 > static_cast<int>(value.array->size())) {
+                    error(expr.getLocation(), "Array index ", index.i32,
+                          " out of bounds ", value.array->size());
+                }
+
+                return (*value.array)[index.i32];
+            } else {
+                llvm_unreachable("unimplemented");
+            }
+        }
+
+        case ExprKind::ArrayLiteralExpr: {
+            auto& arrayExpr = llvm::cast<ArrayLiteralExpr>(expr);
+            val.array = new std::vector<Value>();
+            auto elems = arrayExpr.getElements();
+            for (auto& element : elems) {
+                auto value = evalExpr(*element);
+                val.array->push_back(value);
+            }
+
+            val.type = arrayExpr.getType();
+            return val;
         }
         case ExprKind::BinaryExpr: {
             auto& binaryExpr = llvm::cast<BinaryExpr>(expr);
@@ -539,6 +601,26 @@ Value jazz::Codegen::evalExpr(const Expr& expr) {
                     val.i64 = 0;
 
                     break;
+                }
+            }
+
+            if (callExpr.getFunctionName().startswith("__builtin")) {
+                auto name = callExpr.getFunctionName();
+
+                if (name == "__builtin_pop") {
+                    auto array = evalExpr(*args[0].getValue());
+                    auto value = array.array->back();
+                    array.array->pop_back();
+                    // auto& arrayTy = llvm::cast<ArrayType>(&array.type);
+
+                    return val;
+                } else if (name == "__builtin_push") {
+                    auto array = evalExpr(*args[0].getValue());
+                    auto value = evalExpr(*args[1].getValue());
+                    array.array->push_back(value);
+                    return val;
+                } else {
+                    error(expr.getLocation(), "Unknown builtin '", name, "'");
                 }
             }
 

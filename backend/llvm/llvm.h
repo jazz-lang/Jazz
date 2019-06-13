@@ -43,7 +43,7 @@ class Value {
         long double f64;
         float f32;
         llvm::StringMap<Value>* tuple_value;
-        ValueArray* array;
+        std::vector<Value>* array;
         std::string* string;
         uint8_t* ptr;
         Value* ref;

@@ -1,19 +1,16 @@
 
-#include "llvm.h"
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/StringSwitch.h>
 #include <llvm/IR/Verifier.h>
-#include "ast/module.h"
 #include <iostream>
+#include "ast/module.h"
+#include "llvm.h"
 
 using namespace jazz;
 
-void ComptimeScope::onScopeEnd() {
-    
-}
+void ComptimeScope::onScopeEnd() {}
 
 void ComptimeScope::clear() {}
-
 
 void Scope::onScopeEnd() {
     for (const Expr* expr : llvm::reverse(deferredExprs)) {
@@ -36,7 +33,8 @@ Codegen::Codegen() : builder(ctx) {
     functions = llvm::StringMap<const FunctionDecl&>();
 }
 
-void Codegen::setLocalValue(Type type, std::string name, llvm::Value* value, const Decl* decl) {
+void Codegen::setLocalValue(Type type, std::string name, llvm::Value* value,
+                            const Decl* decl) {
     scopes.back().addLocalValue(std::move(name), value);
 
     if (type) {
@@ -44,17 +42,17 @@ void Codegen::setLocalValue(Type type, std::string name, llvm::Value* value, con
     }
 }
 
-void Codegen::setComptimeLocalValue(Type type,std::string name,Value value) {
-    comptimeScopes.back().addLocalValue(std::move(name),value);
+void Codegen::setComptimeLocalValue(Type type, std::string name, Value value) {
+    comptimeScopes.back().addLocalValue(std::move(name), value);
 }
 
-Value* Codegen::findComptimeLocal(llvm::StringRef name,const Decl* decl) {
-    Value *value = new Value();
+Value* Codegen::findComptimeLocal(llvm::StringRef name, const Decl* decl) {
+    Value* value = new Value();
     bool found = false;
-    
+
     for (auto& scope : llvm::reverse(comptimeScopes)) {
         auto it = scope.getLocalValues().find(name);
-        
+
         if (it == scope.getLocalValues().end()) continue;
         value = const_cast<Value*>(&it->second);
         found = true;
@@ -65,8 +63,6 @@ Value* Codegen::findComptimeLocal(llvm::StringRef name,const Decl* decl) {
     }
     jazz_assert(decl);
     llvm_unreachable("UNIMPLEMENTED");
-
-
 }
 
 llvm::Value* Codegen::findValue(llvm::StringRef name, const Decl* decl) {
@@ -86,17 +82,19 @@ llvm::Value* Codegen::findValue(llvm::StringRef name, const Decl* decl) {
     for (auto& scope : llvm::reverse(comptimeScopes)) {
         auto it = scope.getLocalValues().find(name);
         if (it == scope.getLocalValues().end()) continue;
-        if (it->second.type.isString() || it->second.type.getName() == "StringRef") {
+        if (it->second.type.isString() ||
+            it->second.type.getName() == "StringRef") {
             value = builder.CreateGlobalStringPtr(*it->second.string);
         } else {
-            value = llvm::dyn_cast<llvm::Value>(comptimeValueToLLVMVal(it->second));
+            value =
+                llvm::dyn_cast<llvm::Value>(comptimeValueToLLVMVal(it->second));
         }
         break;
     }
     if (value) {
         return value;
     }
-    
+
     jazz_assert(decl);
 
     switch (decl->getKind()) {
@@ -104,7 +102,9 @@ llvm::Value* Codegen::findValue(llvm::StringRef name, const Decl* decl) {
             return codegenVarDecl(*llvm::cast<VarDecl>(decl));
 
         case DeclKind::FieldDecl:
-            return codegenMemberAccess(findValue("this", nullptr), llvm::cast<FieldDecl>(decl)->getType(), llvm::cast<FieldDecl>(decl)->getName());
+            return codegenMemberAccess(findValue("this", nullptr),
+                                       llvm::cast<FieldDecl>(decl)->getType(),
+                                       llvm::cast<FieldDecl>(decl)->getName());
 
         case DeclKind::FunctionDecl:
             return getFunctionProto(*llvm::cast<FunctionDecl>(decl));
@@ -139,46 +139,62 @@ llvm::Type* Codegen::getBuiltinType(llvm::StringRef name) {
 llvm::Type* Codegen::toIR(Type type, Position location) {
     switch (type.getKind()) {
         case TypeKind::BasicType: {
-            if (auto* builtinType = getBuiltinType(type.getName())) return builtinType;
+            if (auto* builtinType = getBuiltinType(type.getName()))
+                return builtinType;
 
             auto it = structs.find(type.getRefinedTypeName());
             if (it != structs.end()) return it->second.first;
 
             auto& basicType = llvm::cast<BasicType>(*type);
-            if (auto* enumDecl = llvm::dyn_cast<EnumDecl>(basicType.getDecl())) {
+            if (auto* enumDecl =
+                    llvm::dyn_cast<EnumDecl>(basicType.getDecl())) {
                 return toIR(enumDecl->getUnderlyingType());
             }
 
             return codegenTypeDecl(*basicType.getDecl());
         }
         case TypeKind::ArrayType:
-        
+
             jazz_assert(type.isArrayWithConstantSize(), "unimplemented array");
-            return llvm::ArrayType::get(toIR(type.getElementType(), location), type.getArraySize());
+            return llvm::ArrayType::get(toIR(type.getElementType(), location),
+                                        type.getArraySize());
         case TypeKind::TupleType: {
-            auto elementTypes = map(type.getTupleElements(), [&](const TupleElement& element) { return toIR(element.type); });
+            auto elementTypes =
+                map(type.getTupleElements(), [&](const TupleElement& element) {
+                    return toIR(element.type);
+                });
             return llvm::StructType::get(ctx, elementTypes);
         }
         case TypeKind::FunctionType: {
-            auto paramTypes = map(type.getParamTypes(), [&](Type type) { return toIR(type); });
+            auto paramTypes = map(type.getParamTypes(),
+                                  [&](Type type) { return toIR(type); });
             auto* returnType = toIR(type.getReturnType());
-            return llvm::FunctionType::get(returnType, paramTypes, false)->getPointerTo();
+            return llvm::FunctionType::get(returnType, paramTypes, false)
+                ->getPointerTo();
         }
         case TypeKind::PointerType: {
             if (type.getPointee().isArrayWithRuntimeSize()) {
-                return toIR(BasicType::get("ArrayRef", type.getPointee().getElementType()), location);
+                return toIR(BasicType::get("ArrayRef",
+                                           type.getPointee().getElementType()),
+                            location);
             } else if (type.getPointee().isArrayWithUnknownSize()) {
-                return llvm::PointerType::get(toIR(type.getPointee().getElementType(), location), 0);
+                return llvm::PointerType::get(
+                    toIR(type.getPointee().getElementType(), location), 0);
             }
 
             auto* pointeeType = toIR(type.getPointee(), location);
-            return llvm::PointerType::get(pointeeType->isVoidTy() ? llvm::Type::getInt8Ty(ctx) : pointeeType, 0);
+            return llvm::PointerType::get(pointeeType->isVoidTy()
+                                              ? llvm::Type::getInt8Ty(ctx)
+                                              : pointeeType,
+                                          0);
         }
         case TypeKind::OptionalType:
-            if (type.getWrappedType().isPointerType() || type.getWrappedType().isFunctionType()) {
+            if (type.getWrappedType().isPointerType() ||
+                type.getWrappedType().isFunctionType()) {
                 return toIR(type.getWrappedType());
             }
-            llvm_unreachable("IRGen doesn't support non-pointer optional types yet");
+            llvm_unreachable(
+                "IRGen doesn't support non-pointer optional types yet");
     }
     llvm_unreachable("all cases handled");
 }
@@ -199,13 +215,13 @@ void Codegen::deferEvaluationOf(const Expr& expr) {
     scopes.back().addDeferredExpr(expr);
 }
 
-
 DeinitDecl* Codegen::getDefaultDeinitializer(const TypeDecl& typeDecl) {
     jazz_assert(typeDecl.getDeinitializer() == nullptr);
 
     for (auto& field : typeDecl.getFields()) {
         if (field.getType().getDeinitializer() != nullptr) {
-            auto deinitializer = llvm::make_unique<DeinitDecl>(const_cast<TypeDecl&>(typeDecl), typeDecl.getLocation());
+            auto deinitializer = llvm::make_unique<DeinitDecl>(
+                const_cast<TypeDecl&>(typeDecl), typeDecl.getLocation());
             deinitializer->setBody({});
             helperDecls.push_back(std::move(deinitializer));
             return llvm::cast<DeinitDecl>(helperDecls.back().get());
@@ -215,7 +231,8 @@ DeinitDecl* Codegen::getDefaultDeinitializer(const TypeDecl& typeDecl) {
     return nullptr;
 }
 
-void Codegen::deferDeinitCall(llvm::Value* valueToDeinit, Type type, const Decl* decl) {
+void Codegen::deferDeinitCall(llvm::Value* valueToDeinit, Type type,
+                              const Decl* decl) {
     llvm::Function* proto = nullptr;
 
     if (auto* deinitializer = type.getDeinitializer()) {
@@ -238,11 +255,14 @@ void Codegen::codegenDeferredExprsAndDeinitCallsForReturn() {
     scopes.back().clear();
 }
 
-llvm::AllocaInst* Codegen::createEntryBlockAlloca(Type type, const Decl* decl, llvm::Value* arraySize, const llvm::Twine& name) {
+llvm::AllocaInst* Codegen::createEntryBlockAlloca(Type type, const Decl* decl,
+                                                  llvm::Value* arraySize,
+                                                  const llvm::Twine& name) {
     auto* insertBlock = builder.GetInsertBlock();
     auto* entryBlock = &insertBlock->getParent()->getEntryBlock();
 
-    if (lastAlloca == llvm::BasicBlock::iterator() || lastAlloca->getParent() != entryBlock) {
+    if (lastAlloca == llvm::BasicBlock::iterator() ||
+        lastAlloca->getParent() != entryBlock) {
         if (entryBlock->empty()) {
             builder.SetInsertPoint(entryBlock);
         } else {
@@ -270,9 +290,12 @@ llvm::Value* Codegen::createLoad(llvm::Value* value) {
 llvm::Value* Codegen::codegenAssignmentLHS(const Expr* lhs, const Expr* rhs) {
     if (auto* initDecl = llvm::dyn_cast<InitDecl>(currentDecl)) {
         if (auto* varExpr = llvm::dyn_cast<VarExpr>(lhs)) {
-            if (auto* fieldDecl = llvm::dyn_cast<FieldDecl>(varExpr->getDecl())) {
+            if (auto* fieldDecl =
+                    llvm::dyn_cast<FieldDecl>(varExpr->getDecl())) {
                 if (fieldDecl->getParent() == initDecl->getTypeDecl()) {
-                    return rhs->isUndefinedLiteralExpr() ? nullptr : codegenLvalueExpr(*lhs);
+                    return rhs->isUndefinedLiteralExpr()
+                               ? nullptr
+                               : codegenLvalueExpr(*lhs);
                 }
             }
         }
@@ -282,7 +305,8 @@ llvm::Value* Codegen::codegenAssignmentLHS(const Expr* lhs, const Expr* rhs) {
         if (auto* typeDecl = basicType->getDecl()) {
             if (auto* deinit = typeDecl->getDeinitializer()) {
                 llvm::Value* value = codegenLvalueExpr(*lhs);
-                createDeinitCall(getFunctionProto(*deinit), value, lhs->getType(), typeDecl);
+                createDeinitCall(getFunctionProto(*deinit), value,
+                                 lhs->getType(), typeDecl);
                 return rhs->isUndefinedLiteralExpr() ? nullptr : value;
             }
         }
@@ -291,7 +315,9 @@ llvm::Value* Codegen::codegenAssignmentLHS(const Expr* lhs, const Expr* rhs) {
     return rhs->isUndefinedLiteralExpr() ? nullptr : codegenLvalueExpr(*lhs);
 }
 
-void Codegen::createDeinitCall(llvm::Function* deinit, llvm::Value* valueToDeinit, Type type, const Decl* decl) {
+void Codegen::createDeinitCall(llvm::Function* deinit,
+                               llvm::Value* valueToDeinit, Type type,
+                               const Decl* decl) {
     if (!valueToDeinit->getType()->isPointerTy()) {
         auto* alloca = createEntryBlockAlloca(type, decl);
         builder.CreateStore(valueToDeinit, alloca);
@@ -301,7 +327,8 @@ void Codegen::createDeinitCall(llvm::Function* deinit, llvm::Value* valueToDeini
     builder.CreateCall(deinit, valueToDeinit);
 }
 
-llvm::Type* Codegen::getLLVMTypeForPassing(const TypeDecl& typeDecl, bool isMutating) {
+llvm::Type* Codegen::getLLVMTypeForPassing(const TypeDecl& typeDecl,
+                                           bool isMutating) {
     auto* structType = toIR(typeDecl.getType());
 
     if (!isMutating && typeDecl.passByValue()) {
@@ -311,9 +338,10 @@ llvm::Type* Codegen::getLLVMTypeForPassing(const TypeDecl& typeDecl, bool isMuta
     }
 }
 
-llvm::Value* Codegen::comptimeValueToLLVMVal (const Value& value) {
+llvm::Value* Codegen::comptimeValueToLLVMVal(const Value& value) {
     if (value.type.isString() || value.type.getName() == "StringRef") {
-        return builder.CreateGlobalStringPtr(*value.string,"compile_time_string");
+        return builder.CreateGlobalStringPtr(*value.string,
+                                             "compile_time_string");
     } else if (value.reference) {
         return comptimeValueToLLVMVal(*value.ref);
     } else {
@@ -323,36 +351,39 @@ llvm::Value* Codegen::comptimeValueToLLVMVal (const Value& value) {
 
 llvm::Constant* Codegen::comptimeValueToLLVMValue(const Value& value) {
     auto irtype = toIR(value.type);
-    if (value.type.isInteger() || (value.type.isPointerType() && !value.allocated)) {
-        return llvm::ConstantInt::get(irtype,value.i64);
-    } else if (value.type.isArrayType()) {
+    if (value.type.isInteger() ||
+        (value.type.isPointerType() && !value.allocated)) {
+        return llvm::ConstantInt::get(irtype, value.i64);
+    } else if (value.type.isArrayType() || value.type) {
         std::vector<llvm::Constant*> constants;
-        for (auto& val : value.array->values) {
+        for (auto& val : *value.array) {
             constants.push_back(comptimeValueToLLVMValue(val));
         }
-        return llvm::ConstantArray::get(llvm::ArrayType::get(toIR(value.array->type),value.array->values.size()),constants);
+        return llvm::ConstantArray::get(
+            llvm::ArrayType::get(toIR(value.type), value.array->size()),
+            constants);
     } else if (value.type.isArrayType()) {
         llvm_unreachable("unimplemented");
     } else if (value.type.isBool()) {
-        auto boolean = llvm::APInt(1,(int)value.boolean);
-        return llvm::ConstantInt::get(irtype,boolean);
+        auto boolean = llvm::APInt(1, (int)value.boolean);
+        return llvm::ConstantInt::get(irtype, boolean);
     } else if (value.type.isFloat32() || value.type.isFloat()) {
-        return llvm::ConstantFP::get(llvm::Type::getFloatTy(ctx),value.f32);
+        return llvm::ConstantFP::get(llvm::Type::getFloatTy(ctx), value.f32);
     } else if (value.type.isFloat64()) {
-        return llvm::ConstantFP::get(irtype,value.f64);
+        return llvm::ConstantFP::get(irtype, value.f64);
     } else if (value.allocated && value.type.isPointerType()) {
-        printf("%s\n",value.type.getName().str().c_str());
-        errorExit("can't convert compile-time allocated pointer to llvm constant");
-    } 
-    
-    return llvm::ConstantFP::get(irtype,value.f64);
+        printf("%s\n", value.type.getName().str().c_str());
+        errorExit(
+            "can't convert compile-time allocated pointer to llvm constant");
+    }
+
+    return llvm::ConstantFP::get(irtype, value.f64);
 }
-
-
 
 llvm::Value* Codegen::getFunctionForCall(const CallExpr& call) {
     if (!call.callsNamedFunction()) {
-        error(call.getLocation(), "anonymous function calls not implemented yet");
+        error(call.getLocation(),
+              "anonymous function calls not implemented yet");
     }
 
     const Decl* decl = call.getCalleeDecl();
@@ -370,8 +401,10 @@ llvm::Value* Codegen::getFunctionForCall(const CallExpr& call) {
             return findValue(llvm::cast<ParamDecl>(decl)->getName(), decl);
         case DeclKind::FieldDecl:
             if (call.getReceiver()) {
-                return codegenMemberAccess(codegenLvalueExpr(*call.getReceiver()), llvm::cast<FieldDecl>(decl)->getType(),
-                                           llvm::cast<FieldDecl>(decl)->getName());
+                return codegenMemberAccess(
+                    codegenLvalueExpr(*call.getReceiver()),
+                    llvm::cast<FieldDecl>(decl)->getType(),
+                    llvm::cast<FieldDecl>(decl)->getName());
             } else {
                 return findValue(llvm::cast<FieldDecl>(decl)->getName(), decl);
             }
@@ -382,29 +415,32 @@ llvm::Value* Codegen::getFunctionForCall(const CallExpr& call) {
 
 llvm::Module& Codegen::compile(const Module& sourceModule) {
     jazz_assert(!module);
-    
+
     module = llvm::make_unique<llvm::Module>(sourceModule.getName(), ctx);
-    
+
     for (const auto& sourceFile : sourceModule.getSourceFiles()) {
         for (const auto& decl : sourceFile.getTopLevelDecls()) {
-            
             codegenDecl(*decl);
         }
     }
-
 
     while (true) {
         auto currentFunctionInstantiations = functionInstantiations;
 
         for (auto& p : currentFunctionInstantiations) {
-            if (p.second.getDecl().isExtern() || !p.second.getFunction()->empty()) continue;
+            if (p.second.getDecl().isExtern() ||
+                !p.second.getFunction()->empty())
+                continue;
 
             currentDecl = &p.second.getDecl();
             codegenFunctionBody(p.second.getDecl(), *p.second.getFunction());
-            jazz_assert(!llvm::verifyFunction(*p.second.getFunction(), &llvm::errs()));
+            jazz_assert(
+                !llvm::verifyFunction(*p.second.getFunction(), &llvm::errs()));
         }
 
-        if (functionInstantiations.size() == currentFunctionInstantiations.size()) break;
+        if (functionInstantiations.size() ==
+            currentFunctionInstantiations.size())
+            break;
     }
 
     jazz_assert(!llvm::verifyModule(*module, &llvm::errs()));
