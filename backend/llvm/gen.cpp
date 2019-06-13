@@ -62,7 +62,17 @@ Value* Codegen::findComptimeLocal(llvm::StringRef name, const Decl* decl) {
         return value;
     }
     jazz_assert(decl);
-    llvm_unreachable("UNIMPLEMENTED");
+
+    switch (decl->getKind()) {
+        case DeclKind::VarDecl: {
+            auto& varDecl = llvm::cast<VarDecl>(*decl);
+            setComptimeLocalValue(varDecl.getType(), varDecl.getName(),
+                                  evalExpr(*varDecl.getInitializer()));
+            return findComptimeLocal(varDecl.getName(), nullptr);
+        }
+        default:
+            llvm_unreachable("all cases handled");
+    }
 }
 
 llvm::Value* Codegen::findValue(llvm::StringRef name, const Decl* decl) {

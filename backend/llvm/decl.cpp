@@ -8,7 +8,8 @@
 
 using namespace jazz;
 
-llvm::Function* Codegen::getFunctionProto(const FunctionDecl& decl,llvm::StringMap<Value> comptimeParams) {
+llvm::Function* Codegen::getFunctionProto(
+    const FunctionDecl& decl, llvm::StringMap<Value> comptimeParams) {
     auto mangled = mangleName(decl);
     if (auto* function = module->getFunction(mangled)) return function;
 
@@ -16,38 +17,44 @@ llvm::Function* Codegen::getFunctionProto(const FunctionDecl& decl,llvm::StringM
     llvm::SmallVector<llvm::Type*, 16> paramTypes;
 
     if (decl.isMethodDecl()) {
-        paramTypes.emplace_back(getLLVMTypeForPassing(*decl.getTypeDecl(), decl.isMutating()));
+        paramTypes.emplace_back(
+            getLLVMTypeForPassing(*decl.getTypeDecl(), decl.isMutating()));
     }
 
     for (auto& param : functionType->getParamDecls()) {
-        
         paramTypes.emplace_back(toIR(param.getType()));
-        
     }
 
     auto* returnType = toIR(functionType->getReturnType());
-    if (decl.isMain() && returnType->isVoidTy()) returnType = llvm::Type::getInt32Ty(ctx);
+    if (decl.isMain() && returnType->isVoidTy())
+        returnType = llvm::Type::getInt32Ty(ctx);
 
-    auto* llvmFunctionType = llvm::FunctionType::get(returnType, paramTypes, decl.isVariadic());
-    auto* function = llvm::Function::Create(llvmFunctionType, llvm::Function::ExternalWeakLinkage, mangled, &*module);
+    auto* llvmFunctionType =
+        llvm::FunctionType::get(returnType, paramTypes, decl.isVariadic());
+    auto* function = llvm::Function::Create(llvmFunctionType,
+                                            llvm::Function::ExternalWeakLinkage,
+                                            mangled, &*module);
     if (decl.should_inline) {
         function->addFnAttr(llvm::Attribute::AlwaysInline);
     } else if (decl.no_inline) {
         function->addFnAttr(llvm::Attribute::NoInline);
     }
-    
+
     auto arg = function->arg_begin(), argsEnd = function->arg_end();
     if (decl.isMethodDecl()) arg++->setName("this");
 
     jazz_assert(decl.getParams().size() == size_t(std::distance(arg, argsEnd)));
-    for (auto param = decl.getParams().begin(); arg != argsEnd; ++param, ++arg) {
+    for (auto param = decl.getParams().begin(); arg != argsEnd;
+         ++param, ++arg) {
         if (!param->isCompileTime())
             arg->setName(param->getName());
-        else {}
+        else {
+        }
     }
 
-    functions.try_emplace(std::move(mangled),decl);
-    auto result = functionInstantiations.try_emplace(std::move(mangled), FunctionInstantiation(decl, function));
+    functions.try_emplace(std::move(mangled), decl);
+    auto result = functionInstantiations.try_emplace(
+        std::move(mangled), FunctionInstantiation(decl, function));
     if (result.first->second.getFunction()->getParent() != &*module) {
         return function;
     }
@@ -55,18 +62,21 @@ llvm::Function* Codegen::getFunctionProto(const FunctionDecl& decl,llvm::StringM
     return result.first->second.getFunction();
 }
 
-void Codegen::codegenFunctionBody(const FunctionDecl& decl, llvm::Function& function) {
+void Codegen::codegenFunctionBody(const FunctionDecl& decl,
+                                  llvm::Function& function) {
     builder.SetInsertPoint(llvm::BasicBlock::Create(ctx, "", &function));
     beginScope();
     auto arg = function.arg_begin();
-    if (decl.getTypeDecl() != nullptr) setLocalValue(Type(), "this", &*arg++, nullptr);
+    if (decl.getTypeDecl() != nullptr)
+        setLocalValue(Type(), "this", &*arg++, nullptr);
     for (auto& param : decl.getParams()) {
         setLocalValue(param.getType(), param.getName(), &*arg++, &param);
     }
     if (decl.isDeinitDecl()) {
         for (auto& field : decl.getTypeDecl()->getFields()) {
             if (field.getType().getDeinitializer() == nullptr) continue;
-            auto* fieldValue = codegenMemberAccess(function.arg_begin(), field.getType(), field.getName());
+            auto* fieldValue = codegenMemberAccess(
+                function.arg_begin(), field.getType(), field.getName());
             deferDeinitCall(fieldValue, field.getType(), &field);
         }
     }
@@ -76,16 +86,19 @@ void Codegen::codegenFunctionBody(const FunctionDecl& decl, llvm::Function& func
     endScope();
 
     auto* insertBlock = builder.GetInsertBlock();
-    if (insertBlock != &function.getEntryBlock() && llvm::pred_empty(insertBlock)) {
+    if (insertBlock != &function.getEntryBlock() &&
+        llvm::pred_empty(insertBlock)) {
         insertBlock->eraseFromParent();
         return;
     }
 
-    if (insertBlock->empty() || !llvm::isa<llvm::ReturnInst>(insertBlock->back())) {
+    if (insertBlock->empty() ||
+        !llvm::isa<llvm::ReturnInst>(insertBlock->back())) {
         if (!decl.isMain()) {
             builder.CreateRetVoid();
         } else {
-            builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx), 0));
+            builder.CreateRet(
+                llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx), 0));
         }
     }
 }
@@ -102,7 +115,9 @@ void Codegen::codegenFunctionDecl(const FunctionDecl& decl) {
 }
 
 std::vector<llvm::Type*> Codegen::getFieldTypes(const TypeDecl& decl) {
-    return map(decl.getFields(), [&](const FieldDecl& field) { return toIR(field.getType(), field.getLocation()); });
+    return map(decl.getFields(), [&](const FieldDecl& field) {
+        return toIR(field.getType(), field.getLocation());
+    });
 }
 
 llvm::StructType* Codegen::codegenTypeDecl(const TypeDecl& decl) {
@@ -138,7 +153,8 @@ llvm::StructType* Codegen::codegenTypeDecl(const TypeDecl& decl) {
 
     if (!decl.getFields().empty()) {
         for (llvm::Type* element : structType->elements()) {
-            if (auto* elementStruct = llvm::dyn_cast<llvm::StructType>(element)) {
+            if (auto* elementStruct =
+                    llvm::dyn_cast<llvm::StructType>(element)) {
                 if (elementStruct->isLiteral()) continue;
                 auto it = structs.find(elementStruct->getName());
                 if (it != structs.end()) {
@@ -159,25 +175,31 @@ llvm::StructType* Codegen::codegenTypeDecl(const TypeDecl& decl) {
     }
 
     scopes = std::move(scopesBackup);
-    if (insertBlockBackup) builder.SetInsertPoint(insertBlockBackup, insertPointBackup);
+    if (insertBlockBackup)
+        builder.SetInsertPoint(insertBlockBackup, insertPointBackup);
 
     return structType;
 }
 
 llvm::Value* Codegen::codegenVarDecl(const VarDecl& decl) {
-    if (auto* value = module->getGlobalVariable(decl.getName(), true)) return value;
+    if (auto* value = module->getGlobalVariable(decl.getName(), true))
+        return value;
 
     auto it = globalScope().getLocalValues().find(decl.getName());
     if (it != globalScope().getLocalValues().end()) return it->second;
 
-    auto* value = codegenExpr(*decl.getInitializer());
-
+    llvm::Value* value =
+        decl.getType().isMutable()
+            ? codegenExpr(*decl.getInitializer())
+            : comptimeValueToLLVMValue(evalExpr(*decl.getInitializer()));
     if (decl.getType().isMutable() /* || decl.isPublic() */) {
-        auto linkage = value ? llvm::GlobalValue::WeakAnyLinkage : llvm::GlobalValue::ExternalLinkage;
+        auto linkage = value ? llvm::GlobalValue::WeakAnyLinkage
+                             : llvm::GlobalValue::ExternalLinkage;
         auto initializer = value ? llvm::cast<llvm::Constant>(value) : nullptr;
-        
-        value = new llvm::GlobalVariable(*module, toIR(decl.getType()), !decl.getType().isMutable(), linkage, initializer, decl.getName());
-        
+
+        value = new llvm::GlobalVariable(*module, toIR(decl.getType()),
+                                         !decl.getType().isMutable(), linkage,
+                                         initializer, decl.getName());
     }
 
     globalScope().addLocalValue(decl.getName(), value);
@@ -219,7 +241,7 @@ void Codegen::codegenDecl(const Decl& decl) {
             llvm_unreachable("handled via TypeDecl");
         case DeclKind::ImportDecl:
             break;
-        case DeclKind::LinkDecl: 
+        case DeclKind::LinkDecl:
             break;
     }
 }
