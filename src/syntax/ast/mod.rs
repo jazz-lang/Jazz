@@ -587,7 +587,28 @@ impl fmt::Display for Type
                     "".to_owned()
                 }
             ),
-            Type::Basic(basic) => write!(f, "{}", basic.name),
+            Type::Basic(basic) =>
+            {
+                write!(f, "{}", basic.name)?;
+                if basic.generics.is_empty()
+                {
+                    return Ok(());
+                }
+                else
+                {
+                    write!(f, "<")?;
+                    for (i, t) in basic.generics.iter().enumerate()
+                    {
+                        write!(f, "{}", t)?;
+                        if i != basic.generics.len() - 1
+                        {
+                            write!(f, ",")?;
+                        }
+                    }
+                    write!(f, ">")?;
+                    Ok(())
+                }
+            }
             Type::Struct(struc) =>
             {
                 write!(f, "{}(", str(struc.name))?;
