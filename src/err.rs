@@ -253,21 +253,21 @@ impl Msg
             }
             UnresolvedInternal => "unresolved internal.".into(),
             MisplacedElse => "misplace else.".into(),
-            ExpectedToken(ref exp, ref got) => format!("expected {} but got {}.", exp, got),
+            ExpectedToken(ref exp, ref got) => format!("expected {} but got '{}'.", exp, got),
             NumberOverflow(ref ty) => format!("number does not fit into type {}.", ty),
-            ExpectedClass(ref cls) => format!("expected class name but got {}.", cls),
-            ExpectedFactor(ref got) => format!("factor expected but got {}.", got),
-            ExpectedTrait(ref trt) => format!("expected trait name but got {}.", trt),
-            ExpectedType(ref got) => format!("type expected but got {}.", got),
-            ExpectedIdentifier(ref tok) => format!("identifier expected but got {}.", tok),
+            ExpectedClass(ref cls) => format!("expected class name but got '{}'.", cls),
+            ExpectedFactor(ref got) => format!("factor expected but got '{}'.", got),
+            ExpectedTrait(ref trt) => format!("expected trait name but got '{}'.", trt),
+            ExpectedType(ref got) => format!("type expected but got '{}'.", got),
+            ExpectedIdentifier(ref tok) => format!("identifier expected but got '{}'.", tok),
             MisplacedModifier(ref modifier) => format!("misplaced modifier `{}`.", modifier),
             ExpectedTopLevelElement(ref token) => format!(
-                "expected function,structure,global variable or constexpr but got {}.",
+                "expected function,structure,global variable or comptime but got '{}'.",
                 token
             ),
             ExpectedClassElement(ref token) =>
             {
-                format!("field or method expected but got {}.", token)
+                format!("field or method expected but got '{}'.", token)
             }
             RedundantModifier(ref token) => format!("redundant modifier {}.", token),
             UnknownChar(ch) => format!("unknown character {} (codepoint {}).", ch, ch as usize),
@@ -278,7 +278,10 @@ impl Msg
             IoError => "error reading from file.".into(),
             MissingFctBody => "missing function body.".into(),
             FctCallExpected => format!("function call expected"),
-            ThisOrSuperExpected(ref val) => format!("`self` or `super` expected but got {}.", val),
+            ThisOrSuperExpected(ref val) =>
+            {
+                format!("`self` or `super` expected but got '{}'.", val)
+            }
             NoSuperDelegationWithPrimaryCtor(ref name) => format!(
                 "no `super` delegation allowed for ctor in class {}, because class has \
                  primary ctor.",
@@ -333,7 +336,7 @@ impl Msg
             }
             WrongNumberTypeParams(exp, actual) =>
             {
-                format!("expected {} type parameters but got {}.", exp, actual)
+                format!("expected {} type parameters but got '{}'.", exp, actual)
             }
             ClassExpected(ref name) => format!("`{}` is not a class.", name),
             ClassExpectedAsTypeParam => "class as type parameter expected.".into(),

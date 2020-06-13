@@ -25,14 +25,14 @@ pub extern func pow(x: f64,k: f64) f64;
 
 // stdio.h
 link "jazzstd"
-constexpr SEEK_SET = 0
-constexpr SEEK_CUR = 1
-constexpr SEEK_END = 2
-constexpr BUFSIZ = 2
-constexpr EOF = (-1)
-constexpr FILENAME_MAX = 250
-constexpr FOPEN_MAX = 20
-constexpr TMP_MAX = 32767
+comptime SEEK_SET = 0
+comptime SEEK_CUR = 1
+comptime SEEK_END = 2
+comptime BUFSIZ = 2
+comptime EOF = (-1)
+comptime FILENAME_MAX = 250
+comptime FOPEN_MAX = 20
+comptime TMP_MAX = 32767
 
 pub struct FILE {
 	ptr: *u8,
@@ -54,9 +54,9 @@ pub extern var stdin: *FILE;
 pub extern var stdout: *FILE;
 pub extern var stderr: *FILE;
 
-constexpr STDIN = stdin
-constexpr STDERR = stderr
-constexpr STDOUT = stdout
+comptime STDIN = stdin
+comptime STDERR = stderr
+comptime STDOUT = stdout
 
 pub extern func remove(file: *char) i32;
 pub extern func rename(file: *char,to: *char) i32;
@@ -97,7 +97,7 @@ pub extern func rand() i32;
 pub extern func get_rand_max() i32;
 pub extern func srand(s: i32) void;
 
-constexpr RAND_MAX = get_rand_max()
+comptime RAND_MAX = get_rand_max()
 
 
 

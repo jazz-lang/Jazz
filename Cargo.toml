@@ -6,11 +6,9 @@ edition = "2018"
 
 [dependencies]
 parking_lot = "0.8"
-wrc = "0.4"
 lazy_static = "1.3"
 colored = "1.8"
 structopt = "0.2"
-gccjit-rs = {git = "https://github.com/playXE/gccjit-rs"}
 clap = "2.33"
 linked-hash-map = "0.5"
 

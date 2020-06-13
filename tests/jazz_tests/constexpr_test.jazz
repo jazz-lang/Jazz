@@ -2,8 +2,8 @@
 //  	stdout:42
 
 
-constexpr X = 40
-constexpr Y = 2
+comptime X = 40
+comptime Y = 2
 extern func printf(x: *char,...) void;
 pub func main() i32 {
 	printf("%i\n",X + Y);

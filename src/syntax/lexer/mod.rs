@@ -159,7 +159,7 @@ impl Lexer
         }
 
         let lookup = self.keywords.get(&value[..]).cloned();
-        let mut ttype;
+        let ttype;
 
         if let Some(tok_type) = lookup
         {
@@ -703,7 +703,7 @@ fn keywords_in_map() -> HashMap<&'static str, TokenKind>
     keywords.insert("for", TokenKind::For);
     keywords.insert("union", TokenKind::Union);
     keywords.insert("let", TokenKind::Let);
-    keywords.insert("constexpr", TokenKind::ConstExpr);
+    keywords.insert("comptime", TokenKind::ConstExpr);
     keywords.insert("var", TokenKind::Var);
     keywords.insert("while", TokenKind::While);
     keywords.insert("if", TokenKind::If);
@@ -724,6 +724,7 @@ fn keywords_in_map() -> HashMap<&'static str, TokenKind>
     keywords.insert("type", TokenKind::Type);
     keywords.insert("alias", TokenKind::Alias);
     keywords.insert("struct", TokenKind::Struct);
+    keywords.insert("interface", TokenKind::Interface);
     keywords.insert("sizeof", TokenKind::SizeOf);
     keywords.insert("defer", TokenKind::Defer);
     keywords.insert("lambda", TokenKind::Lambda);

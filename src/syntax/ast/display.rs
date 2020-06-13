@@ -3,8 +3,6 @@ use crate::syntax::lexer::token::IntBase;
 use fmt::Display;
 use std::fmt;
 
-use std::intrinsics::write_bytes;
-
 impl Display for Expr
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.kind) }
@@ -17,7 +15,7 @@ impl Display for ExprKind
         match self
         {
             ExprKind::MacroCall(name, _) => write!(f, "{}!()", name),
-            ExprKind::CompTime(e) => write!(f, "constexpr {}", e),
+            ExprKind::CompTime(e) => write!(f, "comptime {}", e),
             ExprKind::New(val) => write!(f, "new {}", val),
             ExprKind::Int(i, base, _) => match base
             {
@@ -83,6 +81,7 @@ impl Display for StmtKind
     {
         match self
         {
+            StmtKind::Defer(expr) => write!(f, "defer {}", expr),
             StmtKind::CFor(var, cond, then, body) =>
             {
                 write!(f, "for {} {} {} {}", var, cond, then, body)
@@ -112,7 +111,7 @@ impl Display for StmtKind
                 }
                 write!(f, "\n")
             }
-            StmtKind::CompTime(s) => write!(f, "constexpr {}", s),
+            StmtKind::CompTime(s) => write!(f, "comptime {}", s),
             StmtKind::While(cond, body) => write!(f, "while {} \n {{\n {} \n}}", cond, body),
             StmtKind::Loop(body) => write!(f, "{{\n{}\n}}", body),
             StmtKind::Return(ret) =>
@@ -162,13 +161,43 @@ impl Display for Function
         }
         if self.constant
         {
-            write!(f, "constexpr ")?;
+            write!(f, "comptime ")?;
         }
         if self.static_
         {
             write!(f, "static ")?;
         }
-        write!(f, "func {}(", self.name)?;
+        write!(f, "func {}", self.name)?;
+        if self.generics.is_empty()
+        {
+            write!(f, "(")?;
+        }
+        else
+        {
+            write!(f, "<")?;
+            for (i, g) in self.generics.iter().enumerate()
+            {
+                write!(f, "{}", g.0)?;
+                if g.1.is_empty() == false
+                {
+                    write!(f, ": (")?;
+                    for (i, t) in g.1.iter().enumerate()
+                    {
+                        write!(f, "{}", t)?;
+                        if i != g.1.len() - 1
+                        {
+                            write!(f, ",")?;
+                        }
+                    }
+                    write!(f, ")")?;
+                }
+                if i != self.generics.len() - 1
+                {
+                    write!(f, ",")?;
+                }
+            }
+            write!(f, "> (")?;
+        }
         for (i, param) in self.params.iter().enumerate()
         {
             write!(f, "{}: {}", param.0, param.1)?;
@@ -254,7 +283,7 @@ impl Display for Elem
             Elem::Struct(s) => write!(f, "{}", s),
             Elem::Import(s) => write!(f, "import {}", s),
             Elem::Alias(name, ty) => write!(f, "alias {} = {}", name, ty),
-            Elem::ConstExpr { name, expr, .. } => write!(f, "constexpr {} = {}", name, expr),
+            Elem::ConstExpr { name, expr, .. } => write!(f, "comptime {} = {}", name, expr),
             Elem::Global(g) => write!(f, "{}", g),
             Elem::Link(l) => write!(f, "link \"{}\" ", l),
             Elem::Macro(m) => write!(f, "{}", m),

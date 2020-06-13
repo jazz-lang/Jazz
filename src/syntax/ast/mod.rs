@@ -45,6 +45,7 @@ pub enum Elem
     Enum, // todo
     Macro(Macro),
     Global(Global),
+    Interface(Interface),
     Link(Name),
     Import(String),
     ConstExpr
@@ -131,6 +132,16 @@ pub struct Const
 impl PartialEq for Const
 {
     fn eq(&self, other: &Self) -> bool { self.name == other.name }
+}
+#[derive(Clone, Debug)]
+pub struct Interface
+{
+    pub id: NodeId,
+    pub name: Name,
+    pub pos: Position,
+    pub methods: Vec<Function>,
+    pub requires: Vec<Box<Name>>,
+    pub generics: Vec<(Name, Box<Type>)>,
 }
 
 #[derive(Clone, Debug)]
@@ -263,8 +274,6 @@ impl PartialEq for Type
             (Type::Struct(s), Type::Struct(s2)) => (s.fields == s2.fields) && (s.name == s2.name),
             (Type::Void(_), Type::Void(_)) => true,
             (Type::Func(f), Type::Func(f2)) => (f.params == f2.params) && (f.ret == f2.ret),
-            (Type::Struct(s), Type::Basic(b)) => s.name == b.name,
-            (Type::Basic(b), Type::Struct(s)) => s.name == b.name,
             (Type::Vector(v1), Type::Vector(v2)) => v1.subtype == v2.subtype && v1.size == v2.size,
             _ => false,
         }
@@ -292,7 +301,8 @@ pub struct TypeBasic
 {
     pub id: NodeId,
     pub pos: Position,
-    pub name: Name,
+    pub name: Path,
+    pub generics: Vec<Box<Type>>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TypeArray
@@ -352,9 +362,19 @@ impl Type
         }
     }
 
-    pub const fn create_basic(id: NodeId, pos: Position, name: Name) -> Type
+    pub const fn create_basic(
+        id: NodeId,
+        pos: Position,
+        name: Path,
+        generics: Vec<Box<Type>>,
+    ) -> Type
     {
-        Type::Basic(TypeBasic { id, pos, name })
+        Type::Basic(TypeBasic {
+            id,
+            pos,
+            name,
+            generics,
+        })
     }
 
     pub const fn create_struct(
@@ -567,7 +587,7 @@ impl fmt::Display for Type
                     "".to_owned()
                 }
             ),
-            Type::Basic(basic) => write!(f, "{}", str(basic.name)),
+            Type::Basic(basic) => write!(f, "{}", basic.name),
             Type::Struct(struc) =>
             {
                 write!(f, "{}(", str(struc.name))?;
@@ -626,9 +646,9 @@ pub struct Function
     pub static_: bool,
     pub params: Vec<(Name, Box<Type>)>,
     pub ret: Box<Type>,
+    pub generics: Vec<(Name, Vec<Type>)>,
     pub this: Option<(Name, Box<Type>)>,
     pub body: Option<Box<Stmt>>,
-    pub ir_temp_id: usize,
 }
 
 impl Function
@@ -639,6 +659,19 @@ impl Function
         {
             match &mut s.kind
             {
+                StmtKind::Defer(expr) =>
+                {
+                    if expr.id == id
+                    {
+                        expr.kind = to.kind;
+
+                        return true;
+                    }
+                    else
+                    {
+                        false
+                    }
+                }
                 StmtKind::CompTime(s) => replace_stmt(s, id, to),
                 StmtKind::CFor(var, cond, then, body) =>
                 {
@@ -856,7 +889,7 @@ pub enum ExprKind
     ArrayIdx(Box<Expr>, Box<Expr>),
     Deref(Box<Expr>),
     Array(Box<Type>, Vec<Box<Expr>>),
-    GetFunc(Name),
+    GetFunc(Path),
     Null,
     New(Box<Type>),
     Call(Path, Option<Box<Expr>>, Vec<Box<Expr>>),
@@ -886,6 +919,7 @@ pub enum StmtKind
     Return(Option<Box<Expr>>),
     Block(Vec<Box<Stmt>>),
     Expr(Box<Expr>),
+    Defer(Box<Expr>),
     Loop(Box<Stmt>),
     While(Box<Expr>, Box<Stmt>),
     Var(Name, bool, Option<Type>, Option<Box<Expr>>),
@@ -907,7 +941,7 @@ impl StmtKind
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Path
 {
     pub path: Vec<Name>,
@@ -927,6 +961,22 @@ impl Path
     pub fn len(&self) -> usize { self.path.len() }
 
     pub fn is_empty(&self) -> bool { self.len() == 0 }
+}
+
+impl fmt::Display for Path
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
+    {
+        for p in self.path.iter().enumerate()
+        {
+            write!(f, "{}", p.1)?;
+            if p.0 != self.path.len() - 1
+            {
+                write!(f, "::")?;
+            }
+        }
+        Ok(())
+    }
 }
 
 impl Index<usize> for Path

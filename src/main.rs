@@ -32,11 +32,7 @@ fn main() {
 
 use jazz::{
     err::MsgWithPos,
-    gccjit::Codegen,
-    optimize::const_eval,
-    semantic::*,
     syntax::{ast::*, lexer::reader::Reader, parser::*},
-    Context,
 };
 use structopt::StructOpt;
 
@@ -136,7 +132,7 @@ pub struct Options
     pub print_ast: bool,
     #[structopt(
         long = "aggressive-eval",
-        help = "try to evaluate normal (not constexpr) functions too"
+        help = "try to evaluate normal (not comptime) functions too"
     )]
     pub aggressive_eval: bool,
 }
@@ -167,58 +163,9 @@ fn main() -> Result<(), MsgWithPos>
         println!("{}", err.clone().err().unwrap());
         std::process::exit(-1);
     }
-
-    let mut ctx = Context::new(file);
-    ctx.shared = opts.shared;
-    ctx.emit_asm = opts.emit_asm;
-    ctx.emit_obj = opts.emit_obj;
-    ctx.jit = opts.jit;
-    ctx.output = opts
-        .output
-        .map_or(String::new(), |e: PathBuf| e.to_str().unwrap().to_owned());
-    ctx.opt = opts.opt_level;
-    ctx.gimple = opts.emit_gimple;
-    ctx.file.elems.extend(
-        opts.libraries_link
-            .iter()
-            .map(|name| jazz::ast::Elem::Link(jazz::intern(name))),
-    );
-    let mut semantic = SemCheck::new(&mut ctx);
-
-    semantic.run();
-    use jazz::eval::EvalCtx;
-    /*let mut eval = EvalCtx::new(&mut ctx);
-    eval.run();*/
-    if opts.print_ast
+    for elem in file.elems.iter()
     {
-        for elem in ctx.file.elems.iter()
-        {
-            println!("{}", elem);
-        }
+        println!("{}", elem);
     }
-
-    match opts.backend
-    {
-        Backend::CPP =>
-        {
-            use jazz::ast2cpp::Translator;
-            let mut translator = Translator::new(ctx);
-            translator.run();
-        }
-        Backend::GccJIT =>
-        {
-            let mut cgen = Codegen::new(&mut ctx, "JazzModule");
-            for opt in opts.gcc_opts.iter()
-            {
-                cgen.ctx.add_command_line_option(opt);
-            }
-            cgen.compile();
-        }
-        Backend::CraneLift =>
-        {
-            eprintln!("Cranelift backend still unimplemented");
-        }
-    }
-
     Ok(())
 }

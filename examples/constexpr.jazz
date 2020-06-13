@@ -1,4 +1,4 @@
-constexpr TEST = x * 2
+comptime TEST = x * 2
 
 extern func printf(fmt: *char,...) void;
 

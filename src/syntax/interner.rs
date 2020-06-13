@@ -1,6 +1,5 @@
 use parking_lot::Mutex;
-use std::{borrow::Borrow, collections::HashMap, fmt, ops::Deref};
-use wrc::WRC as Arc;
+use std::{borrow::Borrow, collections::HashMap, fmt, ops::Deref, sync::Arc};
 
 lazy_static::lazy_static! {
     pub static ref INTERNER: Mutex<Interner> = Mutex::new(Interner::new());

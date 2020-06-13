@@ -342,7 +342,12 @@ impl<'a> Parser<'a>
             data_type: ty,
         })
     }
-
+    fn parse_interface(&mut self) -> Result<Interface, MsgWithPos>
+    {
+        self.expect_token(TokenKind::Interface)?;
+        let name = self.expect_identifier()?;
+        unimplemented!()
+    }
     fn parse_function_block(&mut self) -> Result<Option<Box<Stmt>>, MsgWithPos>
     {
         if self.token.is(TokenKind::Semicolon)
@@ -913,8 +918,8 @@ impl<'a> Parser<'a>
         else
         {
             unimplemented!()
-            //Err(MsgWithPos::new(self.lexer.reader.path().to_owned(),self.src(),
-            // self.token.pos,Msg::))
+            //Err(MsgWithPos::new(self.lexer.reader.path().to_owned(),self.
+            // src(), self.token.pos,Msg::))
         }
     }
 
@@ -1025,15 +1030,21 @@ impl<'a> Parser<'a>
             None
         };
         let ident = self.expect_identifier()?;
+
+        let generics = if self.token.is(TokenKind::Lt)
+        {
+            self.advance_token()?;
+
+            let temp = self.parse_comma_list(TokenKind::Gt, |parser| parser.parse_generic())?;
+            temp
+        }
+        else
+        {
+            vec![]
+        };
+
         self.expect_token(TokenKind::LParen)?;
 
-        /*let params = self.parse_comma_list(TokenKind::RParen, |p| {
-            let name = self.expect_identifier()?;
-            self.expect_token(TokenKind::Colon);
-            let ty = self.parse_type()?;
-
-            Ok((name,Box::new(ty)))
-        });*/
         let params = {
             let mut data = vec![];
             let mut comma = true;
@@ -1107,10 +1118,24 @@ impl<'a> Parser<'a>
             params,
             variadic,
             body,
-            ir_temp_id: 0,
+            generics,
         })
     }
-
+    fn parse_generic(&mut self) -> Result<(Name, Vec<Type>), MsgWithPos>
+    {
+        let name = self.expect_identifier()?;
+        let c = if self.token.is(TokenKind::Colon)
+        {
+            self.advance_token()?;
+            self.expect_token(TokenKind::LParen)?;
+            self.parse_comma_list(TokenKind::RParen, |parser| parser.parse_type())?
+        }
+        else
+        {
+            vec![]
+        };
+        Ok((name, c))
+    }
     fn parse_if(&mut self) -> StmtResult
     {
         let pos = self.expect_token(TokenKind::If)?.position;
@@ -1151,8 +1176,8 @@ impl<'a> Parser<'a>
             pos,
             kind: StmtKind::If(cond, then_block, else_block),
         }))
-        //Ok(Box::new(Stmt::create_if(self.generate_id(), pos, cond, then_block,
-        // else_block)))
+        //Ok(Box::new(Stmt::create_if(self.generate_id(), pos, cond,
+        // then_block, else_block)))
     }
 
     fn parse_for(&mut self) -> StmtResult
@@ -1308,8 +1333,35 @@ impl<'a> Parser<'a>
                 {
                     return Ok(Type::Void(pos));
                 }
+                let mut path = vec![name];
 
-                Type::create_basic(self.generate_id(), pos, name)
+                while self.token.is(TokenKind::Sep)
+                {
+                    self.advance_token()?;
+                    let ident = self.expect_identifier()?;
+                    path.push(ident);
+                }
+                let generics = if self.token.is(TokenKind::Lt)
+                {
+                    self.advance_token()?;
+
+                    let temp =
+                        self.parse_comma_list(TokenKind::Gt, |parser| parser.parse_type())?;
+                    temp
+                }
+                else
+                {
+                    vec![]
+                };
+                Type::create_basic(
+                    self.generate_id(),
+                    pos,
+                    Path { path },
+                    generics
+                        .iter()
+                        .map(|i| Box::new(i.clone()))
+                        .collect::<Vec<_>>(),
+                )
             }
 
             TokenKind::Mul =>
@@ -1496,12 +1548,19 @@ impl<'a> Parser<'a>
         let pos = self.token.position;
         self.expect_token(TokenKind::Fun)?;
         self.expect_token(TokenKind::BitAnd)?;
-        let ident = self.expect_identifier()?;
+        let pos = self.token.position;
+        let mut path = vec![self.expect_identifier()?];
 
+        while self.token.is(TokenKind::Sep)
+        {
+            self.advance_token()?;
+            let ident = self.expect_identifier()?;
+            path.push(ident);
+        }
         Ok(Box::new(Expr {
             pos,
             id: self.generate_id(),
-            kind: ExprKind::GetFunc(ident),
+            kind: ExprKind::GetFunc(Path { path }),
         }))
     }
 

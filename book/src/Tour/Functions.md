@@ -57,9 +57,9 @@ Constant functions allow performing operations when compiling the code. To turn 
 
 Constant functions limited to numbers, binary and unary operations, variable declaration and constant function calling, if you try to call non-constant function in constant function then constant function will be translated into GIMPLE without compile-time calculating, also if you try to call constant function and parameters not known at compile-time then function compiled into GIMPLE directly too.
 
-To make function constant you need use `constexpr` keyword:
+To make function constant you need use `comptime` keyword:
 ```go
-constexpr func fac(x: i32) i32 {
+comptime func fac(x: i32) i32 {
     if x == 0 {
         return 1;
     } else {

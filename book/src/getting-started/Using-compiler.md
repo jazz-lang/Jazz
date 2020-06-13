@@ -7,7 +7,7 @@ USAGE:
     jazz [FLAGS] [OPTIONS] <file>
 
 FLAGS:
-        --aggressive-eval    try to evaluate normal (not constexpr) functions too
+        --aggressive-eval    try to evaluate normal (not comptime) functions too
         --consteval          Enables constant folding and const function evaluating
         --emit-asm           Print assembly to stdout
         --emit-gimple        Dump GIMPLE to stdout if gccjit backend used
